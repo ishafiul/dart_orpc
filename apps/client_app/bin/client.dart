@@ -11,7 +11,9 @@ Future<void> main(List<String> args) async {
 
   try {
     final user = await client.user.getById(GetUserDto(id: userId));
+    final st = await client.user.status();
     print(jsonEncode(user.toJson()));
+    print(jsonEncode(st.status));
   } on RpcException catch (error) {
     print(
       jsonEncode({

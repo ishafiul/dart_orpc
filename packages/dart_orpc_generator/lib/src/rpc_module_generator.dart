@@ -99,12 +99,13 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
 
     for (final controller in controllerBindings) {
       for (final method in controller.methods) {
+        final inputTypeCode = method.inputTypeCode ?? 'Null';
         buffer
           ..writeln(
-            '    RpcProcedure<${method.inputTypeCode}, ${method.outputTypeCode}>(',
+            '    RpcProcedure<$inputTypeCode, ${method.outputTypeCode}>(',
           )
           ..writeln("      method: '${method.rpcMethod}',")
-          ..writeln('      decodeInput: ${method.inputTypeCode}.fromJson,')
+          ..writeln('      decodeInput: ${_decodeInputExpression(method)},')
           ..writeln('      encodeOutput: (output) => output.toJson(),')
           ..writeln(
             '      handler: (context, input) => ${controller.instanceName}.${method.methodName}(${method.serverInvocationArguments}),',
@@ -148,14 +149,28 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
         ..writeln('  final RpcCaller _caller;');
 
       for (final method in controller.methods) {
+        if (method.hasInput) {
+          buffer
+            ..writeln()
+            ..writeln(
+              '  Future<${method.outputTypeCode}> ${method.methodName}(${method.inputTypeCode!} ${method.inputParameterName!}) {',
+            )
+            ..writeln('    return _caller.call<${method.outputTypeCode}>(')
+            ..writeln("      method: '${method.rpcMethod}',")
+            ..writeln('      input: ${method.inputParameterName!}.toJson(),')
+            ..writeln('      decode: ${method.outputTypeCode}.fromJson,')
+            ..writeln('    );')
+            ..writeln('  }');
+          continue;
+        }
+
         buffer
           ..writeln()
           ..writeln(
-            '  Future<${method.outputTypeCode}> ${method.methodName}(${method.inputTypeCode} ${method.inputParameterName}) {',
+            '  Future<${method.outputTypeCode}> ${method.methodName}() {',
           )
           ..writeln('    return _caller.call<${method.outputTypeCode}>(')
           ..writeln("      method: '${method.rpcMethod}',")
-          ..writeln('      input: ${method.inputParameterName}.toJson(),')
           ..writeln('      decode: ${method.outputTypeCode}.fromJson,')
           ..writeln('    );')
           ..writeln('  }');
@@ -296,14 +311,16 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
         .where((parameter) => _rpcInputChecker.hasAnnotationOfExact(parameter))
         .toList(growable: false);
 
-    if (inputParameters.length != 1) {
+    if (inputParameters.length > 1) {
       throw InvalidGenerationSourceError(
-        'RPC method "$methodName" must declare exactly one @RpcInput parameter.',
+        'RPC method "$methodName" may declare at most one @RpcInput parameter.',
         element: method,
       );
     }
 
-    final inputParameter = inputParameters.single;
+    final inputParameter = inputParameters.isEmpty
+        ? null
+        : inputParameters.single;
     final invocationArguments = <String>[];
 
     for (final parameter in method.formalParameters) {
@@ -318,7 +335,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       }
 
       throw InvalidGenerationSourceError(
-        'RPC method "$methodName" only supports RpcContext and one @RpcInput parameter.',
+        'RPC method "$methodName" only supports an optional RpcContext and at most one @RpcInput parameter.',
         element: parameter,
       );
     }
@@ -331,11 +348,20 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
     return _ResolvedMethod(
       methodName: methodName,
       rpcMethod: '$namespace.$wireName',
-      inputTypeCode: inputParameter.type.getDisplayString(),
-      inputParameterName: inputParameter.displayName,
+      hasInput: inputParameter != null,
+      inputTypeCode: inputParameter?.type.getDisplayString(),
+      inputParameterName: inputParameter?.displayName,
       outputTypeCode: outputType.getDisplayString(),
       serverInvocationArguments: invocationArguments.join(', '),
     );
+  }
+
+  String _decodeInputExpression(_ResolvedMethod method) {
+    if (method.hasInput) {
+      return '${method.inputTypeCode!}.fromJson';
+    }
+
+    return '(rawInput) => expectNoRpcInput(rawInput, context: \'RPC method "${method.rpcMethod}"\')';
   }
 
   _ResolvedInstantiation? _tryBuildInstantiation(
@@ -495,16 +521,18 @@ final class _ResolvedMethod {
   const _ResolvedMethod({
     required this.methodName,
     required this.rpcMethod,
-    required this.inputTypeCode,
-    required this.inputParameterName,
+    required this.hasInput,
+    this.inputTypeCode,
+    this.inputParameterName,
     required this.outputTypeCode,
     required this.serverInvocationArguments,
   });
 
   final String methodName;
   final String rpcMethod;
-  final String inputTypeCode;
-  final String inputParameterName;
+  final bool hasInput;
+  final String? inputTypeCode;
+  final String? inputParameterName;
   final String outputTypeCode;
   final String serverInvocationArguments;
 }

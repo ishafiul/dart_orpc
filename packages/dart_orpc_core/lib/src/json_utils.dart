@@ -14,6 +14,18 @@ JsonObject expectJsonObject(Object? value, {required String context}) {
   throw RpcException.badRequest('$context must be a JSON object.');
 }
 
+Null expectNoRpcInput(Object? value, {required String context}) {
+  if (value == null) {
+    return null;
+  }
+
+  if (value is Map && value.isEmpty) {
+    return null;
+  }
+
+  throw RpcException.badRequest('$context does not accept input.');
+}
+
 String expectStringField(
   JsonObject json,
   String field, {

@@ -44,6 +44,11 @@ final class UserController {
   ) async {
     return userService.getById(input.id);
   }
+
+  @RpcMethod(name: 'status')
+  UserStatusDto status() {
+    return const UserStatusDto(status: 'ready');
+  }
 }
 
 final class GetUserDto {
@@ -77,6 +82,21 @@ final class UserResponseDto {
 
   JsonObject toJson() => {'id': id, 'name': name};
 }
+
+final class UserStatusDto {
+  const UserStatusDto({required this.status});
+
+  factory UserStatusDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'UserStatusDto');
+    return UserStatusDto(
+      status: expectStringField(object, 'status', nonEmpty: true),
+    );
+  }
+
+  final String status;
+
+  JsonObject toJson() => {'status': status};
+}
 ''',
           },
           rootPackage: 'a',
@@ -88,23 +108,31 @@ final class UserResponseDto {
           result.outputs,
           contains(AssetId('a', 'lib/example.dart_orpc.g.part')),
         );
-        expect(
-          readerWriter.testing.readString(
-            AssetId(
-              'a',
-              '.dart_tool/build/generated/a/lib/example.dart_orpc.g.part',
-            ),
-          ),
-          allOf(
-            contains(
-              'RpcProcedureRegistry _\$createAppModuleProcedureRegistry() {',
-            ),
-            contains("method: 'user.getById',"),
-            contains('RpcHttpApp _\$buildAppModuleRpcApp() {'),
-            contains('class AppClient {'),
-            contains('late final UserClient user = UserClient(_caller);'),
+        final generatedOutput = readerWriter.testing.readString(
+          AssetId(
+            'a',
+            '.dart_tool/build/generated/a/lib/example.dart_orpc.g.part',
           ),
         );
+        expect(
+          generatedOutput,
+          contains(
+            'RpcProcedureRegistry _\$createAppModuleProcedureRegistry() {',
+          ),
+        );
+        expect(generatedOutput, contains("method: 'user.getById',"));
+        expect(generatedOutput, contains("method: 'user.status',"));
+        expect(generatedOutput, contains('RpcProcedure<Null, UserStatusDto>('));
+        expect(
+          generatedOutput,
+          contains('RpcHttpApp _\$buildAppModuleRpcApp() {'),
+        );
+        expect(generatedOutput, contains('class AppClient {'));
+        expect(
+          generatedOutput,
+          contains('late final UserClient user = UserClient(_caller);'),
+        );
+        expect(generatedOutput, contains('Future<UserStatusDto> status() {'));
       },
     );
 

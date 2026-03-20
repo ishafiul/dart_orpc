@@ -13,4 +13,9 @@ final class UserController {
   Future<UserResponseDto> getById(RpcContext _, @RpcInput() GetUserDto input) {
     return userService.getById(input.id);
   }
+
+  @RpcMethod(name: 'status')
+  Future<UserStatusDto> status() {
+    return userService.status();
+  }
 }

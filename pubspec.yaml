@@ -31,3 +31,6 @@ melos:
     format:
       description: Format the repository.
       run: dart format .
+    serve:basic-app:
+      description: Run the basic_app RPC server and keep it running.
+      run: dart run apps/basic_app/bin/server.dart

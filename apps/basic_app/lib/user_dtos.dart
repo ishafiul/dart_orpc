@@ -29,3 +29,17 @@ final class UserResponseDto {
 
   JsonObject toJson() => {'id': id, 'name': name};
 }
+
+final class UserStatusDto {
+  const UserStatusDto({required this.status});
+
+  factory UserStatusDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'UserStatusDto');
+    final status = expectStringField(object, 'status', nonEmpty: true);
+    return UserStatusDto(status: status);
+  }
+
+  final String status;
+
+  JsonObject toJson() => {'status': status};
+}

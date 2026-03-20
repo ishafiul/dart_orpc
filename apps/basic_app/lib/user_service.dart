@@ -16,4 +16,8 @@ final class UserService {
 
     return user;
   }
+
+  Future<UserStatusDto> status() async {
+    return const UserStatusDto(status: 'ready');
+  }
 }

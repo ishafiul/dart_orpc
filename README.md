@@ -77,6 +77,7 @@ dart pub get
 melos run analyze
 melos test
 melos run format
+melos run serve:basic-app
 ```
 
 ## Source of Truth

@@ -33,6 +33,34 @@ void main() {
     );
 
     test(
+      'When expectNoRpcInput receives null or an empty object then it accepts the payload',
+      () {
+        expect(expectNoRpcInput(null, context: 'health.check'), isNull);
+        expect(expectNoRpcInput(const {}, context: 'health.check'), isNull);
+      },
+    );
+
+    test(
+      'When expectNoRpcInput receives a non-empty payload then it throws bad request',
+      () {
+        expect(
+          () => expectNoRpcInput({
+            'unexpected': true,
+          }, context: 'RPC method "health.check"'),
+          throwsA(
+            isA<RpcException>()
+                .having((error) => error.code, 'code', RpcErrorCode.badRequest)
+                .having(
+                  (error) => error.message,
+                  'message',
+                  'RPC method "health.check" does not accept input.',
+                ),
+          ),
+        );
+      },
+    );
+
+    test(
       'When expectStringField requires a non-empty value then it rejects blanks',
       () {
         expect(

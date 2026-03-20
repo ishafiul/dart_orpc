@@ -20,6 +20,23 @@ void main() {
       expect(user.name, 'Ada Lovelace');
     },
   );
+
+  test(
+    'generated AppClient supports zero-input RPC methods without a placeholder DTO',
+    () async {
+      final transport = _RecordingTransport(
+        const UserStatusDto(status: 'ready').toJson(),
+      );
+      final client = AppClient(transport: transport);
+
+      final status = await client.user.status();
+
+      expect(transport.lastRequest, isNotNull);
+      expect(transport.lastRequest!.method, 'user.status');
+      expect(transport.lastRequest!.input, isNull);
+      expect(status.status, 'ready');
+    },
+  );
 }
 
 final class _RecordingTransport implements RpcTransport {

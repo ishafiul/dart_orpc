@@ -18,6 +18,13 @@ RpcProcedureRegistry _$createAppModuleProcedureRegistry() {
       encodeOutput: (output) => output.toJson(),
       handler: (context, input) => userController.getById(context, input),
     ),
+    RpcProcedure<Null, UserStatusDto>(
+      method: 'user.status',
+      decodeInput: (rawInput) =>
+          expectNoRpcInput(rawInput, context: 'RPC method "user.status"'),
+      encodeOutput: (output) => output.toJson(),
+      handler: (context, input) => userController.status(),
+    ),
   ]);
 }
 
@@ -43,6 +50,13 @@ class UserClient {
       method: 'user.getById',
       input: input.toJson(),
       decode: UserResponseDto.fromJson,
+    );
+  }
+
+  Future<UserStatusDto> status() {
+    return _caller.call<UserStatusDto>(
+      method: 'user.status',
+      decode: UserStatusDto.fromJson,
     );
   }
 }

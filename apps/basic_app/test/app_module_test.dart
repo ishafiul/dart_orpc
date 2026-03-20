@@ -16,4 +16,18 @@ void main() {
       expect(response, {'id': '1', 'name': 'Ada Lovelace'});
     },
   );
+
+  test(
+    'generated module registry dispatches a zero-input RPC method',
+    () async {
+      final app = buildBasicApp();
+
+      final response = await app.procedures.dispatch(
+        const RpcContext(headers: {}),
+        const RpcRequest(method: 'user.status'),
+      );
+
+      expect(response, {'status': 'ready'});
+    },
+  );
 }

@@ -31,6 +31,7 @@ void main() {
         expect(method.name, 'getById');
         expect(inputAnnotation, isA<RpcInput>());
         expect(context.headers['x-trace-id'], 'trace-1');
+        expect(expectNoRpcInput(null, context: 'health.check'), isNull);
         expect(request.toJson(), {
           'method': 'user.getById',
           'input': {'id': '1'},
