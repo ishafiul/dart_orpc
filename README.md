@@ -23,6 +23,8 @@ This repository is a Melos-managed Dart workspace with:
   Pure-Dart `dart:io` HTTP adapter for exposing `POST /rpc`.
 - `packages/dart_orpc_client`
   Client transport and calling primitives.
+- `packages/dart_orpc_cli`
+  CLI tooling for local `serve` and `watch` workflows.
 - `packages/dart_orpc_generator`
   `build_runner` / `source_gen` code generation for server wiring and typed Dart clients.
 - `apps/basic_app`
@@ -77,8 +79,32 @@ dart pub get
 melos run analyze
 melos test
 melos run format
+melos run dev:basic-app
 melos run serve:basic-app
 ```
+
+Direct CLI usage:
+
+```sh
+dart run dart_orpc_cli:dart_orpc serve --project apps/basic_app
+dart run dart_orpc_cli:dart_orpc watch --project apps/basic_app
+```
+
+`watch` watches the app plus workspace packages, reruns `build_runner` for the
+app, and restarts the server after relevant changes.
+
+Global install from this repo:
+
+```sh
+dart pub global activate --source path packages/dart_orpc_cli
+cd /path/to/dart_orpc_app
+dart_orpc serve
+dart_orpc watch
+```
+
+`serve` and `watch` refuse to run unless the target directory is a valid
+`dart_orpc` app. `watch` also requires `build_runner` and
+`dart_orpc_generator` in the target app so code generation can run.
 
 ## Source of Truth
 

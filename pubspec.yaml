@@ -7,6 +7,7 @@ environment:
 workspace:
   - packages/dart_orpc
   - packages/dart_orpc_annotations
+  - packages/dart_orpc_cli
   - packages/dart_orpc_core
   - packages/dart_orpc_client
   - packages/dart_orpc_generator
@@ -33,4 +34,10 @@ melos:
       run: dart format .
     serve:basic-app:
       description: Run the basic_app RPC server and keep it running.
-      run: dart run apps/basic_app/bin/server.dart
+      run: dart run dart_orpc_cli:dart_orpc serve --project apps/basic_app
+    dev:basic-app:
+      description: Watch the workspace, regenerate basic_app code, and restart the server.
+      run: dart run dart_orpc_cli:dart_orpc watch --project apps/basic_app
+    run:client-app:
+      description: Run the example client against the basic_app server.
+      run: dart run apps/client_app/bin/client.dart
