@@ -1,0 +1,17 @@
+name: dart_orpc
+description: Public facade package for the dart_orpc runtime APIs.
+version: 0.1.0-dev.1
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  dart_orpc_annotations: ^0.1.0-dev.1
+  dart_orpc_client: ^0.1.0-dev.1
+  dart_orpc_core: ^0.1.0-dev.1
+  dart_orpc_http: ^0.1.0-dev.1
+
+dev_dependencies:
+  test: ^1.26.3

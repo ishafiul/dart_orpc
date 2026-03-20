@@ -1,0 +1,14 @@
+name: dart_orpc_http
+description: Pure-Dart HTTP transport adapter for dart_orpc.
+version: 0.1.0-dev.1
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  dart_orpc_core: ^0.1.0-dev.1
+
+dev_dependencies:
+  test: ^1.26.3

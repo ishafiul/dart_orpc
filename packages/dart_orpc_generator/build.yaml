@@ -1,0 +1,8 @@
+builders:
+  dart_orpc:
+    import: "package:dart_orpc_generator/dart_orpc_generator.dart"
+    builder_factories: ["dartOrpcBuilder"]
+    build_extensions: {".dart": [".dart_orpc.g.part"]}
+    auto_apply: dependents
+    build_to: cache
+    applies_builders: ["source_gen|combining_builder"]

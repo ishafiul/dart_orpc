@@ -1,0 +1,16 @@
+name: dart_orpc_client
+description: Client transport and calling primitives for dart_orpc.
+version: 0.1.0-dev.1
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  dart_orpc_core: ^0.1.0-dev.1
+  http: ^1.6.0
+
+dev_dependencies:
+  test: ^1.26.3
+

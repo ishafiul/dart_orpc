@@ -1,0 +1,11 @@
+.dart_tool/
+.packages
+build/
+pubspec.lock
+.melos_tool/
+.agent-memory/  
+.asdf/
+.vscode/
+.idea/
+.dart_home/
+tools

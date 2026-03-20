@@ -1,0 +1,11 @@
+name: client_app
+description: Example client app for exercising the basic dart_orpc server.
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  basic_app: ^0.1.0-dev.1
+  dart_orpc: ^0.1.0-dev.1

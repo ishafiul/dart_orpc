@@ -1,0 +1,141 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:dart_orpc_core/dart_orpc_core.dart';
+import 'package:dart_orpc_http/dart_orpc_http.dart';
+import 'package:test/test.dart';
+
+void main() {
+  group('Given a running RpcHttpApp', () {
+    late HttpServer server;
+    late Uri baseUri;
+
+    setUp(() async {
+      final app = RpcHttpApp(
+        procedures: RpcProcedureRegistry([
+          RpcProcedure<JsonObject, JsonObject>(
+            method: 'meta.echo',
+            decodeInput: (rawInput) =>
+                expectJsonObject(rawInput, context: 'meta.echo input'),
+            encodeOutput: (output) => output,
+            handler: (context, input) async {
+              return {
+                'httpMethod': context.httpMethod,
+                'path': context.path,
+                'traceId': context.headers['x-trace-id'],
+                'input': input,
+              };
+            },
+          ),
+        ]),
+      );
+
+      server = await app.listen(
+        0,
+        hostname: InternetAddress.loopbackIPv4.address,
+      );
+      baseUri = Uri.parse('http://${server.address.address}:${server.port}');
+    });
+
+    tearDown(() async {
+      await server.close(force: true);
+    });
+
+    test(
+      'When POSTing to /rpc then it returns the RPC success envelope',
+      () async {
+        final response = await _send(
+          baseUri.resolve('/rpc'),
+          method: 'POST',
+          headers: const {'x-trace-id': 'trace-1'},
+          body: jsonEncode({
+            'method': 'meta.echo',
+            'input': {'id': '1'},
+          }),
+        );
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(
+          response.headers.value('content-type'),
+          contains('application/json'),
+        );
+        expect(jsonDecode(response.body), {
+          'data': {
+            'httpMethod': 'POST',
+            'path': '/rpc',
+            'traceId': 'trace-1',
+            'input': {'id': '1'},
+          },
+        });
+      },
+    );
+
+    test(
+      'When sending a non-POST request to /rpc then it returns method not allowed',
+      () async {
+        final response = await _send(baseUri.resolve('/rpc'), method: 'GET');
+
+        expect(response.statusCode, HttpStatus.methodNotAllowed);
+        expect(response.headers.value('allow'), 'POST');
+        expect(jsonDecode(response.body), {
+          'error': {
+            'code': 'BAD_REQUEST',
+            'message': 'RPC endpoint only accepts POST requests.',
+          },
+        });
+      },
+    );
+
+    test(
+      'When requesting a non-RPC path then it returns a plain 404 response',
+      () async {
+        final response = await _send(
+          baseUri.resolve('/missing'),
+          method: 'POST',
+        );
+
+        expect(response.statusCode, HttpStatus.notFound);
+        expect(response.body, 'Not Found');
+      },
+    );
+  });
+}
+
+Future<_HttpResponseData> _send(
+  Uri uri, {
+  required String method,
+  Map<String, String> headers = const {},
+  String body = '',
+}) async {
+  final client = HttpClient();
+  try {
+    final request = await client.openUrl(method, uri);
+    headers.forEach(request.headers.set);
+    if (body.isNotEmpty) {
+      request.headers.set('content-type', 'application/json; charset=utf-8');
+      request.write(body);
+    }
+
+    final response = await request.close();
+    final responseBody = await utf8.decoder.bind(response).join();
+    return _HttpResponseData(
+      statusCode: response.statusCode,
+      headers: response.headers,
+      body: responseBody,
+    );
+  } finally {
+    client.close(force: true);
+  }
+}
+
+final class _HttpResponseData {
+  const _HttpResponseData({
+    required this.statusCode,
+    required this.headers,
+    required this.body,
+  });
+
+  final int statusCode;
+  final HttpHeaders headers;
+  final String body;
+}

@@ -1,0 +1,11 @@
+name: dart_orpc_annotations
+description: Public annotations for dart_orpc code generation.
+version: 0.1.0-dev.1
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dev_dependencies:
+  test: ^1.26.3

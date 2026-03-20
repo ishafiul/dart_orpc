@@ -1,0 +1,33 @@
+name: dart_orpc_workspace
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+
+workspace:
+  - packages/dart_orpc
+  - packages/dart_orpc_annotations
+  - packages/dart_orpc_core
+  - packages/dart_orpc_client
+  - packages/dart_orpc_generator
+  - packages/dart_orpc_http
+  - apps/basic_app
+  - apps/client_app
+
+dev_dependencies:
+  melos: ^7.0.0
+
+melos:
+  packages:
+    - packages/**
+    - apps/**
+  scripts:
+    analyze:
+      description: Analyze the whole workspace.
+      run: dart analyze
+    test:
+      description: Run tests in workspace packages that define them.
+      run: melos exec --fail-fast --dir-exists=test -- dart test
+    format:
+      description: Format the repository.
+      run: dart format .
