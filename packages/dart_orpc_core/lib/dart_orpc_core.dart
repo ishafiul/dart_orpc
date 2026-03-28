@@ -1,6 +1,7 @@
 library dart_orpc_core;
 
 export 'src/json_utils.dart';
+export 'src/procedure_metadata.dart';
 export 'src/rpc_context.dart';
 export 'src/rpc_error_code.dart';
 export 'src/rpc_exception.dart';

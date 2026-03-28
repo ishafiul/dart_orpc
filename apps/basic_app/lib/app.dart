@@ -12,3 +12,6 @@ final class AppModule {
 }
 
 RpcHttpApp buildBasicApp() => _$buildAppModuleRpcApp();
+
+ProcedureMetadataRegistry buildBasicAppProcedureMetadata() =>
+    _$createAppModuleProcedureMetadataRegistry();

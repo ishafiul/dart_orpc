@@ -17,6 +17,18 @@ final class UserService {
     return user;
   }
 
+  Future<UserResponseDto> getByIdForRest({
+    required String id,
+    String? include,
+  }) async {
+    final user = await getById(id);
+    if (include == 'compact') {
+      return user.copyWith(name: user.name.split(' ').first);
+    }
+
+    return user;
+  }
+
   Future<UserStatusDto> status() async {
     return const UserStatusDto(status: 'ready');
   }

@@ -42,8 +42,95 @@ RpcProcedureRegistry _$createAppModuleProcedureRegistry() {
   ]);
 }
 
+RestRouteRegistry _$createAppModuleRestRouteRegistry() {
+  final userService = UserService();
+
+  final userController = UserController(userService);
+
+  return RestRouteRegistry([
+    RestRoute(
+      method: 'GET',
+      path: '/users/:id',
+      handler: (context, request, pathParameters) async {
+        final id = decodeRestScalarParameter<String>(
+          rawValue: pathParameters['id'],
+          source: 'path parameter',
+          name: 'id',
+          route: 'GET /users/:id',
+        );
+        final view = decodeRestScalarParameter<String?>(
+          rawValue: request.queryParameters['include'],
+          source: 'query parameter',
+          name: 'include',
+          route: 'GET /users/:id',
+        );
+        final output = await userController.getByIdRest(id, view);
+        return ((output) => encodeRpcOutputWithLuthor<UserResponseDto>(
+          output: output,
+          method: 'user.getByIdRest',
+          toJson: (output) => output.toJson(),
+          validate: $UserResponseDtoValidate,
+        ))(output);
+      },
+    ),
+  ]);
+}
+
+// ignore: unused_element
+ProcedureMetadataRegistry _$createAppModuleProcedureMetadataRegistry() {
+  return ProcedureMetadataRegistry([
+    const ProcedureMetadata(
+      rpcMethod: 'user.getById',
+      controllerNamespace: 'user',
+      methodName: 'getById',
+      inputTypeCode: 'GetUserDto',
+      outputTypeCode: 'UserResponseDto',
+      parameters: [
+        ProcedureParameterMetadata(
+          parameterName: 'input',
+          wireName: 'input',
+          source: ProcedureParameterSourceKind.rpcInput,
+          typeCode: 'GetUserDto',
+        ),
+      ],
+    ),
+    const ProcedureMetadata(
+      rpcMethod: 'user.getByIdRest',
+      controllerNamespace: 'user',
+      methodName: 'getByIdRest',
+      path: RestProcedureMetadata(method: 'GET', path: '/users/:id'),
+      outputTypeCode: 'UserResponseDto',
+      description: 'Resolve a user by id from the REST-style example route.',
+      tags: ['user', 'example'],
+      parameters: [
+        ProcedureParameterMetadata(
+          parameterName: 'id',
+          wireName: 'id',
+          source: ProcedureParameterSourceKind.path,
+          typeCode: 'String',
+        ),
+        ProcedureParameterMetadata(
+          parameterName: 'view',
+          wireName: 'include',
+          source: ProcedureParameterSourceKind.query,
+          typeCode: 'String?',
+        ),
+      ],
+    ),
+    const ProcedureMetadata(
+      rpcMethod: 'user.status',
+      controllerNamespace: 'user',
+      methodName: 'status',
+      outputTypeCode: 'UserStatusDto',
+    ),
+  ]);
+}
+
 RpcHttpApp _$buildAppModuleRpcApp() {
-  return RpcHttpApp(procedures: _$createAppModuleProcedureRegistry());
+  return RpcHttpApp(
+    procedures: _$createAppModuleProcedureRegistry(),
+    restRoutes: _$createAppModuleRestRouteRegistry(),
+  );
 }
 
 class AppClient {

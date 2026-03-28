@@ -7,11 +7,18 @@ import 'package:dart_orpc_core/dart_orpc_core.dart';
 import 'rpc_http_handler.dart';
 
 final class RpcHttpApp {
-  RpcHttpApp({required RpcProcedureRegistry procedures})
-    : procedures = procedures,
-      handler = createRpcHttpHandler(procedures: procedures);
+  RpcHttpApp({
+    required RpcProcedureRegistry procedures,
+    RestRouteRegistry? restRoutes,
+  }) : procedures = procedures,
+       restRoutes = restRoutes ?? RestRouteRegistry(const []),
+       handler = createRpcHttpHandler(
+         procedures: procedures,
+         restRoutes: restRoutes,
+       );
 
   final RpcProcedureRegistry procedures;
+  final RestRouteRegistry restRoutes;
   final RpcHttpHandler handler;
 
   Future<HttpServer> listen(int port, {String hostname = '0.0.0.0'}) async {
@@ -33,6 +40,7 @@ final class RpcHttpApp {
           method: request.method,
           path: request.uri.path.isEmpty ? '/' : request.uri.path,
           headers: _flattenHeaders(request.headers),
+          queryParameters: request.uri.queryParameters,
           body: await utf8.decoder.bind(request).join(),
         ),
       );
