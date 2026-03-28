@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:basic_app/basic_app.dart';
@@ -52,6 +53,38 @@ void main() {
                 ),
           ),
         );
+      },
+    );
+
+    test(
+      'When raw RPC input fails Luthor validation then the server returns a bad request with the validation message',
+      () async {
+        final httpClient = HttpClient();
+        addTearDown(httpClient.close);
+
+        final request = await httpClient.post(
+          server.address.address,
+          server.port,
+          '/rpc',
+        );
+        request.headers.contentType = ContentType.json;
+        request.write(
+          jsonEncode({
+            'method': 'user.getById',
+            'input': {'id': ''},
+          }),
+        );
+
+        final response = await request.close();
+        final body =
+            jsonDecode(await utf8.decoder.bind(response).join()) as Map;
+
+        expect(response.statusCode, HttpStatus.badRequest);
+        expect(body['error'], {
+          'code': 'BAD_REQUEST',
+          'message':
+              'Invalid RPC input for "user.getById": id: id must be at least 1 character long',
+        });
       },
     );
   });

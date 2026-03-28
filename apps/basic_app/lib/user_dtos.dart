@@ -1,45 +1,36 @@
 import 'package:dart_orpc/dart_orpc.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-final class GetUserDto {
-  const GetUserDto({required this.id});
+part 'user_dtos.freezed.dart';
+part 'user_dtos.g.dart';
 
-  factory GetUserDto.fromJson(Object? json) {
-    final object = expectJsonObject(json, context: 'GetUserDto');
-    final id = expectStringField(object, 'id', nonEmpty: true);
-    return GetUserDto(id: id);
-  }
+@luthor
+@freezed
+abstract class GetUserDto with _$GetUserDto {
+  const factory GetUserDto({@HasMin(1) required String id}) = _GetUserDto;
 
-  final String id;
-
-  JsonObject toJson() => {'id': id};
+  factory GetUserDto.fromJson(Map<String, dynamic> json) =>
+      _$GetUserDtoFromJson(json);
 }
 
-final class UserResponseDto {
-  const UserResponseDto({required this.id, required this.name});
+@luthor
+@freezed
+abstract class UserResponseDto with _$UserResponseDto {
+  const factory UserResponseDto({
+    @HasMin(1) required String id,
+    @HasMin(1) required String name,
+  }) = _UserResponseDto;
 
-  factory UserResponseDto.fromJson(Object? json) {
-    final object = expectJsonObject(json, context: 'UserResponseDto');
-    final id = expectStringField(object, 'id', nonEmpty: true);
-    final name = expectStringField(object, 'name', nonEmpty: true);
-    return UserResponseDto(id: id, name: name);
-  }
-
-  final String id;
-  final String name;
-
-  JsonObject toJson() => {'id': id, 'name': name};
+  factory UserResponseDto.fromJson(Map<String, dynamic> json) =>
+      _$UserResponseDtoFromJson(json);
 }
 
-final class UserStatusDto {
-  const UserStatusDto({required this.status});
+@luthor
+@freezed
+abstract class UserStatusDto with _$UserStatusDto {
+  const factory UserStatusDto({@HasMin(1) required String status}) =
+      _UserStatusDto;
 
-  factory UserStatusDto.fromJson(Object? json) {
-    final object = expectJsonObject(json, context: 'UserStatusDto');
-    final status = expectStringField(object, 'status', nonEmpty: true);
-    return UserStatusDto(status: status);
-  }
-
-  final String status;
-
-  JsonObject toJson() => {'status': status};
+  factory UserStatusDto.fromJson(Map<String, dynamic> json) =>
+      _$UserStatusDtoFromJson(json);
 }

@@ -14,15 +14,29 @@ RpcProcedureRegistry _$createAppModuleProcedureRegistry() {
   return RpcProcedureRegistry([
     RpcProcedure<GetUserDto, UserResponseDto>(
       method: 'user.getById',
-      decodeInput: GetUserDto.fromJson,
-      encodeOutput: (output) => output.toJson(),
+      decodeInput: (rawInput) => decodeRpcInputWithLuthor<GetUserDto>(
+        rawInput: rawInput,
+        method: 'user.getById',
+        validate: $GetUserDtoValidate,
+      ),
+      encodeOutput: (output) => encodeRpcOutputWithLuthor<UserResponseDto>(
+        output: output,
+        method: 'user.getById',
+        toJson: (output) => output.toJson(),
+        validate: $UserResponseDtoValidate,
+      ),
       handler: (context, input) => userController.getById(context, input),
     ),
     RpcProcedure<Null, UserStatusDto>(
       method: 'user.status',
       decodeInput: (rawInput) =>
           expectNoRpcInput(rawInput, context: 'RPC method "user.status"'),
-      encodeOutput: (output) => output.toJson(),
+      encodeOutput: (output) => encodeRpcOutputWithLuthor<UserStatusDto>(
+        output: output,
+        method: 'user.status',
+        toJson: (output) => output.toJson(),
+        validate: $UserStatusDtoValidate,
+      ),
       handler: (context, input) => userController.status(),
     ),
   ]);
@@ -49,14 +63,22 @@ class UserClient {
     return _caller.call<UserResponseDto>(
       method: 'user.getById',
       input: input.toJson(),
-      decode: UserResponseDto.fromJson,
+      decode: (json) => UserResponseDto.fromJson(
+        Map<String, dynamic>.from(
+          expectJsonObject(json, context: 'RPC response for "user.getById"'),
+        ),
+      ),
     );
   }
 
   Future<UserStatusDto> status() {
     return _caller.call<UserStatusDto>(
       method: 'user.status',
-      decode: UserStatusDto.fromJson,
+      decode: (json) => UserStatusDto.fromJson(
+        Map<String, dynamic>.from(
+          expectJsonObject(json, context: 'RPC response for "user.status"'),
+        ),
+      ),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
 import 'package:dart_orpc_core/dart_orpc_core.dart';
+import 'package:luthor/luthor.dart';
 import 'package:source_gen/source_gen.dart';
 
 const _controllerChecker = TypeChecker.typeNamed(
@@ -21,6 +22,7 @@ const _rpcContextChecker = TypeChecker.typeNamed(
   RpcContext,
   inPackage: 'dart_orpc_core',
 );
+const _luthorChecker = TypeChecker.typeNamed(Luthor, inPackage: 'luthor');
 
 final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
   @override
@@ -106,7 +108,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
           )
           ..writeln("      method: '${method.rpcMethod}',")
           ..writeln('      decodeInput: ${_decodeInputExpression(method)},')
-          ..writeln('      encodeOutput: (output) => output.toJson(),')
+          ..writeln('      encodeOutput: ${_encodeOutputExpression(method)},')
           ..writeln(
             '      handler: (context, input) => ${controller.instanceName}.${method.methodName}(${method.serverInvocationArguments}),',
           )
@@ -158,7 +160,9 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
             ..writeln('    return _caller.call<${method.outputTypeCode}>(')
             ..writeln("      method: '${method.rpcMethod}',")
             ..writeln('      input: ${method.inputParameterName!}.toJson(),')
-            ..writeln('      decode: ${method.outputTypeCode}.fromJson,')
+            ..writeln(
+              '      decode: (json) => ${method.outputTypeCode}.fromJson(Map<String, dynamic>.from(expectJsonObject(json, context: \'RPC response for "${method.rpcMethod}"\'))),',
+            )
             ..writeln('    );')
             ..writeln('  }');
           continue;
@@ -171,7 +175,9 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
           )
           ..writeln('    return _caller.call<${method.outputTypeCode}>(')
           ..writeln("      method: '${method.rpcMethod}',")
-          ..writeln('      decode: ${method.outputTypeCode}.fromJson,')
+          ..writeln(
+            '      decode: (json) => ${method.outputTypeCode}.fromJson(Map<String, dynamic>.from(expectJsonObject(json, context: \'RPC response for "${method.rpcMethod}"\'))),',
+          )
           ..writeln('    );')
           ..writeln('  }');
       }
@@ -350,18 +356,37 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       rpcMethod: '$namespace.$wireName',
       hasInput: inputParameter != null,
       inputTypeCode: inputParameter?.type.getDisplayString(),
+      inputTypeName: inputParameter?.type.element?.displayName,
       inputParameterName: inputParameter?.displayName,
+      inputUsesLuthor: inputParameter == null
+          ? false
+          : _usesLuthorValidation(inputParameter.type),
       outputTypeCode: outputType.getDisplayString(),
+      outputTypeName:
+          outputType.element?.displayName ?? outputType.getDisplayString(),
+      outputUsesLuthor: _usesLuthorValidation(outputType),
       serverInvocationArguments: invocationArguments.join(', '),
     );
   }
 
   String _decodeInputExpression(_ResolvedMethod method) {
     if (method.hasInput) {
-      return '${method.inputTypeCode!}.fromJson';
+      if (method.inputUsesLuthor) {
+        return '(rawInput) => decodeRpcInputWithLuthor<${method.inputTypeCode!}>(rawInput: rawInput, method: \'${method.rpcMethod}\', validate: \$${method.inputTypeName!}Validate)';
+      }
+
+      return '(rawInput) => ${method.inputTypeCode!}.fromJson(Map<String, dynamic>.from(expectJsonObject(rawInput, context: \'RPC method "${method.rpcMethod}" input\')))';
     }
 
     return '(rawInput) => expectNoRpcInput(rawInput, context: \'RPC method "${method.rpcMethod}"\')';
+  }
+
+  String _encodeOutputExpression(_ResolvedMethod method) {
+    if (method.outputUsesLuthor) {
+      return '(output) => encodeRpcOutputWithLuthor<${method.outputTypeCode}>(output: output, method: \'${method.rpcMethod}\', toJson: (output) => output.toJson(), validate: \$${method.outputTypeName}Validate)';
+    }
+
+    return '(output) => output.toJson()';
   }
 
   _ResolvedInstantiation? _tryBuildInstantiation(
@@ -438,6 +463,15 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
   }
 
   bool _isRpcContext(DartType type) => _rpcContextChecker.isExactlyType(type);
+
+  bool _usesLuthorValidation(DartType type) {
+    final element = type.element;
+    if (element is! InterfaceElement) {
+      return false;
+    }
+
+    return _luthorChecker.hasAnnotationOfExact(element);
+  }
 
   String _rootClientNameFor(String moduleName) {
     if (moduleName.endsWith('Module') && moduleName.length > 'Module'.length) {
@@ -523,8 +557,12 @@ final class _ResolvedMethod {
     required this.rpcMethod,
     required this.hasInput,
     this.inputTypeCode,
+    this.inputTypeName,
     this.inputParameterName,
+    required this.inputUsesLuthor,
     required this.outputTypeCode,
+    required this.outputTypeName,
+    required this.outputUsesLuthor,
     required this.serverInvocationArguments,
   });
 
@@ -532,7 +570,11 @@ final class _ResolvedMethod {
   final String rpcMethod;
   final bool hasInput;
   final String? inputTypeCode;
+  final String? inputTypeName;
   final String? inputParameterName;
+  final bool inputUsesLuthor;
   final String outputTypeCode;
+  final String outputTypeName;
+  final bool outputUsesLuthor;
   final String serverInvocationArguments;
 }

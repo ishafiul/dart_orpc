@@ -12,6 +12,7 @@ dependencies:
   build: ^4.0.4
   dart_orpc_annotations: ^0.1.0-dev.1
   dart_orpc_core: ^0.1.0-dev.1
+  luthor: ^0.17.0
   source_gen: ^4.2.0
 
 dev_dependencies:
