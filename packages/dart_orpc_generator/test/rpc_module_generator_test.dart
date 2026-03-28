@@ -23,6 +23,17 @@ void main() {
             'RpcProcedureRegistry _\$createAppModuleProcedureRegistry() {',
           ),
         );
+        expect(generatedOutput, contains('class _\$AppModuleContainer {'));
+        expect(
+          generatedOutput,
+          contains('_\$AppModuleContainer _\$createAppModuleContainer() {'),
+        );
+        expect(
+          generatedOutput,
+          contains(
+            'RpcProcedureRegistry _\$createAppModuleProcedureRegistryFromContainer(',
+          ),
+        );
         expect(
           generatedOutput,
           contains(
@@ -47,6 +58,12 @@ void main() {
           generatedOutput,
           contains('RestRouteRegistry _\$createAppModuleRestRouteRegistry() {'),
         );
+        expect(
+          generatedOutput,
+          contains(
+            'RestRouteRegistry _\$createAppModuleRestRouteRegistryFromContainer(',
+          ),
+        );
         expect(generatedOutput, contains("method: 'user.getById',"));
         expect(generatedOutput, contains("rpcMethod: 'user.getById',"));
         expect(
@@ -62,7 +79,15 @@ void main() {
         );
         expect(
           generatedOutput,
-          contains('restRoutes: _\$createAppModuleRestRouteRegistry()'),
+          contains(
+            'procedures: _\$createAppModuleProcedureRegistry()',
+          ),
+        );
+        expect(
+          generatedOutput,
+          contains(
+            'restRoutes: _\$createAppModuleRestRouteRegistry()',
+          ),
         );
         expect(
           generatedOutput,
@@ -71,6 +96,17 @@ void main() {
         expect(
           generatedOutput,
           contains("docsHtml: createScalarHtml(title: 'App API')"),
+        );
+        expect(
+          _countMatches(generatedOutput, 'final userService = UserService();'),
+          1,
+        );
+        expect(
+          _countMatches(
+            generatedOutput,
+            'final userController = UserController(userService);',
+          ),
+          1,
         );
         expect(generatedOutput, contains('class AppClient {'));
         expect(
@@ -219,9 +255,7 @@ void main() {
         );
         expect(
           generatedOutput,
-          contains(
-            'handler: (context, input) => userController.getById(context, input),',
-          ),
+          contains('container.userController.getById(context, input)'),
         );
         expect(generatedOutput, contains("parameterName: 'include',"));
         expect(
@@ -284,6 +318,59 @@ void main() {
     );
 
     test(
+      'When a module imports another module and consumes its exported provider then the builder emits a flattened app graph',
+      () async {
+        final run = await _runBuilder(_nestedModuleSource);
+
+        expect(run.result.succeeded, isTrue);
+
+        final generatedOutput = run.generatedOutput;
+        expect(
+          generatedOutput,
+          contains('final userController = UserController(userService);'),
+        );
+        expect(
+          generatedOutput,
+          contains('final adminController = AdminController(userService);'),
+        );
+        expect(
+          generatedOutput,
+          contains('container.userController.getById(context, input)'),
+        );
+        expect(
+          generatedOutput,
+          contains('container.adminController.lookup(context, input)'),
+        );
+        expect(generatedOutput, contains("method: 'user.getById',"));
+        expect(generatedOutput, contains("method: 'admin.lookup',"));
+        expect(
+          generatedOutput,
+          contains('late final UserClient user = UserClient(_caller);'),
+        );
+        expect(
+          generatedOutput,
+          contains('late final AdminClient admin = AdminClient(_caller);'),
+        );
+      },
+    );
+
+    test(
+      'When a module re-exports an imported module then downstream modules can resolve its providers',
+      () async {
+        final run = await _runBuilder(_reExportedModuleSource);
+
+        expect(run.result.succeeded, isTrue);
+
+        final generatedOutput = run.generatedOutput;
+        expect(
+          generatedOutput,
+          contains('final adminController = AdminController(userService);'),
+        );
+        expect(generatedOutput, contains("method: 'admin.lookup',"));
+      },
+    );
+
+    test(
       'When provider dependencies cannot be resolved then the builder reports a generation error',
       () async {
         final run = await _runBuilder(_missingProviderDependencySource);
@@ -297,6 +384,48 @@ void main() {
         );
       },
     );
+
+    test(
+      'When a module import entry is not annotated with Module then generation fails',
+      () async {
+        final run = await _runBuilder(_invalidImportedModuleSource);
+
+        expect(run.result.succeeded, isFalse);
+        expect(
+          run.result.errors.join('\n'),
+          contains(
+            '@Module.imports entries must be classes annotated with @Module.',
+          ),
+        );
+      },
+    );
+
+    test(
+      'When a module exports a provider that is not local or imported then generation fails',
+      () async {
+        final run = await _runBuilder(_unknownExportSource);
+
+        expect(run.result.succeeded, isFalse);
+        expect(
+          run.result.errors.join('\n'),
+          contains(
+            'Module "AppModule" may only export its own providers or providers/modules from @Module.imports. Unknown export "UserService".',
+          ),
+        );
+      },
+    );
+
+    test('When module imports are circular then generation fails', () async {
+      final run = await _runBuilder(_circularModuleImportsSource);
+
+      expect(run.result.succeeded, isFalse);
+      expect(
+        run.result.errors.join('\n'),
+        contains(
+          'Detected circular @Module.imports chain: AppModule -> UserModule -> AppModule.',
+        ),
+      );
+    });
 
     test(
       'When a REST-enabled method mixes @RpcInput with explicit REST source parameters then generation fails',
@@ -415,6 +544,10 @@ final class _BuilderRun {
       AssetId('a', '.dart_tool/build/generated/a/lib/example.dart_orpc.g.part'),
     );
   }
+}
+
+int _countMatches(String value, String pattern) {
+  return RegExp(RegExp.escape(pattern)).allMatches(value).length;
 }
 
 const _validRpcModuleSource = r'''
@@ -767,6 +900,170 @@ final class UserResponseDto {
 }
 ''';
 
+const _nestedModuleSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+import 'package:dart_orpc_core/dart_orpc_core.dart';
+
+part 'example.g.dart';
+
+@Module(imports: [UserModule], controllers: [AdminController])
+final class AppModule {
+  const AppModule();
+}
+
+@Module(
+  controllers: [UserController],
+  providers: [UserService],
+  exports: [UserService],
+)
+final class UserModule {
+  const UserModule();
+}
+
+final class UserService {
+  UserResponseDto getById(String id) => UserResponseDto(id: id, name: 'Ada');
+}
+
+@Controller('user')
+final class UserController {
+  UserController(this.userService);
+
+  final UserService userService;
+
+  @RpcMethod(name: 'getById')
+  Future<UserResponseDto> getById(
+    RpcContext context,
+    @RpcInput() GetUserDto input,
+  ) async {
+    return userService.getById(input.id);
+  }
+}
+
+@Controller('admin')
+final class AdminController {
+  AdminController(this.userService);
+
+  final UserService userService;
+
+  @RpcMethod(name: 'lookup')
+  Future<UserResponseDto> lookup(
+    RpcContext context,
+    @RpcInput() GetUserDto input,
+  ) async {
+    return userService.getById(input.id);
+  }
+}
+
+final class GetUserDto {
+  const GetUserDto({required this.id});
+
+  factory GetUserDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'GetUserDto');
+    return GetUserDto(
+      id: expectStringField(object, 'id', nonEmpty: true),
+    );
+  }
+
+  final String id;
+
+  JsonObject toJson() => {'id': id};
+}
+
+final class UserResponseDto {
+  const UserResponseDto({required this.id, required this.name});
+
+  factory UserResponseDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'UserResponseDto');
+    return UserResponseDto(
+      id: expectStringField(object, 'id', nonEmpty: true),
+      name: expectStringField(object, 'name', nonEmpty: true),
+    );
+  }
+
+  final String id;
+  final String name;
+
+  JsonObject toJson() => {'id': id, 'name': name};
+}
+''';
+
+const _reExportedModuleSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+import 'package:dart_orpc_core/dart_orpc_core.dart';
+
+part 'example.g.dart';
+
+@Module(imports: [ApiModule], controllers: [AdminController])
+final class AppModule {
+  const AppModule();
+}
+
+@Module(imports: [UserModule], exports: [UserModule])
+final class ApiModule {
+  const ApiModule();
+}
+
+@Module(providers: [UserService], exports: [UserService])
+final class UserModule {
+  const UserModule();
+}
+
+final class UserService {
+  UserResponseDto getById(String id) => UserResponseDto(id: id, name: 'Ada');
+}
+
+@Controller('admin')
+final class AdminController {
+  AdminController(this.userService);
+
+  final UserService userService;
+
+  @RpcMethod(name: 'lookup')
+  Future<UserResponseDto> lookup(
+    RpcContext context,
+    @RpcInput() GetUserDto input,
+  ) async {
+    return userService.getById(input.id);
+  }
+}
+
+final class GetUserDto {
+  const GetUserDto({required this.id});
+
+  factory GetUserDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'GetUserDto');
+    return GetUserDto(
+      id: expectStringField(object, 'id', nonEmpty: true),
+    );
+  }
+
+  final String id;
+
+  JsonObject toJson() => {'id': id};
+}
+
+final class UserResponseDto {
+  const UserResponseDto({required this.id, required this.name});
+
+  factory UserResponseDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'UserResponseDto');
+    return UserResponseDto(
+      id: expectStringField(object, 'id', nonEmpty: true),
+      name: expectStringField(object, 'name', nonEmpty: true),
+    );
+  }
+
+  final String id;
+  final String name;
+
+  JsonObject toJson() => {'id': id, 'name': name};
+}
+''';
+
 const _missingProviderDependencySource = r'''
 library example;
 
@@ -785,6 +1082,58 @@ final class UserService {
   UserService(this.dependency);
 
   final MissingDependency dependency;
+}
+''';
+
+const _invalidImportedModuleSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+part 'example.g.dart';
+
+@Module(imports: [NotAModule])
+final class AppModule {
+  const AppModule();
+}
+
+final class NotAModule {
+  const NotAModule();
+}
+''';
+
+const _unknownExportSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+part 'example.g.dart';
+
+@Module(exports: [UserService])
+final class AppModule {
+  const AppModule();
+}
+
+final class UserService {
+  const UserService();
+}
+''';
+
+const _circularModuleImportsSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+part 'example.g.dart';
+
+@Module(imports: [UserModule])
+final class AppModule {
+  const AppModule();
+}
+
+@Module(imports: [AppModule])
+final class UserModule {
+  const UserModule();
 }
 ''';
 

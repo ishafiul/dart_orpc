@@ -6,6 +6,10 @@ import 'package:dart_orpc_core/dart_orpc_core.dart';
 import 'package:luthor/luthor.dart';
 import 'package:source_gen/source_gen.dart';
 
+const _moduleChecker = TypeChecker.typeNamed(
+  Module,
+  inPackage: 'dart_orpc_annotations',
+);
 const _controllerChecker = TypeChecker.typeNamed(
   Controller,
   inPackage: 'dart_orpc_annotations',
@@ -63,59 +67,114 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
     }
 
     final moduleName = element.displayName;
-    final providerElements = _readInterfaceElements(
-      annotation.read('providers'),
-      element: element,
-      fieldName: 'providers',
-    );
-    final controllerElements = _readInterfaceElements(
-      annotation.read('controllers'),
-      element: element,
-      fieldName: 'controllers',
-    );
-
     final usedNames = <String>{};
-    final providerInstantiations = _resolveProviderInstantiations(
-      providerElements,
+    final moduleGraph = _resolveModuleGraph(
+      element,
+      annotation: annotation,
       usedNames: usedNames,
-      moduleElement: element,
     );
-    final availableProviders = {
-      for (final instantiation in providerInstantiations)
-        instantiation.typeKey: instantiation.variableName,
-    };
-
-    final controllerBindings = controllerElements
-        .map(
-          (controllerElement) => _buildControllerBinding(
-            controllerElement,
-            availableProviders: availableProviders,
-            usedNames: usedNames,
-          ),
-        )
+    final rootModule = moduleGraph.rootModule;
+    final importedModules = rootModule.importedModules;
+    final importedModulesWithRpcClients = importedModules
+        .where((module) => module.rpcCompatibleControllers.isNotEmpty)
         .toList(growable: false);
+    final providerInstantiations = rootModule.providerInstantiations;
+    final controllerBindings = rootModule.controllerBindings;
 
     final rpcClientControllers = controllerBindings
         .where((controller) => controller.rpcCompatibleProcedures.isNotEmpty)
         .toList(growable: false);
+    final hasLocalRpcClientControllers = rpcClientControllers.isNotEmpty;
+    final hasImportedRpcClientControllers =
+        importedModulesWithRpcClients.isNotEmpty;
+    final needsTransportField = hasImportedRpcClientControllers;
+    final composedRpcClientGetters = _resolveComposedRpcClientGetters(
+      rootModule,
+      moduleElement: element,
+    );
 
-    final rootClientName = _rootClientNameFor(moduleName);
+    final rootClientName = _rootClientNameFor(
+      moduleName,
+      reservedNames: {
+        for (final getter in composedRpcClientGetters) getter.clientClassName,
+      },
+    );
     final createRegistryName = '_\$create${moduleName}ProcedureRegistry';
+    final createLocalRegistryName =
+        '_\$create${moduleName}LocalProcedureRegistry';
+    final composeProcedureRegistryName = _publicProcedureRegistryFactoryNameFor(
+      moduleName,
+    );
     final createRestRouteRegistryName =
         '_\$create${moduleName}RestRouteRegistry';
+    final createLocalRestRouteRegistryName =
+        '_\$create${moduleName}LocalRestRouteRegistry';
+    final composeRestRouteRegistryName = _publicRestRouteRegistryFactoryNameFor(
+      moduleName,
+    );
     final createMetadataRegistryName =
         '_\$create${moduleName}ProcedureMetadataRegistry';
+    final createLocalMetadataRegistryName =
+        '_\$create${moduleName}LocalProcedureMetadataRegistry';
+    final composeMetadataRegistryName =
+        _publicProcedureMetadataRegistryFactoryNameFor(moduleName);
     final createOpenApiSchemaRegistryName =
         '_\$create${moduleName}OpenApiSchemaRegistry';
+    final createLocalOpenApiSchemaRegistryName =
+        '_\$create${moduleName}LocalOpenApiSchemaRegistry';
+    final composeOpenApiSchemaRegistryName =
+        _publicOpenApiSchemaRegistryFactoryNameFor(moduleName);
     final createOpenApiDocumentName = '_\$create${moduleName}OpenApiDocument';
+    final containerClassName = '_\$${moduleName}Container';
+    final createContainerName = '_\$create${moduleName}Container';
+    final createRegistryFromContainerName =
+        '_\$create${moduleName}ProcedureRegistryFromContainer';
+    final createRestRouteRegistryFromContainerName =
+        '_\$create${moduleName}RestRouteRegistryFromContainer';
     final buildAppName = '_\$build${moduleName}RpcApp';
     final openApiTitle = _openApiTitleFor(moduleName);
     final openApiSchemaComponents = _collectOpenApiSchemaComponents(
       controllerBindings,
     );
+    final containerMembers = <_GeneratedContainerMember>[
+      for (final instantiation in providerInstantiations)
+        _GeneratedContainerMember(
+          typeName: instantiation.typeName,
+          name: instantiation.variableName,
+        ),
+      for (final controller in controllerBindings)
+        _GeneratedContainerMember(
+          typeName: controller.typeName,
+          name: controller.instanceName,
+        ),
+    ];
 
-    final buffer = StringBuffer()
-      ..writeln('RpcProcedureRegistry $createRegistryName() {');
+    final buffer = StringBuffer()..writeln('class $containerClassName {');
+
+    if (containerMembers.isEmpty) {
+      buffer.writeln('  $containerClassName();');
+    } else {
+      buffer..writeln('  $containerClassName({');
+      for (final member in containerMembers) {
+        buffer.writeln('    required this.${member.name},');
+      }
+      buffer
+        ..writeln('  });')
+        ..writeln();
+
+      for (var index = 0; index < containerMembers.length; index++) {
+        final member = containerMembers[index];
+        buffer.writeln('  final ${member.typeName} ${member.name};');
+        if (index < containerMembers.length - 1) {
+          buffer.writeln();
+        }
+      }
+    }
+
+    buffer
+      ..writeln('}')
+      ..writeln()
+      ..writeln('$containerClassName $createContainerName() {');
 
     for (final instantiation in providerInstantiations) {
       buffer.writeln('  ${instantiation.code}');
@@ -132,8 +191,41 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       }
     }
 
-    if (controllerBindings.isNotEmpty) {
-      buffer.writeln();
+    if (containerMembers.isEmpty) {
+      buffer
+        ..writeln()
+        ..writeln('  return $containerClassName();')
+        ..writeln('}')
+        ..writeln()
+        ..writeln('// ignore: unused_element')
+        ..writeln('RpcProcedureRegistry $createLocalRegistryName() {')
+        ..writeln('  final container = $createContainerName();')
+        ..writeln('  return $createRegistryFromContainerName(container);')
+        ..writeln('}')
+        ..writeln()
+        ..writeln(
+          'RpcProcedureRegistry $createRegistryFromContainerName($containerClassName container) {',
+        );
+    } else {
+      buffer
+        ..writeln()
+        ..writeln('  return $containerClassName(');
+      for (final member in containerMembers) {
+        buffer.writeln('    ${member.name}: ${member.name},');
+      }
+      buffer
+        ..writeln('  );')
+        ..writeln('}')
+        ..writeln()
+        ..writeln('// ignore: unused_element')
+        ..writeln('RpcProcedureRegistry $createLocalRegistryName() {')
+        ..writeln('  final container = $createContainerName();')
+        ..writeln('  return $createRegistryFromContainerName(container);')
+        ..writeln('}')
+        ..writeln()
+        ..writeln(
+          'RpcProcedureRegistry $createRegistryFromContainerName($containerClassName container) {',
+        );
     }
 
     buffer..writeln('  return RpcProcedureRegistry([');
@@ -151,7 +243,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
             '      encodeOutput: ${_encodeOutputExpression(procedure)},',
           )
           ..writeln(
-            '      handler: (context, input) => ${controller.instanceName}.${procedure.methodName}(${procedure.serverInvocationArguments}),',
+            '      handler: (context, input) => container.${controller.instanceName}.${procedure.methodName}(${procedure.serverInvocationArguments}),',
           )
           ..writeln('    ),');
       }
@@ -161,28 +253,34 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       ..writeln('  ]);')
       ..writeln('}')
       ..writeln()
-      ..writeln('RestRouteRegistry $createRestRouteRegistryName() {');
-
-    for (final instantiation in providerInstantiations) {
-      buffer.writeln('  ${instantiation.code}');
+      ..writeln('RpcProcedureRegistry $createRegistryName() {')
+      ..writeln('  return RpcProcedureRegistry([');
+    for (final importedModule in importedModules) {
+      buffer.writeln(
+        '    ...${_publicProcedureRegistryFactoryNameFor(importedModule.displayName)}().procedures,',
+      );
     }
-
-    if (providerInstantiations.isNotEmpty && controllerBindings.isNotEmpty) {
-      buffer.writeln();
-    }
-
-    for (var index = 0; index < controllerBindings.length; index++) {
-      buffer.writeln('  ${controllerBindings[index].instantiationCode}');
-      if (index < controllerBindings.length - 1) {
-        buffer.writeln();
-      }
-    }
-
-    if (controllerBindings.isNotEmpty) {
-      buffer.writeln();
-    }
-
-    buffer.writeln('  return RestRouteRegistry([');
+    buffer
+      ..writeln('    ...$createLocalRegistryName().procedures,')
+      ..writeln('  ]);')
+      ..writeln('}')
+      ..writeln()
+      ..writeln(
+        'RpcProcedureRegistry $composeProcedureRegistryName() => $createRegistryName();',
+      )
+      ..writeln()
+      ..writeln('// ignore: unused_element')
+      ..writeln('RestRouteRegistry $createLocalRestRouteRegistryName() {')
+      ..writeln('  final container = $createContainerName();')
+      ..writeln(
+        '  return $createRestRouteRegistryFromContainerName(container);',
+      )
+      ..writeln('}')
+      ..writeln()
+      ..writeln(
+        'RestRouteRegistry $createRestRouteRegistryFromContainerName($containerClassName container) {',
+      )
+      ..writeln('  return RestRouteRegistry([');
 
     for (final controller in controllerBindings) {
       for (final procedure in controller.procedures.where(
@@ -220,7 +318,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
             .join(', ');
         buffer
           ..writeln(
-            '        final output = await ${controller.instanceName}.${procedure.methodName}($invocationArguments);',
+            '        final output = await container.${controller.instanceName}.${procedure.methodName}($invocationArguments);',
           )
           ..writeln(
             '        return (${_encodeOutputExpression(procedure)})(output);',
@@ -234,8 +332,26 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       ..writeln('  ]);')
       ..writeln('}')
       ..writeln()
+      ..writeln('RestRouteRegistry $createRestRouteRegistryName() {')
+      ..writeln('  return RestRouteRegistry([');
+    for (final importedModule in importedModules) {
+      buffer.writeln(
+        '    ...${_publicRestRouteRegistryFactoryNameFor(importedModule.displayName)}().routes,',
+      );
+    }
+    buffer
+      ..writeln('    ...$createLocalRestRouteRegistryName().routes,')
+      ..writeln('  ]);')
+      ..writeln('}')
+      ..writeln()
+      ..writeln(
+        'RestRouteRegistry $composeRestRouteRegistryName() => $createRestRouteRegistryName();',
+      )
+      ..writeln()
       ..writeln('// ignore: unused_element')
-      ..writeln('ProcedureMetadataRegistry $createMetadataRegistryName() {')
+      ..writeln(
+        'ProcedureMetadataRegistry $createLocalMetadataRegistryName() {',
+      )
       ..writeln('  return ProcedureMetadataRegistry([');
 
     for (final controller in controllerBindings) {
@@ -300,7 +416,25 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       ..writeln('  ]);')
       ..writeln('}')
       ..writeln()
-      ..writeln('OpenApiSchemaRegistry $createOpenApiSchemaRegistryName() {')
+      ..writeln('ProcedureMetadataRegistry $createMetadataRegistryName() {')
+      ..writeln('  return ProcedureMetadataRegistry([');
+    for (final importedModule in importedModules) {
+      buffer.writeln(
+        '    ...${_publicProcedureMetadataRegistryFactoryNameFor(importedModule.displayName)}().procedures,',
+      );
+    }
+    buffer
+      ..writeln('    ...$createLocalMetadataRegistryName().procedures,')
+      ..writeln('  ]);')
+      ..writeln('}')
+      ..writeln()
+      ..writeln(
+        'ProcedureMetadataRegistry $composeMetadataRegistryName() => $createMetadataRegistryName();',
+      )
+      ..writeln()
+      ..writeln(
+        'OpenApiSchemaRegistry $createLocalOpenApiSchemaRegistryName() {',
+      )
       ..writeln('  return OpenApiSchemaRegistry([');
 
     for (final component in openApiSchemaComponents) {
@@ -315,6 +449,22 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       ..writeln('  ]);')
       ..writeln('}')
       ..writeln()
+      ..writeln('OpenApiSchemaRegistry $createOpenApiSchemaRegistryName() {')
+      ..writeln('  return OpenApiSchemaRegistry([');
+    for (final importedModule in importedModules) {
+      buffer.writeln(
+        '    ...${_publicOpenApiSchemaRegistryFactoryNameFor(importedModule.displayName)}().components,',
+      );
+    }
+    buffer
+      ..writeln('    ...$createLocalOpenApiSchemaRegistryName().components,')
+      ..writeln('  ]);')
+      ..writeln('}')
+      ..writeln()
+      ..writeln(
+        'OpenApiSchemaRegistry $composeOpenApiSchemaRegistryName() => $createOpenApiSchemaRegistryName();',
+      )
+      ..writeln()
       ..writeln('JsonObject $createOpenApiDocumentName() {')
       ..writeln('  return createOpenApiDocument(')
       ..writeln("    title: '${_escapeDartString(openApiTitle)}',")
@@ -323,6 +473,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       ..writeln('  );')
       ..writeln('}')
       ..writeln()
+      ..writeln('// ignore: unused_element')
       ..writeln('RpcHttpApp $buildAppName() {')
       ..writeln(
         '  return RpcHttpApp(procedures: $createRegistryName(), restRoutes: $createRestRouteRegistryName(), openApiDocument: $createOpenApiDocumentName(), docsHtml: createScalarHtml(title: \'${_escapeDartString(openApiTitle)}\'));',
@@ -331,16 +482,48 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       ..writeln()
       ..writeln('class $rootClientName {')
       ..writeln(
-        '  $rootClientName({required RpcTransport transport}) : _caller = RpcCaller(transport);',
+        hasLocalRpcClientControllers && needsTransportField
+            ? '  $rootClientName({required RpcTransport transport}) : _transport = transport, _caller = RpcCaller(transport);'
+            : hasLocalRpcClientControllers
+            ? '  $rootClientName({required RpcTransport transport}) : _caller = RpcCaller(transport);'
+            : needsTransportField
+            ? '  $rootClientName({required RpcTransport transport}) : _transport = transport;'
+            : '  $rootClientName({required RpcTransport transport});',
       )
-      ..writeln()
-      ..writeln('  final RpcCaller _caller;');
+      ..writeln();
 
-    if (rpcClientControllers.isNotEmpty) {
+    if (needsTransportField) {
+      buffer
+        ..writeln()
+        ..writeln('  final RpcTransport _transport;');
+    }
+
+    if (hasLocalRpcClientControllers) {
+      buffer
+        ..writeln()
+        ..writeln('  final RpcCaller _caller;');
+    }
+
+    if (hasImportedRpcClientControllers ||
+        composedRpcClientGetters.isNotEmpty) {
       buffer.writeln();
-      for (final controller in rpcClientControllers) {
+      for (final importedModule in importedModulesWithRpcClients) {
+        final importedRootClientName = _rootClientNameFor(
+          importedModule.displayName,
+          reservedNames: {
+            for (final controller in importedModule.rpcCompatibleControllers)
+              controller.clientClassName,
+          },
+        );
+        final importedClientFieldName =
+            '_${_camelCase(importedModule.displayName)}Client';
         buffer.writeln(
-          '  late final ${controller.clientClassName} ${controller.clientGetterName} = ${controller.clientClassName}(_caller);',
+          '  late final $importedRootClientName $importedClientFieldName = $importedRootClientName(transport: _transport);',
+        );
+      }
+      for (final getter in composedRpcClientGetters) {
+        buffer.writeln(
+          '  late final ${getter.clientClassName} ${getter.clientGetterName} = ${getter.initializerExpression};',
         );
       }
     }
@@ -412,14 +595,323 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
         .toList(growable: false);
   }
 
+  _ResolvedModuleGraph _resolveModuleGraph(
+    InterfaceElement rootModule, {
+    required ConstantReader annotation,
+    required Set<String> usedNames,
+  }) {
+    final resolvedModules = <String, _ResolvedModule>{};
+    final orderedModules = <_ResolvedModule>[];
+
+    _resolveModule(
+      rootModule,
+      annotation: annotation,
+      usedNames: usedNames,
+      resolvedModules: resolvedModules,
+      orderedModules: orderedModules,
+      stack: const [],
+    );
+
+    return _ResolvedModuleGraph(orderedModules: orderedModules);
+  }
+
+  _ResolvedModule _resolveModule(
+    InterfaceElement moduleElement, {
+    ConstantReader? annotation,
+    required Set<String> usedNames,
+    required Map<String, _ResolvedModule> resolvedModules,
+    required List<_ResolvedModule> orderedModules,
+    required List<_VisitedModule> stack,
+  }) {
+    final moduleTypeKey = _typeKeyFor(moduleElement.thisType);
+    final cachedModule = resolvedModules[moduleTypeKey];
+    if (cachedModule != null) {
+      return cachedModule;
+    }
+
+    final cycleStartIndex = stack.indexWhere(
+      (visitedModule) => visitedModule.typeKey == moduleTypeKey,
+    );
+    if (cycleStartIndex != -1) {
+      final cycle = [
+        for (final visitedModule in stack.skip(cycleStartIndex))
+          visitedModule.displayName,
+        moduleElement.displayName,
+      ].join(' -> ');
+      throw InvalidGenerationSourceError(
+        'Detected circular @Module.imports chain: $cycle.',
+        element: moduleElement,
+      );
+    }
+
+    final annotationReader = annotation ?? _readModuleAnnotation(moduleElement);
+    final importedModuleElements = _readModuleElements(
+      annotationReader.read('imports'),
+      element: moduleElement,
+      fieldName: 'imports',
+    );
+    final nextStack = [
+      ...stack,
+      _VisitedModule(
+        typeKey: moduleTypeKey,
+        displayName: moduleElement.displayName,
+      ),
+    ];
+    final importedModules = importedModuleElements
+        .map(
+          (importedModule) => _resolveModule(
+            importedModule,
+            usedNames: usedNames,
+            resolvedModules: resolvedModules,
+            orderedModules: orderedModules,
+            stack: nextStack,
+          ),
+        )
+        .toList(growable: false);
+    final importedProviders = _mergeImportedProviders(
+      importedModules,
+      moduleElement: moduleElement,
+    );
+
+    final providerElements = _readInterfaceElements(
+      annotationReader.read('providers'),
+      element: moduleElement,
+      fieldName: 'providers',
+    );
+    final providerInstantiations = _resolveProviderInstantiations(
+      providerElements,
+      importedProviders: importedProviders,
+      usedNames: usedNames,
+      moduleElement: moduleElement,
+    );
+    final localProviders = {
+      for (final instantiation in providerInstantiations)
+        instantiation.typeKey: _ResolvedProviderBinding(
+          typeKey: instantiation.typeKey,
+          typeName: instantiation.typeName,
+          variableName: instantiation.variableName,
+          sourceLabel:
+              'provider "${instantiation.typeName}" from module "${moduleElement.displayName}"',
+        ),
+    };
+    final availableProviders = {
+      for (final provider in importedProviders.values)
+        provider.typeKey: provider.variableName,
+      for (final provider in localProviders.values)
+        provider.typeKey: provider.variableName,
+    };
+
+    final controllerElements = _readInterfaceElements(
+      annotationReader.read('controllers'),
+      element: moduleElement,
+      fieldName: 'controllers',
+    );
+    final controllerBindings = controllerElements
+        .map(
+          (controllerElement) => _buildControllerBinding(
+            controllerElement,
+            availableProviders: availableProviders,
+            usedNames: usedNames,
+          ),
+        )
+        .toList(growable: false);
+    final exportedProviders = _resolveExportedProviders(
+      annotationReader.read('exports'),
+      moduleElement: moduleElement,
+      importedModules: importedModules,
+      importedProviders: importedProviders,
+      localProviders: localProviders,
+    );
+
+    final resolvedModule = _ResolvedModule(
+      typeKey: moduleTypeKey,
+      displayName: moduleElement.displayName,
+      importedModules: importedModules,
+      providerInstantiations: providerInstantiations,
+      controllerBindings: controllerBindings,
+      exportedProviders: exportedProviders,
+    );
+    resolvedModules[moduleTypeKey] = resolvedModule;
+    orderedModules.add(resolvedModule);
+    return resolvedModule;
+  }
+
+  ConstantReader _readModuleAnnotation(InterfaceElement moduleElement) {
+    final annotation = _moduleChecker.firstAnnotationOfExact(moduleElement);
+    if (annotation == null) {
+      throw InvalidGenerationSourceError(
+        'Module "${moduleElement.displayName}" must be annotated with @Module.',
+        element: moduleElement,
+      );
+    }
+
+    return ConstantReader(annotation);
+  }
+
+  List<InterfaceElement> _readModuleElements(
+    ConstantReader reader, {
+    required Element element,
+    required String fieldName,
+  }) {
+    final moduleElements = _readInterfaceElements(
+      reader,
+      element: element,
+      fieldName: fieldName,
+    );
+
+    for (final moduleElement in moduleElements) {
+      if (_moduleChecker.hasAnnotationOfExact(moduleElement)) {
+        continue;
+      }
+
+      throw InvalidGenerationSourceError(
+        '@Module.$fieldName entries must be classes annotated with @Module.',
+        element: moduleElement,
+      );
+    }
+
+    return moduleElements;
+  }
+
+  Map<String, _ResolvedProviderBinding> _mergeImportedProviders(
+    List<_ResolvedModule> importedModules, {
+    required InterfaceElement moduleElement,
+  }) {
+    final importedProviders = <String, _ResolvedProviderBinding>{};
+
+    for (final importedModule in importedModules) {
+      for (final provider in importedModule.exportedProviders.values) {
+        _recordProviderBinding(
+          importedProviders,
+          provider,
+          moduleElement: moduleElement,
+        );
+      }
+    }
+
+    return importedProviders;
+  }
+
+  Map<String, _ResolvedProviderBinding> _resolveExportedProviders(
+    ConstantReader reader, {
+    required InterfaceElement moduleElement,
+    required List<_ResolvedModule> importedModules,
+    required Map<String, _ResolvedProviderBinding> importedProviders,
+    required Map<String, _ResolvedProviderBinding> localProviders,
+  }) {
+    final exportElements = _readInterfaceElements(
+      reader,
+      element: moduleElement,
+      fieldName: 'exports',
+    );
+    final importedModuleByTypeKey = {
+      for (final importedModule in importedModules)
+        importedModule.typeKey: importedModule,
+    };
+    final exportedProviders = <String, _ResolvedProviderBinding>{};
+
+    for (final exportElement in exportElements) {
+      final exportTypeKey = _typeKeyFor(exportElement.thisType);
+      final importedModule = importedModuleByTypeKey[exportTypeKey];
+      if (importedModule != null) {
+        for (final provider in importedModule.exportedProviders.values) {
+          _recordProviderBinding(
+            exportedProviders,
+            provider,
+            moduleElement: moduleElement,
+          );
+        }
+        continue;
+      }
+
+      final localProvider = localProviders[exportTypeKey];
+      if (localProvider != null) {
+        _recordProviderBinding(
+          exportedProviders,
+          localProvider,
+          moduleElement: moduleElement,
+        );
+        continue;
+      }
+
+      final importedProvider = importedProviders[exportTypeKey];
+      if (importedProvider != null) {
+        _recordProviderBinding(
+          exportedProviders,
+          importedProvider,
+          moduleElement: moduleElement,
+        );
+        continue;
+      }
+
+      if (_moduleChecker.hasAnnotationOfExact(exportElement)) {
+        throw InvalidGenerationSourceError(
+          'Module "${moduleElement.displayName}" may only export modules listed in @Module.imports. Unknown module export "${exportElement.displayName}".',
+          element: moduleElement,
+        );
+      }
+
+      throw InvalidGenerationSourceError(
+        'Module "${moduleElement.displayName}" may only export its own providers or providers/modules from @Module.imports. Unknown export "${exportElement.displayName}".',
+        element: moduleElement,
+      );
+    }
+
+    return exportedProviders;
+  }
+
+  void _recordProviderBinding(
+    Map<String, _ResolvedProviderBinding> target,
+    _ResolvedProviderBinding provider, {
+    required InterfaceElement moduleElement,
+  }) {
+    final existingProvider = target[provider.typeKey];
+    if (existingProvider == null) {
+      target[provider.typeKey] = provider;
+      return;
+    }
+
+    if (existingProvider.variableName == provider.variableName) {
+      return;
+    }
+
+    throw InvalidGenerationSourceError(
+      'Module "${moduleElement.displayName}" resolves provider type "${provider.typeName}" from more than one source (${existingProvider.sourceLabel}, ${provider.sourceLabel}).',
+      element: moduleElement,
+    );
+  }
+
   List<_ResolvedInstantiation> _resolveProviderInstantiations(
     List<InterfaceElement> providers, {
+    required Map<String, _ResolvedProviderBinding> importedProviders,
     required Set<String> usedNames,
     required Element moduleElement,
   }) {
     final resolved = <_ResolvedInstantiation>[];
-    final availableProviders = <String, String>{};
+    final availableProviders = {
+      for (final provider in importedProviders.values)
+        provider.typeKey: provider.variableName,
+    };
+    final declaredProviderNames = <String>{};
     final remainingProviders = [...providers];
+
+    for (final provider in providers) {
+      final typeKey = _typeKeyFor(provider.thisType);
+      if (!declaredProviderNames.add(typeKey)) {
+        throw InvalidGenerationSourceError(
+          'Module "${moduleElement.displayName}" declares provider "${provider.displayName}" more than once.',
+          element: moduleElement,
+        );
+      }
+
+      final conflictingImportedProvider = importedProviders[typeKey];
+      if (conflictingImportedProvider != null) {
+        throw InvalidGenerationSourceError(
+          'Module "${moduleElement.displayName}" declares provider "${provider.displayName}" that conflicts with ${conflictingImportedProvider.sourceLabel}.',
+          element: moduleElement,
+        );
+      }
+    }
 
     while (remainingProviders.isNotEmpty) {
       var progressed = false;
@@ -500,6 +992,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
     }
 
     return _ControllerBinding(
+      typeName: controllerElement.displayName,
       instanceName: controllerInstantiation.variableName,
       instantiationCode: controllerInstantiation.code,
       clientClassName: _clientClassNameFor(controllerElement.displayName),
@@ -1757,6 +2250,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
 
     return _ResolvedInstantiation(
       typeKey: _typeKeyFor(element.thisType),
+      typeName: element.displayName,
       variableName: variableName,
       code: 'final $variableName = ${element.displayName}($allArguments);',
     );
@@ -1811,12 +2305,31 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
     return _luthorChecker.hasAnnotationOfExact(element);
   }
 
-  String _rootClientNameFor(String moduleName) {
-    if (moduleName.endsWith('Module') && moduleName.length > 'Module'.length) {
-      return '${moduleName.substring(0, moduleName.length - 'Module'.length)}Client';
+  String _rootClientNameFor(
+    String moduleName, {
+    Set<String> reservedNames = const {},
+  }) {
+    var candidate =
+        moduleName.endsWith('Module') && moduleName.length > 'Module'.length
+        ? '${moduleName.substring(0, moduleName.length - 'Module'.length)}Client'
+        : '${moduleName}Client';
+    if (!reservedNames.contains(candidate)) {
+      return candidate;
     }
 
-    return '${moduleName}Client';
+    candidate = '${candidate}Root';
+    if (!reservedNames.contains(candidate)) {
+      return candidate;
+    }
+
+    var suffix = 2;
+    var uniqueCandidate = '$candidate$suffix';
+    while (reservedNames.contains(uniqueCandidate)) {
+      suffix += 1;
+      uniqueCandidate = '$candidate$suffix';
+    }
+
+    return uniqueCandidate;
   }
 
   String _openApiTitleFor(String moduleName) {
@@ -1911,23 +2424,140 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
     return '${value[0].toLowerCase()}${value.substring(1)}';
   }
 
+  String _camelCase(String value) => _lowerCamel(value);
+
+  String _publicProcedureRegistryFactoryNameFor(String moduleName) =>
+      'dartOrpcCreate${moduleName}ProcedureRegistry';
+
+  String _publicRestRouteRegistryFactoryNameFor(String moduleName) =>
+      'dartOrpcCreate${moduleName}RestRouteRegistry';
+
+  String _publicProcedureMetadataRegistryFactoryNameFor(String moduleName) =>
+      'dartOrpcCreate${moduleName}ProcedureMetadataRegistry';
+
+  String _publicOpenApiSchemaRegistryFactoryNameFor(String moduleName) =>
+      'dartOrpcCreate${moduleName}OpenApiSchemaRegistry';
+
+  List<_ComposedRpcClientGetter> _resolveComposedRpcClientGetters(
+    _ResolvedModule rootModule, {
+    required InterfaceElement moduleElement,
+  }) {
+    final getters = <String, _ComposedRpcClientGetter>{};
+
+    for (final importedModule in rootModule.importedModules) {
+      final importedClientFieldName =
+          '_${_camelCase(importedModule.displayName)}Client';
+      for (final controller in importedModule.rpcCompatibleControllers) {
+        final getterName = controller.clientGetterName;
+        final nextGetter = _ComposedRpcClientGetter(
+          clientClassName: controller.clientClassName,
+          clientGetterName: getterName,
+          initializerExpression: '$importedClientFieldName.$getterName',
+        );
+        final existingGetter = getters[getterName];
+        if (existingGetter == null) {
+          getters[getterName] = nextGetter;
+          continue;
+        }
+        if (existingGetter.clientClassName == nextGetter.clientClassName &&
+            existingGetter.initializerExpression ==
+                nextGetter.initializerExpression) {
+          continue;
+        }
+        throw InvalidGenerationSourceError(
+          'Module "${moduleElement.displayName}" resolves RPC client namespace "$getterName" from more than one source.',
+          element: moduleElement,
+        );
+      }
+    }
+
+    for (final controller in rootModule.controllerBindings.where(
+      (controller) => controller.rpcCompatibleProcedures.isNotEmpty,
+    )) {
+      getters[controller.clientGetterName] = _ComposedRpcClientGetter(
+        clientClassName: controller.clientClassName,
+        clientGetterName: controller.clientGetterName,
+        initializerExpression: '${controller.clientClassName}(_caller)',
+      );
+    }
+
+    return getters.values.toList(growable: false);
+  }
+
   String _typeKeyFor(DartType type) => type.getDisplayString();
 }
 
 final class _ResolvedInstantiation {
   const _ResolvedInstantiation({
     required this.typeKey,
+    required this.typeName,
     required this.variableName,
     required this.code,
   });
 
   final String typeKey;
+  final String typeName;
   final String variableName;
   final String code;
 }
 
+final class _ResolvedModuleGraph {
+  const _ResolvedModuleGraph({required this.orderedModules});
+
+  final List<_ResolvedModule> orderedModules;
+
+  _ResolvedModule get rootModule => orderedModules.last;
+}
+
+final class _ResolvedModule {
+  const _ResolvedModule({
+    required this.typeKey,
+    required this.displayName,
+    required this.importedModules,
+    required this.providerInstantiations,
+    required this.controllerBindings,
+    required this.exportedProviders,
+  });
+
+  final String typeKey;
+  final String displayName;
+  final List<_ResolvedModule> importedModules;
+  final List<_ResolvedInstantiation> providerInstantiations;
+  final List<_ControllerBinding> controllerBindings;
+  final Map<String, _ResolvedProviderBinding> exportedProviders;
+
+  List<_ControllerBinding> get rpcCompatibleControllers => [
+    for (final importedModule in importedModules)
+      ...importedModule.rpcCompatibleControllers,
+    for (final controller in controllerBindings)
+      if (controller.rpcCompatibleProcedures.isNotEmpty) controller,
+  ];
+}
+
+final class _ResolvedProviderBinding {
+  const _ResolvedProviderBinding({
+    required this.typeKey,
+    required this.typeName,
+    required this.variableName,
+    required this.sourceLabel,
+  });
+
+  final String typeKey;
+  final String typeName;
+  final String variableName;
+  final String sourceLabel;
+}
+
+final class _VisitedModule {
+  const _VisitedModule({required this.typeKey, required this.displayName});
+
+  final String typeKey;
+  final String displayName;
+}
+
 final class _ControllerBinding {
   const _ControllerBinding({
+    required this.typeName,
     required this.instanceName,
     required this.instantiationCode,
     required this.clientClassName,
@@ -1935,6 +2565,7 @@ final class _ControllerBinding {
     required this.procedures,
   });
 
+  final String typeName;
   final String instanceName;
   final String instantiationCode;
   final String clientClassName;
@@ -1944,6 +2575,25 @@ final class _ControllerBinding {
   List<_ResolvedProcedure> get rpcCompatibleProcedures => procedures
       .where((procedure) => procedure.supportsRpcGeneration)
       .toList(growable: false);
+}
+
+final class _GeneratedContainerMember {
+  const _GeneratedContainerMember({required this.typeName, required this.name});
+
+  final String typeName;
+  final String name;
+}
+
+final class _ComposedRpcClientGetter {
+  const _ComposedRpcClientGetter({
+    required this.clientClassName,
+    required this.clientGetterName,
+    required this.initializerExpression,
+  });
+
+  final String clientClassName;
+  final String clientGetterName;
+  final String initializerExpression;
 }
 
 final class _ResolvedProcedure {
