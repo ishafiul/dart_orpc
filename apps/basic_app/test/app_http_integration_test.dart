@@ -87,5 +87,50 @@ void main() {
         });
       },
     );
+
+    test(
+      'When requesting the generated REST route then it returns the raw JSON payload',
+      () async {
+        final httpClient = HttpClient();
+        addTearDown(httpClient.close);
+
+        final request = await httpClient.getUrl(
+          Uri.parse(
+            'http://${server.address.address}:${server.port}/users/1?include=compact',
+          ),
+        );
+
+        final response = await request.close();
+        final body =
+            jsonDecode(await utf8.decoder.bind(response).join()) as Map;
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(body, {'id': '1', 'name': 'Ada'});
+      },
+    );
+
+    test(
+      'When requesting a missing resource through the generated REST route then it returns the error payload with the HTTP status',
+      () async {
+        final httpClient = HttpClient();
+        addTearDown(httpClient.close);
+
+        final request = await httpClient.getUrl(
+          Uri.parse(
+            'http://${server.address.address}:${server.port}/users/404',
+          ),
+        );
+
+        final response = await request.close();
+        final body =
+            jsonDecode(await utf8.decoder.bind(response).join()) as Map;
+
+        expect(response.statusCode, HttpStatus.notFound);
+        expect(body['error'], {
+          'code': 'NOT_FOUND',
+          'message': 'User "404" was not found.',
+        });
+      },
+    );
   });
 }

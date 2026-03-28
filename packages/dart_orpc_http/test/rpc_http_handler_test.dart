@@ -22,7 +22,50 @@ void main() {
         ),
       ]);
 
-      handler = createRpcHttpHandler(procedures: registry);
+      final restRoutes = RestRouteRegistry([
+        RestRoute(
+          method: 'GET',
+          path: '/users/:id',
+          handler: (context, request, pathParameters) async {
+            final id = decodeRestScalarParameter<String>(
+              rawValue: pathParameters['id'],
+              source: 'path parameter',
+              name: 'id',
+              route: 'GET /users/:id',
+            );
+            final include = decodeRestScalarParameter<String?>(
+              rawValue: request.queryParameters['include'],
+              source: 'query parameter',
+              name: 'include',
+              route: 'GET /users/:id',
+            );
+            return {
+              'id': id,
+              'name': include == 'compact' ? 'Ada' : 'Ada Lovelace',
+              'method': context.httpMethod,
+            };
+          },
+        ),
+        RestRoute(
+          method: 'POST',
+          path: '/users',
+          handler: (_, request, __) async {
+            final body = decodeRestBody<JsonObject>(
+              rawBody: request.body,
+              route: 'POST /users',
+              parameterName: 'body',
+              decode: (rawJson) =>
+                  expectJsonObject(rawJson, context: 'POST /users body'),
+            );
+            return {'created': body};
+          },
+        ),
+      ]);
+
+      handler = createRpcHttpHandler(
+        procedures: registry,
+        restRoutes: restRoutes,
+      );
     });
 
     test('returns a data envelope for valid requests', () async {
@@ -85,6 +128,55 @@ void main() {
 
       expect(response.statusCode, HttpStatus.methodNotAllowed);
       expect(response.headers['allow'], 'POST');
+    });
+
+    test('returns a raw JSON response for valid REST requests', () async {
+      final response = await handler(
+        const RpcHttpRequest(
+          method: 'GET',
+          path: '/users/123',
+          queryParameters: {'include': 'compact'},
+        ),
+      );
+
+      expect(response.statusCode, HttpStatus.ok);
+      expect(jsonDecode(response.body), {
+        'id': '123',
+        'name': 'Ada',
+        'method': 'GET',
+      });
+    });
+
+    test(
+      'returns method not allowed for REST paths with a wrong method',
+      () async {
+        final response = await handler(
+          const RpcHttpRequest(method: 'POST', path: '/users/123'),
+        );
+
+        expect(response.statusCode, HttpStatus.methodNotAllowed);
+        expect(response.headers['allow'], 'GET');
+        expect(jsonDecode(response.body), {
+          'error': {
+            'code': 'BAD_REQUEST',
+            'message': 'REST endpoint only accepts GET requests.',
+          },
+        });
+      },
+    );
+
+    test('returns bad request for invalid REST JSON bodies', () async {
+      final response = await handler(
+        const RpcHttpRequest(method: 'POST', path: '/users', body: '{'),
+      );
+
+      expect(response.statusCode, HttpStatus.badRequest);
+      expect(jsonDecode(response.body), {
+        'error': {
+          'code': 'BAD_REQUEST',
+          'message': 'REST request body for "POST /users" must be valid JSON.',
+        },
+      });
     });
   });
 }

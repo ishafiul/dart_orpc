@@ -28,6 +28,33 @@ void main() {
             },
           ),
         ]),
+        restRoutes: RestRouteRegistry([
+          RestRoute(
+            method: 'GET',
+            path: '/meta/users/:id',
+            handler: (context, request, pathParameters) async {
+              final id = decodeRestScalarParameter<String>(
+                rawValue: pathParameters['id'],
+                source: 'path parameter',
+                name: 'id',
+                route: 'GET /meta/users/:id',
+              );
+              final include = decodeRestScalarParameter<String?>(
+                rawValue: request.queryParameters['include'],
+                source: 'query parameter',
+                name: 'include',
+                route: 'GET /meta/users/:id',
+              );
+              return {
+                'httpMethod': context.httpMethod,
+                'path': context.path,
+                'traceId': context.headers['x-trace-id'],
+                'id': id,
+                'include': include,
+              };
+            },
+          ),
+        ]),
       );
 
       server = await app.listen(
@@ -96,6 +123,49 @@ void main() {
 
         expect(response.statusCode, HttpStatus.notFound);
         expect(response.body, 'Not Found');
+      },
+    );
+
+    test(
+      'When requesting a generated REST path then it returns the raw JSON response',
+      () async {
+        final response = await _send(
+          baseUri.resolve('/meta/users/7?include=compact'),
+          method: 'GET',
+          headers: const {'x-trace-id': 'trace-rest'},
+        );
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(
+          response.headers.value('content-type'),
+          contains('application/json'),
+        );
+        expect(jsonDecode(response.body), {
+          'httpMethod': 'GET',
+          'path': '/meta/users/7',
+          'traceId': 'trace-rest',
+          'id': '7',
+          'include': 'compact',
+        });
+      },
+    );
+
+    test(
+      'When using the wrong method for a REST path then it returns method not allowed',
+      () async {
+        final response = await _send(
+          baseUri.resolve('/meta/users/7'),
+          method: 'POST',
+        );
+
+        expect(response.statusCode, HttpStatus.methodNotAllowed);
+        expect(response.headers.value('allow'), 'GET');
+        expect(jsonDecode(response.body), {
+          'error': {
+            'code': 'BAD_REQUEST',
+            'message': 'REST endpoint only accepts GET requests.',
+          },
+        });
       },
     );
   });

@@ -8,18 +8,52 @@ void main() {
       () async {
         const module = Module();
         const controller = Controller('user');
-        const method = RpcMethod(name: 'getById');
+        const method = RpcMethod(
+          name: 'getById',
+          path: RestMapping.get('users/:id'),
+          description: 'Fetch a user by id.',
+          tags: ['user', 'read'],
+        );
         const inputAnnotation = RpcInput();
+        const pathParam = PathParam('id');
+        const queryParam = QueryParam('include');
+        const body = Body();
         const context = RpcContext(headers: {'x-trace-id': 'trace-1'});
         const request = RpcRequest(method: 'user.getById', input: {'id': '1'});
         const successResponse = RpcSuccessResponse(data: {'id': '1'});
         const errorResponse = RpcErrorResponse(
           error: RpcErrorBody(code: 'NOT_FOUND', message: 'missing'),
         );
+        final procedureMetadata = ProcedureMetadataRegistry([
+          const ProcedureMetadata(
+            rpcMethod: 'user.getById',
+            controllerNamespace: 'user',
+            methodName: 'getById',
+            outputTypeCode: 'UserResponseDto',
+            path: RestProcedureMetadata(method: 'GET', path: '/users/:id'),
+            description: 'Fetch a user by id.',
+            tags: ['user', 'read'],
+            parameters: [
+              ProcedureParameterMetadata(
+                parameterName: 'id',
+                wireName: 'id',
+                source: ProcedureParameterSourceKind.path,
+                typeCode: 'String',
+              ),
+            ],
+          ),
+        ]);
         const httpRequest = RpcHttpRequest(method: 'POST', path: '/rpc');
         const httpResponse = RpcHttpResponse(statusCode: 200);
+        final restRoutes = RestRouteRegistry(const []);
         final transport = HttpRpcTransport(baseUrl: 'http://localhost:3000');
         final caller = RpcCaller(const _StaticTransport({'ok': true}));
+        final optionalQuery = decodeRestScalarParameter<String?>(
+          rawValue: null,
+          source: 'query parameter',
+          name: 'include',
+          route: 'GET /users/:id',
+        );
 
         final result = await caller.call<Map<String, Object?>>(
           method: 'health.check',
@@ -29,7 +63,14 @@ void main() {
         expect(module.controllers, isEmpty);
         expect(controller.namespace, 'user');
         expect(method.name, 'getById');
+        expect(method.path?.method, 'GET');
+        expect(method.path?.path, '/users/:id');
+        expect(method.description, 'Fetch a user by id.');
+        expect(method.tags, ['user', 'read']);
         expect(inputAnnotation, isA<RpcInput>());
+        expect(pathParam.name, 'id');
+        expect(queryParam.name, 'include');
+        expect(body, isA<Body>());
         expect(context.headers['x-trace-id'], 'trace-1');
         expect(expectNoRpcInput(null, context: 'health.check'), isNull);
         expect(request.toJson(), {
@@ -44,7 +85,14 @@ void main() {
         });
         expect(httpRequest.path, '/rpc');
         expect(httpResponse.statusCode, 200);
+        expect(restRoutes.routes, isEmpty);
         expect(transport.endpointUri.toString(), 'http://localhost:3000/rpc');
+        expect(procedureMetadata['user.getById']?.methodName, 'getById');
+        expect(
+          procedureMetadata['user.getById']?.description,
+          'Fetch a user by id.',
+        );
+        expect(optionalQuery, isNull);
         expect(result, {'ok': true});
 
         transport.close();
