@@ -55,6 +55,13 @@ void main() {
             },
           ),
         ]),
+        openApiDocument: const {
+          'openapi': '3.0.3',
+          'info': {'title': 'Meta API', 'version': '1.0.0'},
+          'paths': {},
+          'components': {'schemas': {}},
+        },
+        docsHtml: '<html><body>Meta Docs</body></html>',
       );
 
       server = await app.listen(
@@ -166,6 +173,35 @@ void main() {
             'message': 'REST endpoint only accepts GET requests.',
           },
         });
+      },
+    );
+
+    test(
+      'When requesting /openapi.json then it returns the configured OpenAPI document',
+      () async {
+        final response = await _send(
+          baseUri.resolve('/openapi.json'),
+          method: 'GET',
+        );
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(jsonDecode(response.body), {
+          'openapi': '3.0.3',
+          'info': {'title': 'Meta API', 'version': '1.0.0'},
+          'paths': {},
+          'components': {'schemas': {}},
+        });
+      },
+    );
+
+    test(
+      'When requesting /docs then it returns the configured HTML docs page',
+      () async {
+        final response = await _send(baseUri.resolve('/docs'), method: 'GET');
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(response.headers.value('content-type'), contains('text/html'));
+        expect(response.body, '<html><body>Meta Docs</body></html>');
       },
     );
   });

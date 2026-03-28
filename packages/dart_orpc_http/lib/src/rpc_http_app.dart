@@ -10,15 +10,27 @@ final class RpcHttpApp {
   RpcHttpApp({
     required RpcProcedureRegistry procedures,
     RestRouteRegistry? restRoutes,
+    this.openApiDocument,
+    this.openApiPath = '/openapi.json',
+    this.docsHtml,
+    this.docsPath = '/docs',
   }) : procedures = procedures,
        restRoutes = restRoutes ?? RestRouteRegistry(const []),
        handler = createRpcHttpHandler(
          procedures: procedures,
          restRoutes: restRoutes,
+         openApiDocument: openApiDocument,
+         openApiPath: openApiPath,
+         docsHtml: docsHtml,
+         docsPath: docsPath,
        );
 
   final RpcProcedureRegistry procedures;
   final RestRouteRegistry restRoutes;
+  final JsonObject? openApiDocument;
+  final String openApiPath;
+  final String? docsHtml;
+  final String docsPath;
   final RpcHttpHandler handler;
 
   Future<HttpServer> listen(int port, {String hostname = '0.0.0.0'}) async {

@@ -15,3 +15,5 @@ RpcHttpApp buildBasicApp() => _$buildAppModuleRpcApp();
 
 ProcedureMetadataRegistry buildBasicAppProcedureMetadata() =>
     _$createAppModuleProcedureMetadataRegistry();
+
+JsonObject buildBasicAppOpenApiDocument() => _$createAppModuleOpenApiDocument();

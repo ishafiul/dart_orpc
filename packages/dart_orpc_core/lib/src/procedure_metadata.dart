@@ -1,4 +1,4 @@
-enum ProcedureParameterSourceKind { rpcInput, path, query, body }
+enum ProcedureParameterSourceKind { rpcInput, path, query, header, body }
 
 final class ProcedureParameterMetadata {
   const ProcedureParameterMetadata({

@@ -132,5 +132,59 @@ void main() {
         });
       },
     );
+
+    test(
+      'When requesting /openapi.json then it returns the generated OpenAPI document',
+      () async {
+        final httpClient = HttpClient();
+        addTearDown(httpClient.close);
+
+        final request = await httpClient.getUrl(
+          Uri.parse(
+            'http://${server.address.address}:${server.port}/openapi.json',
+          ),
+        );
+
+        final response = await request.close();
+        final body =
+            jsonDecode(await utf8.decoder.bind(response).join()) as Map;
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(body['openapi'], '3.0.3');
+        expect((body['paths'] as Map).containsKey('/users/{id}'), isTrue);
+        expect(
+          (((body['components'] as Map)['schemas'] as Map).containsKey(
+            'GetUserDto',
+          )),
+          isTrue,
+        );
+        expect(
+          (((body['components'] as Map)['schemas'] as Map).containsKey(
+            'UserResponseDto',
+          )),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'When requesting /docs then it returns the Scalar docs HTML',
+      () async {
+        final httpClient = HttpClient();
+        addTearDown(httpClient.close);
+
+        final request = await httpClient.getUrl(
+          Uri.parse('http://${server.address.address}:${server.port}/docs'),
+        );
+
+        final response = await request.close();
+        final body = await utf8.decoder.bind(response).join();
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(response.headers.contentType?.mimeType, 'text/html');
+        expect(body, contains('@scalar/api-reference'));
+        expect(body, contains('/openapi.json'));
+      },
+    );
   });
 }

@@ -67,11 +67,22 @@ void main() {
     );
 
     test(
-      'When constructing an RpcInput then it creates a marker annotation',
+      'When constructing an RpcInput then it stores optional binding details',
       () {
-        const annotation = RpcInput();
+        const annotation = RpcInput(
+          binding: RpcInputBinding(
+            path: [RpcInputField('id')],
+            query: [RpcInputField('include', 'view')],
+            headers: [RpcInputField('tenantId', 'x-tenant-id')],
+            body: [RpcInputField('name')],
+          ),
+        );
 
-        expect(annotation, isA<RpcInput>());
+        expect(annotation.binding, isNotNull);
+        expect(annotation.binding!.path.single.field, 'id');
+        expect(annotation.binding!.query.single.name, 'view');
+        expect(annotation.binding!.headers.single.name, 'x-tenant-id');
+        expect(annotation.binding!.body.single.field, 'name');
       },
     );
 
@@ -81,10 +92,19 @@ void main() {
         const path = PathParam('id');
         const unnamedQuery = QueryParam();
         const body = Body();
+        const fromPath = FromPath('userId');
+        const fromQuery = FromQuery('view');
+        const fromHeader = FromHeader('x-tenant-id');
+        const typedField = RpcInputField<String>('id', 'userId');
 
         expect(path.name, 'id');
         expect(unnamedQuery.name, isNull);
         expect(body, isA<Body>());
+        expect(fromPath.name, 'userId');
+        expect(fromQuery.name, 'view');
+        expect(fromHeader.name, 'x-tenant-id');
+        expect(typedField.field, 'id');
+        expect(typedField.name, 'userId');
       },
     );
   });

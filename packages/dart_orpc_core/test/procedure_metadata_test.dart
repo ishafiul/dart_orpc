@@ -21,6 +21,12 @@ void main() {
             typeCode: 'String',
           ),
           ProcedureParameterMetadata(
+            parameterName: 'tenantId',
+            wireName: 'x-tenant-id',
+            source: ProcedureParameterSourceKind.header,
+            typeCode: 'String?',
+          ),
+          ProcedureParameterMetadata(
             parameterName: 'body',
             wireName: 'body',
             source: ProcedureParameterSourceKind.body,
@@ -38,7 +44,7 @@ void main() {
       expect(metadata.path!.path, '/users/:id');
       expect(metadata.description, 'Fetch a user by id.');
       expect(metadata.tags, ['user', 'read']);
-      expect(metadata.parameters, hasLength(2));
+      expect(metadata.parameters, hasLength(3));
       expect(metadata.parameters.first.parameterName, 'id');
       expect(metadata.parameters.first.wireName, 'id');
       expect(
@@ -46,6 +52,11 @@ void main() {
         ProcedureParameterSourceKind.path,
       );
       expect(metadata.parameters.first.typeCode, 'String');
+      expect(metadata.parameters[1].wireName, 'x-tenant-id');
+      expect(
+        metadata.parameters[1].source,
+        ProcedureParameterSourceKind.header,
+      );
     });
 
     test('indexes metadata by RPC method', () {

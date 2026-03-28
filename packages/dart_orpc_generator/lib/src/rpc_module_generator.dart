@@ -34,6 +34,18 @@ const _bodyChecker = TypeChecker.typeNamed(
   Body,
   inPackage: 'dart_orpc_annotations',
 );
+const _fromPathChecker = TypeChecker.typeNamed(
+  FromPath,
+  inPackage: 'dart_orpc_annotations',
+);
+const _fromQueryChecker = TypeChecker.typeNamed(
+  FromQuery,
+  inPackage: 'dart_orpc_annotations',
+);
+const _fromHeaderChecker = TypeChecker.typeNamed(
+  FromHeader,
+  inPackage: 'dart_orpc_annotations',
+);
 const _luthorChecker = TypeChecker.typeNamed(Luthor, inPackage: 'luthor');
 
 final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
@@ -93,7 +105,14 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
         '_\$create${moduleName}RestRouteRegistry';
     final createMetadataRegistryName =
         '_\$create${moduleName}ProcedureMetadataRegistry';
+    final createOpenApiSchemaRegistryName =
+        '_\$create${moduleName}OpenApiSchemaRegistry';
+    final createOpenApiDocumentName = '_\$create${moduleName}OpenApiDocument';
     final buildAppName = '_\$build${moduleName}RpcApp';
+    final openApiTitle = _openApiTitleFor(moduleName);
+    final openApiSchemaComponents = _collectOpenApiSchemaComponents(
+      controllerBindings,
+    );
 
     final buffer = StringBuffer()
       ..writeln('RpcProcedureRegistry $createRegistryName() {');
@@ -177,7 +196,19 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
             '      handler: (context, request, pathParameters) async {',
           );
 
+        if (procedure.restRpcInput != null) {
+          for (final declaration in _restRpcInputDeclarations(
+            procedure.restRpcInput!,
+            procedure,
+          )) {
+            buffer.writeln('        $declaration');
+          }
+        }
+
         for (final parameter in procedure.restInvocationParameters) {
+          if (parameter.source == _InvocationParameterSourceKind.rpcInput) {
+            continue;
+          }
           final declaration = _restParameterDeclaration(parameter, procedure);
           if (declaration != null) {
             buffer.writeln('        $declaration');
@@ -269,9 +300,32 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       ..writeln('  ]);')
       ..writeln('}')
       ..writeln()
+      ..writeln('OpenApiSchemaRegistry $createOpenApiSchemaRegistryName() {')
+      ..writeln('  return OpenApiSchemaRegistry([');
+
+    for (final component in openApiSchemaComponents) {
+      buffer
+        ..writeln('    OpenApiSchemaComponent(')
+        ..writeln("      name: '${component.name}',")
+        ..writeln('      validator: ${component.validatorExpression},')
+        ..writeln('    ),');
+    }
+
+    buffer
+      ..writeln('  ]);')
+      ..writeln('}')
+      ..writeln()
+      ..writeln('JsonObject $createOpenApiDocumentName() {')
+      ..writeln('  return createOpenApiDocument(')
+      ..writeln("    title: '${_escapeDartString(openApiTitle)}',")
+      ..writeln('    procedures: $createMetadataRegistryName(),')
+      ..writeln('    schemas: $createOpenApiSchemaRegistryName(),')
+      ..writeln('  );')
+      ..writeln('}')
+      ..writeln()
       ..writeln('RpcHttpApp $buildAppName() {')
       ..writeln(
-        '  return RpcHttpApp(procedures: $createRegistryName(), restRoutes: $createRestRouteRegistryName());',
+        '  return RpcHttpApp(procedures: $createRegistryName(), restRoutes: $createRestRouteRegistryName(), openApiDocument: $createOpenApiDocumentName(), docsHtml: createScalarHtml(title: \'${_escapeDartString(openApiTitle)}\'));',
       )
       ..writeln('}')
       ..writeln()
@@ -521,15 +575,6 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       );
     }
 
-    if (path != null &&
-        rpcInputParameters.isNotEmpty &&
-        !hasRestSourceParameters) {
-      throw InvalidGenerationSourceError(
-        'REST-enabled RPC method "$methodName" does not yet support @RpcInput; use explicit @PathParam, @QueryParam, and @Body parameters.',
-        element: method,
-      );
-    }
-
     _ensureUniqueWireNames(
       pathParameters,
       annotationLabel: '@PathParam',
@@ -543,7 +588,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       methodName: methodName,
     );
 
-    if (path != null) {
+    if (path != null && rpcInputParameters.isEmpty) {
       _validateRestPathBindings(
         path.path,
         pathParameters,
@@ -554,6 +599,24 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
     final inputParameter = rpcInputParameters.isEmpty
         ? null
         : rpcInputParameters.single;
+    final rpcInputBinding = inputParameter == null
+        ? null
+        : _readRpcInputBinding(inputParameter);
+    if (rpcInputBinding != null && path == null) {
+      throw InvalidGenerationSourceError(
+        'RPC method "$methodName" may only use @RpcInput(binding: ...) when RpcMethod(path: ...) is declared.',
+        element: inputParameter,
+      );
+    }
+    final restRpcInput =
+        path != null && inputParameter != null && !hasRestSourceParameters
+        ? _resolveRestRpcInput(
+            inputParameter,
+            path: path,
+            methodName: methodName,
+            binding: rpcInputBinding,
+          )
+        : null;
     final invocationArguments = <String>[];
     final restInvocationParameters = <_ResolvedInvocationParameter>[];
     final parameters = <_ResolvedParameter>[];
@@ -577,14 +640,18 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
 
       if (_rpcInputChecker.hasAnnotationOfExact(parameter)) {
         invocationArguments.add('input');
-        parameters.add(
-          _ResolvedParameter(
-            parameterName: parameter.displayName,
-            wireName: parameter.displayName,
-            source: ProcedureParameterSourceKind.rpcInput,
-            typeCode: parameter.type.getDisplayString(),
-          ),
-        );
+        if (restRpcInput == null) {
+          parameters.add(
+            _ResolvedParameter(
+              parameterName: parameter.displayName,
+              wireName: parameter.displayName,
+              source: ProcedureParameterSourceKind.rpcInput,
+              typeCode: parameter.type.getDisplayString(),
+            ),
+          );
+        } else {
+          parameters.addAll(restRpcInput.metadataParameters);
+        }
         restInvocationParameters.add(
           _ResolvedInvocationParameter(
             parameterName: parameter.displayName,
@@ -695,6 +762,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       tags: tags,
       parameters: parameters,
       restInvocationParameters: restInvocationParameters,
+      restRpcInput: restRpcInput,
       hasInput: inputParameter != null,
       inputTypeCode: inputParameter?.type.getDisplayString(),
       inputTypeName: inputParameter?.type.element?.displayName,
@@ -787,6 +855,8 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
         return 'final ${parameter.parameterName} = decodeRestScalarParameter<${parameter.typeCode}>(rawValue: pathParameters[\'${parameter.wireName}\'], source: \'path parameter\', name: \'${parameter.wireName}\', route: \'$routeLabel\');';
       case _InvocationParameterSourceKind.query:
         return 'final ${parameter.parameterName} = decodeRestScalarParameter<${parameter.typeCode}>(rawValue: request.queryParameters[\'${parameter.wireName}\'], source: \'query parameter\', name: \'${parameter.wireName}\', route: \'$routeLabel\');';
+      case _InvocationParameterSourceKind.header:
+        return 'final ${parameter.parameterName} = decodeRestScalarParameter<${parameter.typeCode}>(rawValue: lookupRestHeader(request.headers, \'${_escapeDartString(parameter.wireName!)}\'), source: \'header\', name: \'${_escapeDartString(parameter.wireName!)}\', route: \'$routeLabel\');';
       case _InvocationParameterSourceKind.body:
         return 'final ${parameter.parameterName} = decodeRestBody<${parameter.typeCode}>(rawBody: request.body, route: \'$routeLabel\', parameterName: \'${parameter.parameterName}\', decode: ${_decodeRestBodyExpression(parameter, procedure)});';
     }
@@ -801,6 +871,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       case _InvocationParameterSourceKind.rpcInput:
       case _InvocationParameterSourceKind.path:
       case _InvocationParameterSourceKind.query:
+      case _InvocationParameterSourceKind.header:
       case _InvocationParameterSourceKind.body:
         return parameter.parameterName;
     }
@@ -831,6 +902,63 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
 
   String _restRouteLabel(_ResolvedProcedure procedure) {
     return '${procedure.path!.method} ${procedure.path!.path}';
+  }
+
+  List<String> _restRpcInputDeclarations(
+    _ResolvedRestRpcInput restRpcInput,
+    _ResolvedProcedure procedure,
+  ) {
+    final routeLabel = _restRouteLabel(procedure);
+    final lines = <String>[];
+
+    switch (restRpcInput.mode) {
+      case _ResolvedRestRpcInputMode.query:
+        lines.add('final rawInput = <String, Object?>{};');
+        for (final pathField in restRpcInput.pathFields) {
+          lines.add(
+            "rawInput['${pathField.name}'] = decodeRestScalarParameter<${pathField.typeCode}>(rawValue: pathParameters['${pathField.wireName}'], source: 'path parameter', name: '${pathField.wireName}', route: '$routeLabel');",
+          );
+        }
+        for (final queryField in restRpcInput.queryFields) {
+          lines.add(
+            "rawInput['${queryField.name}'] = decodeRestScalarParameter<${queryField.typeCode}>(rawValue: request.queryParameters['${queryField.wireName}'], source: 'query parameter', name: '${queryField.wireName}', route: '$routeLabel');",
+          );
+        }
+        for (final headerField in restRpcInput.headerFields) {
+          lines.add(
+            "rawInput['${headerField.name}'] = decodeRestScalarParameter<${headerField.typeCode}>(rawValue: lookupRestHeader(request.headers, '${_escapeDartString(headerField.wireName)}'), source: 'header', name: '${_escapeDartString(headerField.wireName)}', route: '$routeLabel');",
+          );
+        }
+      case _ResolvedRestRpcInputMode.body:
+        if (restRpcInput.bodyFields.isNotEmpty) {
+          lines.add(
+            "final rawInput = request.body.trim().isEmpty ? <String, Object?>{} : Map<String, Object?>.from(decodeRestBody<JsonObject>(rawBody: request.body, route: '$routeLabel', parameterName: '${restRpcInput.parameterName}', decode: (rawJson) => expectJsonObject(rawJson, context: '$routeLabel body')));",
+          );
+        } else {
+          lines.add('final rawInput = <String, Object?>{};');
+        }
+        for (final pathField in restRpcInput.pathFields) {
+          lines.add(
+            "rawInput['${pathField.name}'] = decodeRestScalarParameter<${pathField.typeCode}>(rawValue: pathParameters['${pathField.wireName}'], source: 'path parameter', name: '${pathField.wireName}', route: '$routeLabel');",
+          );
+        }
+        for (final queryField in restRpcInput.queryFields) {
+          lines.add(
+            "rawInput['${queryField.name}'] = decodeRestScalarParameter<${queryField.typeCode}>(rawValue: request.queryParameters['${queryField.wireName}'], source: 'query parameter', name: '${queryField.wireName}', route: '$routeLabel');",
+          );
+        }
+        for (final headerField in restRpcInput.headerFields) {
+          lines.add(
+            "rawInput['${headerField.name}'] = decodeRestScalarParameter<${headerField.typeCode}>(rawValue: lookupRestHeader(request.headers, '${_escapeDartString(headerField.wireName)}'), source: 'header', name: '${_escapeDartString(headerField.wireName)}', route: '$routeLabel');",
+          );
+        }
+    }
+
+    lines.add(
+      'final ${restRpcInput.parameterName} = (${_decodeInputExpression(procedure)})(rawInput);',
+    );
+
+    return lines;
   }
 
   void _ensureUniqueWireNames(
@@ -894,6 +1022,670 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
         'RPC method "$methodName" must declare @PathParam bindings for route "$routePath": ${missingBindings.join(', ')}.',
       );
     }
+  }
+
+  _ResolvedRestRpcInput _resolveRestRpcInput(
+    FormalParameterElement inputParameter, {
+    required _ResolvedPathMapping path,
+    required String methodName,
+    _ResolvedRpcInputDetails? binding,
+  }) {
+    final inputFields = _resolveDtoFields(
+      inputParameter.type,
+      methodName: methodName,
+    );
+    if (inputFields.isEmpty) {
+      throw InvalidGenerationSourceError(
+        'REST-enabled RPC method "$methodName" could not infer fields from input DTO "${inputParameter.type.getDisplayString()}".',
+        element: inputParameter,
+      );
+    }
+
+    final fieldByName = <String, _ResolvedDtoField>{
+      for (final field in inputFields) field.name: field,
+    };
+    final routeParameters = RegExp(r':([A-Za-z_][A-Za-z0-9_]*)')
+        .allMatches(path.path)
+        .map((match) => match.group(1)!)
+        .toList(growable: false);
+
+    final defaultDetails = _rpcInputBindingFromDtoFields(inputFields);
+    final effectiveDetails = _mergeRpcInputDetails(defaultDetails, binding);
+
+    _validateRpcInputDetails(
+      effectiveDetails,
+      fieldByName: fieldByName,
+      routeParameters: routeParameters,
+      methodName: methodName,
+      element: inputParameter,
+    );
+
+    final explicitSourceByField = <String, _ResolvedRpcInputField>{};
+    for (final binding in [
+      ...effectiveDetails.path,
+      ...effectiveDetails.query,
+      ...effectiveDetails.headers,
+      ...effectiveDetails.body,
+    ]) {
+      explicitSourceByField[binding.fieldName] = binding;
+    }
+
+    final explicitPathByWireName = <String, _ResolvedRpcInputField>{
+      for (final binding in effectiveDetails.path) binding.wireName: binding,
+    };
+
+    final pathFields = <_ResolvedRestInputField>[];
+    final boundFieldNames = <String>{};
+    for (final routeParameter in routeParameters) {
+      final explicitPathBinding = explicitPathByWireName[routeParameter];
+      if (explicitPathBinding != null) {
+        final field = fieldByName[explicitPathBinding.fieldName]!;
+        _ensureSupportedRestInputField(
+          field,
+          sourceLabel: 'path parameter',
+          methodName: methodName,
+          element: inputParameter,
+        );
+        pathFields.add(
+          _ResolvedRestInputField(
+            name: field.name,
+            typeCode: field.typeCode,
+            wireName: explicitPathBinding.wireName,
+          ),
+        );
+        boundFieldNames.add(field.name);
+        continue;
+      }
+
+      final conflictingBinding = explicitSourceByField[routeParameter];
+      if (conflictingBinding != null && conflictingBinding.source != 'path') {
+        throw InvalidGenerationSourceError(
+          'REST-enabled RPC method "$methodName" binds DTO field "$routeParameter" from ${conflictingBinding.source}, but route "${path.path}" requires it as a path parameter.',
+          element: inputParameter,
+        );
+      }
+
+      final field = fieldByName[routeParameter];
+      if (field == null) {
+        throw InvalidGenerationSourceError(
+          'REST-enabled RPC method "$methodName" must declare input DTO field "$routeParameter" required by route "${path.path}".',
+          element: inputParameter,
+        );
+      }
+
+      _ensureSupportedRestInputField(
+        field,
+        sourceLabel: 'path parameter',
+        methodName: methodName,
+        element: inputParameter,
+      );
+      pathFields.add(
+        _ResolvedRestInputField(
+          name: field.name,
+          typeCode: field.typeCode,
+          wireName: routeParameter,
+        ),
+      );
+      boundFieldNames.add(field.name);
+    }
+
+    final queryFields = <_ResolvedRestInputField>[
+      for (final binding in effectiveDetails.query)
+        _resolveRestInputFieldBinding(
+          binding,
+          fieldByName: fieldByName,
+          sourceLabel: 'query parameter',
+          methodName: methodName,
+          element: inputParameter,
+        ),
+    ];
+    final headerFields = <_ResolvedRestInputField>[
+      for (final binding in effectiveDetails.headers)
+        _resolveRestInputFieldBinding(
+          binding,
+          fieldByName: fieldByName,
+          sourceLabel: 'header',
+          methodName: methodName,
+          element: inputParameter,
+        ),
+    ];
+    final explicitBodyFields = <_ResolvedRestInputField>[
+      for (final binding in effectiveDetails.body)
+        _resolveRestInputFieldBinding(
+          binding,
+          fieldByName: fieldByName,
+          sourceLabel: 'body',
+          methodName: methodName,
+          element: inputParameter,
+          allowCustomWireName: false,
+          requiresScalar: false,
+        ),
+    ];
+
+    boundFieldNames.addAll(queryFields.map((field) => field.name));
+    boundFieldNames.addAll(headerFields.map((field) => field.name));
+    boundFieldNames.addAll(explicitBodyFields.map((field) => field.name));
+
+    final remainingFields = inputFields
+        .where((field) => !boundFieldNames.contains(field.name))
+        .toList(growable: false);
+    final httpMethod = path.method.toUpperCase();
+
+    if (httpMethod == 'GET' || httpMethod == 'DELETE') {
+      if (explicitBodyFields.isNotEmpty) {
+        throw InvalidGenerationSourceError(
+          'REST-enabled RPC method "$methodName" may not bind @RpcInput(binding: ...) body fields for ${path.method} routes.',
+          element: inputParameter,
+        );
+      }
+
+      for (final field in remainingFields) {
+        _ensureSupportedRestInputField(
+          field,
+          sourceLabel: 'query parameter',
+          methodName: methodName,
+          element: inputParameter,
+        );
+      }
+
+      return _ResolvedRestRpcInput(
+        parameterName: inputParameter.displayName,
+        mode: _ResolvedRestRpcInputMode.query,
+        pathFields: pathFields,
+        queryFields: [
+          ...queryFields,
+          for (final field in remainingFields)
+            _ResolvedRestInputField(
+              name: field.name,
+              typeCode: field.typeCode,
+              wireName: field.name,
+            ),
+        ],
+        headerFields: headerFields,
+        bodyFields: const [],
+        metadataParameters: [
+          for (final field in pathFields)
+            _ResolvedParameter(
+              parameterName: field.name,
+              wireName: field.wireName,
+              source: ProcedureParameterSourceKind.path,
+              typeCode: field.typeCode,
+            ),
+          for (final field in [
+            ...queryFields,
+            for (final remainingField in remainingFields)
+              _ResolvedRestInputField(
+                name: remainingField.name,
+                typeCode: remainingField.typeCode,
+                wireName: remainingField.name,
+              ),
+          ])
+            _ResolvedParameter(
+              parameterName: field.name,
+              wireName: field.wireName,
+              source: ProcedureParameterSourceKind.query,
+              typeCode: field.typeCode,
+            ),
+          for (final field in headerFields)
+            _ResolvedParameter(
+              parameterName: field.name,
+              wireName: field.wireName,
+              source: ProcedureParameterSourceKind.header,
+              typeCode: field.typeCode,
+            ),
+        ],
+      );
+    }
+
+    final bodyFields = [
+      ...explicitBodyFields,
+      for (final field in remainingFields)
+        _ResolvedRestInputField(
+          name: field.name,
+          typeCode: field.typeCode,
+          wireName: field.name,
+        ),
+    ];
+
+    return _ResolvedRestRpcInput(
+      parameterName: inputParameter.displayName,
+      mode: _ResolvedRestRpcInputMode.body,
+      pathFields: pathFields,
+      queryFields: queryFields,
+      headerFields: headerFields,
+      bodyFields: bodyFields,
+      metadataParameters: [
+        for (final field in pathFields)
+          _ResolvedParameter(
+            parameterName: field.name,
+            wireName: field.wireName,
+            source: ProcedureParameterSourceKind.path,
+            typeCode: field.typeCode,
+          ),
+        for (final field in queryFields)
+          _ResolvedParameter(
+            parameterName: field.name,
+            wireName: field.wireName,
+            source: ProcedureParameterSourceKind.query,
+            typeCode: field.typeCode,
+          ),
+        for (final field in headerFields)
+          _ResolvedParameter(
+            parameterName: field.name,
+            wireName: field.wireName,
+            source: ProcedureParameterSourceKind.header,
+            typeCode: field.typeCode,
+          ),
+        if (bodyFields.isNotEmpty)
+          _ResolvedParameter(
+            parameterName: inputParameter.displayName,
+            wireName: inputParameter.displayName,
+            source: ProcedureParameterSourceKind.body,
+            typeCode: inputParameter.type.getDisplayString(),
+          ),
+      ],
+    );
+  }
+
+  List<_ResolvedDtoField> _resolveDtoFields(
+    DartType type, {
+    required String methodName,
+  }) {
+    final element = type.element;
+    if (element is! InterfaceElement) {
+      throw InvalidGenerationSourceError(
+        'REST-enabled RPC method "$methodName" requires an interface or class DTO input type.',
+      );
+    }
+
+    final fieldsByName = <String, _ResolvedDtoFieldBuilder>{};
+
+    void recordField(
+      String name,
+      String typeCode, {
+      _ResolvedDtoFieldBinding? binding,
+    }) {
+      final field = fieldsByName.putIfAbsent(
+        name,
+        () => _ResolvedDtoFieldBuilder(name: name, typeCode: typeCode),
+      );
+      if (binding != null) {
+        field.applyBinding(binding, methodName: methodName, element: element);
+      }
+    }
+
+    for (final field in element.fields) {
+      final name = field.displayName;
+      if (field.isStatic || name.startsWith('_')) {
+        continue;
+      }
+
+      recordField(
+        name,
+        field.type.getDisplayString(),
+        binding: _readResolvedDtoFieldBinding(field, methodName: methodName),
+      );
+    }
+
+    for (final getter in element.getters) {
+      if (getter.isStatic) {
+        continue;
+      }
+
+      final name = getter.displayName;
+      if (name.startsWith('_') || name == 'hashCode' || name == 'runtimeType') {
+        continue;
+      }
+
+      recordField(
+        name,
+        getter.returnType.getDisplayString(),
+        binding: _readResolvedDtoFieldBinding(getter, methodName: methodName),
+      );
+    }
+
+    final candidateConstructors = element.constructors.where((constructor) {
+      final name = constructor.name ?? '';
+      return name.isEmpty || name == 'new';
+    });
+
+    for (final constructor in candidateConstructors) {
+      for (final parameter in constructor.formalParameters) {
+        final name = parameter.displayName;
+        if (name.startsWith('_')) {
+          continue;
+        }
+
+        recordField(
+          name,
+          parameter.type.getDisplayString(),
+          binding: _readResolvedDtoFieldBinding(
+            parameter,
+            methodName: methodName,
+          ),
+        );
+      }
+    }
+
+    return fieldsByName.values
+        .map((field) => field.build())
+        .toList(growable: false);
+  }
+
+  _ResolvedDtoFieldBinding? _readResolvedDtoFieldBinding(
+    Element element, {
+    required String methodName,
+  }) {
+    final bindings = <_ResolvedDtoFieldBinding>[];
+
+    final pathAnnotation = _fromPathChecker.firstAnnotationOfExact(element);
+    if (pathAnnotation != null) {
+      final reader = ConstantReader(pathAnnotation);
+      bindings.add(
+        _ResolvedDtoFieldBinding(
+          source: 'path',
+          wireName: reader.peek('name')?.stringValue,
+        ),
+      );
+    }
+
+    final queryAnnotation = _fromQueryChecker.firstAnnotationOfExact(element);
+    if (queryAnnotation != null) {
+      final reader = ConstantReader(queryAnnotation);
+      bindings.add(
+        _ResolvedDtoFieldBinding(
+          source: 'query',
+          wireName: reader.peek('name')?.stringValue,
+        ),
+      );
+    }
+
+    final headerAnnotation = _fromHeaderChecker.firstAnnotationOfExact(element);
+    if (headerAnnotation != null) {
+      final reader = ConstantReader(headerAnnotation);
+      bindings.add(
+        _ResolvedDtoFieldBinding(
+          source: 'header',
+          wireName: reader.peek('name')?.stringValue,
+        ),
+      );
+    }
+
+    if (bindings.length > 1) {
+      throw InvalidGenerationSourceError(
+        'RPC DTO field "${element.displayName}" may declare at most one of @FromPath, @FromQuery, or @FromHeader.',
+        element: element,
+      );
+    }
+
+    if (bindings.isEmpty) {
+      return null;
+    }
+
+    return bindings.single;
+  }
+
+  _ResolvedRpcInputDetails? _readRpcInputBinding(
+    FormalParameterElement parameter,
+  ) {
+    final annotation = _rpcInputChecker.firstAnnotationOfExact(parameter);
+    if (annotation == null) {
+      return null;
+    }
+
+    final reader = ConstantReader(annotation);
+    final bindingReader = reader.peek('binding');
+    if (bindingReader == null || bindingReader.isNull) {
+      return null;
+    }
+
+    return _ResolvedRpcInputDetails(
+      path: _readRpcInputFieldBindings(
+        bindingReader.read('path'),
+        source: 'path',
+      ),
+      query: _readRpcInputFieldBindings(
+        bindingReader.read('query'),
+        source: 'query',
+      ),
+      headers: _readRpcInputFieldBindings(
+        bindingReader.read('headers'),
+        source: 'header',
+      ),
+      body: _readRpcInputFieldBindings(
+        bindingReader.read('body'),
+        source: 'body',
+      ),
+    );
+  }
+
+  List<_ResolvedRpcInputField> _readRpcInputFieldBindings(
+    ConstantReader reader, {
+    required String source,
+  }) {
+    if (reader.isNull) {
+      return const [];
+    }
+
+    return reader.listValue
+        .map((value) {
+          final bindingReader = ConstantReader(value);
+          return _ResolvedRpcInputField(
+            fieldName: bindingReader.read('field').stringValue,
+            wireName:
+                bindingReader.peek('name')?.stringValue ??
+                bindingReader.read('field').stringValue,
+            source: source,
+          );
+        })
+        .toList(growable: false);
+  }
+
+  _ResolvedRpcInputDetails _rpcInputBindingFromDtoFields(
+    List<_ResolvedDtoField> inputFields,
+  ) {
+    return _ResolvedRpcInputDetails(
+      path: [
+        for (final field in inputFields)
+          if (field.defaultSource == 'path')
+            _ResolvedRpcInputField(
+              fieldName: field.name,
+              wireName: field.defaultWireName ?? field.name,
+              source: 'path',
+            ),
+      ],
+      query: [
+        for (final field in inputFields)
+          if (field.defaultSource == 'query')
+            _ResolvedRpcInputField(
+              fieldName: field.name,
+              wireName: field.defaultWireName ?? field.name,
+              source: 'query',
+            ),
+      ],
+      headers: [
+        for (final field in inputFields)
+          if (field.defaultSource == 'header')
+            _ResolvedRpcInputField(
+              fieldName: field.name,
+              wireName: field.defaultWireName ?? field.name,
+              source: 'header',
+            ),
+      ],
+      body: const [],
+    );
+  }
+
+  _ResolvedRpcInputDetails _mergeRpcInputDetails(
+    _ResolvedRpcInputDetails defaults,
+    _ResolvedRpcInputDetails? overrides,
+  ) {
+    if (overrides == null) {
+      return defaults;
+    }
+
+    final overriddenFields = <String>{
+      for (final binding in [
+        ...overrides.path,
+        ...overrides.query,
+        ...overrides.headers,
+        ...overrides.body,
+      ])
+        binding.fieldName,
+    };
+
+    List<_ResolvedRpcInputField> merged(
+      List<_ResolvedRpcInputField> defaultBindings,
+      List<_ResolvedRpcInputField> overrideBindings,
+    ) {
+      return [
+        for (final binding in defaultBindings)
+          if (!overriddenFields.contains(binding.fieldName)) binding,
+        ...overrideBindings,
+      ];
+    }
+
+    return _ResolvedRpcInputDetails(
+      path: merged(defaults.path, overrides.path),
+      query: merged(defaults.query, overrides.query),
+      headers: merged(defaults.headers, overrides.headers),
+      body: merged(defaults.body, overrides.body),
+    );
+  }
+
+  void _validateRpcInputDetails(
+    _ResolvedRpcInputDetails details, {
+    required Map<String, _ResolvedDtoField> fieldByName,
+    required List<String> routeParameters,
+    required String methodName,
+    required Element element,
+  }) {
+    final boundFieldNames = <String>{};
+    for (final binding in [
+      ...details.path,
+      ...details.query,
+      ...details.headers,
+      ...details.body,
+    ]) {
+      if (!fieldByName.containsKey(binding.fieldName)) {
+        throw InvalidGenerationSourceError(
+          'REST-enabled RPC method "$methodName" references unknown DTO field "${binding.fieldName}" in @RpcInput(binding: ...).',
+          element: element,
+        );
+      }
+
+      if (!boundFieldNames.add(binding.fieldName)) {
+        throw InvalidGenerationSourceError(
+          'REST-enabled RPC method "$methodName" may not bind DTO field "${binding.fieldName}" from more than one @RpcInput(binding: ...) source.',
+          element: element,
+        );
+      }
+    }
+
+    _ensureUniqueRpcInputDetailWireNames(
+      details.path,
+      sourceLabel: 'path',
+      methodName: methodName,
+      element: element,
+    );
+    _ensureUniqueRpcInputDetailWireNames(
+      details.query,
+      sourceLabel: 'query',
+      methodName: methodName,
+      element: element,
+    );
+    _ensureUniqueRpcInputDetailWireNames(
+      details.headers,
+      sourceLabel: 'header',
+      methodName: methodName,
+      element: element,
+    );
+
+    final routeParameterSet = routeParameters.toSet();
+    final unknownPathBindings = details.path
+        .where((binding) => !routeParameterSet.contains(binding.wireName))
+        .toList(growable: false);
+    if (unknownPathBindings.isNotEmpty) {
+      throw InvalidGenerationSourceError(
+        'REST-enabled RPC method "$methodName" declares @RpcInput(binding: ...) path bindings not present in route: ${unknownPathBindings.map((binding) => binding.wireName).join(', ')}.',
+        element: element,
+      );
+    }
+
+    final invalidBodyBindings = details.body
+        .where((binding) => binding.wireName != binding.fieldName)
+        .toList(growable: false);
+    if (invalidBodyBindings.isNotEmpty) {
+      throw InvalidGenerationSourceError(
+        'REST-enabled RPC method "$methodName" does not support custom body wire names in @RpcInput(binding: ...).',
+        element: element,
+      );
+    }
+  }
+
+  void _ensureUniqueRpcInputDetailWireNames(
+    List<_ResolvedRpcInputField> bindings, {
+    required String sourceLabel,
+    required String methodName,
+    required Element element,
+  }) {
+    final seenWireNames = <String>{};
+    for (final binding in bindings) {
+      if (!seenWireNames.add(binding.wireName)) {
+        throw InvalidGenerationSourceError(
+          'REST-enabled RPC method "$methodName" declares duplicate $sourceLabel binding "${binding.wireName}" in @RpcInput(binding: ...).',
+          element: element,
+        );
+      }
+    }
+  }
+
+  _ResolvedRestInputField _resolveRestInputFieldBinding(
+    _ResolvedRpcInputField binding, {
+    required Map<String, _ResolvedDtoField> fieldByName,
+    required String sourceLabel,
+    required String methodName,
+    required Element element,
+    bool allowCustomWireName = true,
+    bool requiresScalar = true,
+  }) {
+    final field = fieldByName[binding.fieldName]!;
+    if (requiresScalar) {
+      _ensureSupportedRestInputField(
+        field,
+        sourceLabel: sourceLabel,
+        methodName: methodName,
+        element: element,
+      );
+    }
+    if (!allowCustomWireName && binding.wireName != binding.fieldName) {
+      throw InvalidGenerationSourceError(
+        'REST-enabled RPC method "$methodName" does not support custom $sourceLabel names for DTO field "${binding.fieldName}".',
+        element: element,
+      );
+    }
+
+    return _ResolvedRestInputField(
+      name: field.name,
+      typeCode: field.typeCode,
+      wireName: binding.wireName,
+    );
+  }
+
+  void _ensureSupportedRestInputField(
+    _ResolvedDtoField field, {
+    required String sourceLabel,
+    required String methodName,
+    required Element element,
+  }) {
+    if (_isSupportedRestScalarType(field.typeCode)) {
+      return;
+    }
+
+    throw InvalidGenerationSourceError(
+      'REST-enabled RPC method "$methodName" only supports String, int, double, or bool input DTO fields for $sourceLabel binding. Unsupported field: "${field.name}".',
+      element: element,
+    );
   }
 
   String _pathParamWireName(FormalParameterElement parameter) {
@@ -1027,6 +1819,59 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
     return '${moduleName}Client';
   }
 
+  String _openApiTitleFor(String moduleName) {
+    if (moduleName.endsWith('Module') && moduleName.length > 'Module'.length) {
+      return '${moduleName.substring(0, moduleName.length - 'Module'.length)} API';
+    }
+
+    return '$moduleName API';
+  }
+
+  List<_ResolvedOpenApiSchemaComponent> _collectOpenApiSchemaComponents(
+    List<_ControllerBinding> controllerBindings,
+  ) {
+    final components = <String, _ResolvedOpenApiSchemaComponent>{};
+
+    void addComponent(String? typeName) {
+      if (typeName == null || components.containsKey(typeName)) {
+        return;
+      }
+
+      components[typeName] = _ResolvedOpenApiSchemaComponent(
+        name: typeName,
+        validatorExpression: '\$${typeName}Schema',
+      );
+    }
+
+    for (final controller in controllerBindings) {
+      for (final procedure in controller.procedures) {
+        if (procedure.path == null) {
+          continue;
+        }
+
+        if (procedure.outputUsesLuthor) {
+          addComponent(procedure.outputTypeName);
+        }
+
+        if (procedure.inputUsesLuthor) {
+          addComponent(procedure.inputTypeName);
+        }
+
+        for (final parameter in procedure.restInvocationParameters) {
+          if (parameter.source != _InvocationParameterSourceKind.body ||
+              !parameter.usesLuthor) {
+            continue;
+          }
+
+          addComponent(parameter.typeName);
+        }
+      }
+    }
+
+    return components.values.toList(growable: false)
+      ..sort((left, right) => left.name.compareTo(right.name));
+  }
+
   String _clientClassNameFor(String controllerName) {
     if (controllerName.endsWith('Controller') &&
         controllerName.length > 'Controller'.length) {
@@ -1108,6 +1953,7 @@ final class _ResolvedProcedure {
     required this.rpcMethod,
     required this.parameters,
     required this.restInvocationParameters,
+    this.restRpcInput,
     required this.hasInput,
     this.path,
     this.inputTypeCode,
@@ -1129,6 +1975,7 @@ final class _ResolvedProcedure {
   final _ResolvedPathMapping? path;
   final List<_ResolvedParameter> parameters;
   final List<_ResolvedInvocationParameter> restInvocationParameters;
+  final _ResolvedRestRpcInput? restRpcInput;
   final bool hasInput;
   final String? inputTypeCode;
   final String? inputTypeName;
@@ -1157,7 +2004,16 @@ final class _ResolvedParameter {
   final String typeCode;
 }
 
-enum _InvocationParameterSourceKind { context, rpcInput, path, query, body }
+enum _InvocationParameterSourceKind {
+  context,
+  rpcInput,
+  path,
+  query,
+  header,
+  body,
+}
+
+enum _ResolvedRestRpcInputMode { query, body }
 
 final class _ResolvedInvocationParameter {
   const _ResolvedInvocationParameter({
@@ -1177,9 +2033,136 @@ final class _ResolvedInvocationParameter {
   final bool usesLuthor;
 }
 
+final class _ResolvedDtoField {
+  const _ResolvedDtoField({
+    required this.name,
+    required this.typeCode,
+    this.defaultSource,
+    this.defaultWireName,
+  });
+
+  final String name;
+  final String typeCode;
+  final String? defaultSource;
+  final String? defaultWireName;
+}
+
+final class _ResolvedDtoFieldBinding {
+  const _ResolvedDtoFieldBinding({required this.source, this.wireName});
+
+  final String source;
+  final String? wireName;
+}
+
+final class _ResolvedDtoFieldBuilder {
+  _ResolvedDtoFieldBuilder({required this.name, required this.typeCode});
+
+  final String name;
+  final String typeCode;
+  String? defaultSource;
+  String? defaultWireName;
+
+  void applyBinding(
+    _ResolvedDtoFieldBinding binding, {
+    required String methodName,
+    required Element element,
+  }) {
+    final nextWireName = binding.wireName ?? name;
+    if (defaultSource != null) {
+      if (defaultSource != binding.source || defaultWireName != nextWireName) {
+        throw InvalidGenerationSourceError(
+          'REST-enabled RPC method "$methodName" found conflicting source annotations for DTO field "$name".',
+          element: element,
+        );
+      }
+      return;
+    }
+
+    defaultSource = binding.source;
+    defaultWireName = nextWireName;
+  }
+
+  _ResolvedDtoField build() {
+    return _ResolvedDtoField(
+      name: name,
+      typeCode: typeCode,
+      defaultSource: defaultSource,
+      defaultWireName: defaultWireName,
+    );
+  }
+}
+
+final class _ResolvedRestInputField {
+  const _ResolvedRestInputField({
+    required this.name,
+    required this.typeCode,
+    required this.wireName,
+  });
+
+  final String name;
+  final String typeCode;
+  final String wireName;
+}
+
+final class _ResolvedRpcInputField {
+  const _ResolvedRpcInputField({
+    required this.fieldName,
+    required this.wireName,
+    required this.source,
+  });
+
+  final String fieldName;
+  final String wireName;
+  final String source;
+}
+
+final class _ResolvedRpcInputDetails {
+  const _ResolvedRpcInputDetails({
+    required this.path,
+    required this.query,
+    required this.headers,
+    required this.body,
+  });
+
+  final List<_ResolvedRpcInputField> path;
+  final List<_ResolvedRpcInputField> query;
+  final List<_ResolvedRpcInputField> headers;
+  final List<_ResolvedRpcInputField> body;
+}
+
+final class _ResolvedRestRpcInput {
+  const _ResolvedRestRpcInput({
+    required this.parameterName,
+    required this.mode,
+    required this.pathFields,
+    required this.queryFields,
+    required this.headerFields,
+    required this.bodyFields,
+    required this.metadataParameters,
+  });
+
+  final String parameterName;
+  final _ResolvedRestRpcInputMode mode;
+  final List<_ResolvedRestInputField> pathFields;
+  final List<_ResolvedRestInputField> queryFields;
+  final List<_ResolvedRestInputField> headerFields;
+  final List<_ResolvedRestInputField> bodyFields;
+  final List<_ResolvedParameter> metadataParameters;
+}
+
 final class _ResolvedPathMapping {
   const _ResolvedPathMapping({required this.method, required this.path});
 
   final String method;
   final String path;
+}
+
+final class _ResolvedOpenApiSchemaComponent {
+  const _ResolvedOpenApiSchemaComponent({
+    required this.name,
+    required this.validatorExpression,
+  });
+
+  final String name;
+  final String validatorExpression;
 }

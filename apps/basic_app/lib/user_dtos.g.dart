@@ -3,14 +3,32 @@
 part of 'user_dtos.dart';
 
 // **************************************************************************
+// RpcDtoFieldRefGenerator
+// **************************************************************************
+
+abstract final class GetUserDtoFields {
+  static const id = RpcInputField<GetUserDto>('id');
+  static const include = RpcInputField<GetUserDto>('include');
+}
+
+abstract final class UserResponseDtoFields {
+  static const id = RpcInputField<UserResponseDto>('id');
+  static const name = RpcInputField<UserResponseDto>('name');
+}
+
+abstract final class UserStatusDtoFields {
+  static const status = RpcInputField<UserStatusDto>('status');
+}
+
+// **************************************************************************
 // JsonSerializableGenerator
 // **************************************************************************
 
 _GetUserDto _$GetUserDtoFromJson(Map<String, dynamic> json) =>
-    _GetUserDto(id: json['id'] as String);
+    _GetUserDto(id: json['id'] as String, include: json['include'] as String?);
 
 Map<String, dynamic> _$GetUserDtoToJson(_GetUserDto instance) =>
-    <String, dynamic>{'id': instance.id};
+    <String, dynamic>{'id': instance.id, 'include': ?instance.include};
 
 _UserResponseDto _$UserResponseDtoFromJson(Map<String, dynamic> json) =>
     _UserResponseDto(id: json['id'] as String, name: json['name'] as String);
@@ -29,10 +47,11 @@ Map<String, dynamic> _$UserStatusDtoToJson(_UserStatusDto instance) =>
 // **************************************************************************
 
 // ignore: constant_identifier_names
-const GetUserDtoSchemaKeys = (id: "id");
+const GetUserDtoSchemaKeys = (id: "id", include: "include");
 
 Validator $GetUserDtoSchema = l.withName('GetUserDto').schema({
   GetUserDtoSchemaKeys.id: l.string().min(1).required(),
+  GetUserDtoSchemaKeys.include: l.string(),
 });
 
 SchemaValidationResult<GetUserDto> $GetUserDtoValidate(
@@ -45,7 +64,7 @@ extension GetUserDtoValidationExtension on GetUserDto {
 }
 
 // ignore: constant_identifier_names
-const GetUserDtoErrorKeys = (id: "id");
+const GetUserDtoErrorKeys = (id: "id", include: "include");
 
 // ignore: constant_identifier_names
 const UserResponseDtoSchemaKeys = (id: "id", name: "name");

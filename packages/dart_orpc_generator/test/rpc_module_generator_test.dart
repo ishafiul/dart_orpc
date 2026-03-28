@@ -31,6 +31,20 @@ void main() {
         );
         expect(
           generatedOutput,
+          contains('abstract final class GetUserDtoFields {'),
+        );
+        expect(
+          generatedOutput,
+          contains(
+            'OpenApiSchemaRegistry _\$createAppModuleOpenApiSchemaRegistry() {',
+          ),
+        );
+        expect(
+          generatedOutput,
+          contains('JsonObject _\$createAppModuleOpenApiDocument() {'),
+        );
+        expect(
+          generatedOutput,
           contains('RestRouteRegistry _\$createAppModuleRestRouteRegistry() {'),
         );
         expect(generatedOutput, contains("method: 'user.getById',"));
@@ -49,6 +63,14 @@ void main() {
         expect(
           generatedOutput,
           contains('restRoutes: _\$createAppModuleRestRouteRegistry()'),
+        );
+        expect(
+          generatedOutput,
+          contains('openApiDocument: _\$createAppModuleOpenApiDocument()'),
+        );
+        expect(
+          generatedOutput,
+          contains("docsHtml: createScalarHtml(title: 'App API')"),
         );
         expect(generatedOutput, contains('class AppClient {'));
         expect(
@@ -75,6 +97,16 @@ void main() {
         );
         expect(
           generatedOutput,
+          contains(
+            'OpenApiSchemaRegistry _\$createAppModuleOpenApiSchemaRegistry() {',
+          ),
+        );
+        expect(
+          generatedOutput,
+          contains('JsonObject _\$createAppModuleOpenApiDocument() {'),
+        );
+        expect(
+          generatedOutput,
           contains('RestRouteRegistry _\$createAppModuleRestRouteRegistry() {'),
         );
         expect(generatedOutput, contains("rpcMethod: 'user.getById',"));
@@ -90,6 +122,12 @@ void main() {
           contains("description: 'Find a user by route-bound id.',"),
         );
         expect(generatedOutput, contains("tags: ['user', 'lookup'],"));
+        expect(
+          generatedOutput,
+          contains(
+            'OpenApiSchemaRegistry _\$createAppModuleOpenApiSchemaRegistry() {',
+          ),
+        );
         expect(generatedOutput, contains("parameterName: 'id',"));
         expect(generatedOutput, contains("wireName: 'id',"));
         expect(
@@ -108,10 +146,7 @@ void main() {
           generatedOutput,
           contains('final id = decodeRestScalarParameter<String>('),
         );
-        expect(
-          generatedOutput,
-          contains("rawValue: pathParameters['id'],"),
-        );
+        expect(generatedOutput, contains("rawValue: pathParameters['id'],"));
         expect(
           generatedOutput,
           contains('final view = decodeRestScalarParameter<String>('),
@@ -123,6 +158,127 @@ void main() {
         expect(
           generatedOutput,
           contains('RpcProcedure<GetUserDto, UserResponseDto>('),
+        );
+      },
+    );
+
+    test(
+      'When a REST-enabled method uses DTO field source annotations then it emits shared path, query, and header bindings from the same procedure',
+      () async {
+        final run = await _runBuilder(_sharedRpcAndRestGetSource);
+
+        expect(run.result.succeeded, isTrue);
+
+        final generatedOutput = run.generatedOutput;
+        expect(generatedOutput, contains("method: 'user.getById',"));
+        expect(
+          generatedOutput,
+          contains(
+            "path: RestProcedureMetadata(method: 'GET', path: '/users/:userId'),",
+          ),
+        );
+        expect(
+          generatedOutput,
+          contains(
+            "description: 'Resolve a user by id from a shared contract.'",
+          ),
+        );
+        expect(
+          generatedOutput,
+          contains("rawInput['id'] = decodeRestScalarParameter<String>("),
+        );
+        expect(
+          generatedOutput,
+          contains("rawValue: pathParameters['userId'],"),
+        );
+        expect(
+          generatedOutput,
+          contains("rawInput['include'] = decodeRestScalarParameter<String?>("),
+        );
+        expect(
+          generatedOutput,
+          contains("rawValue: request.queryParameters['view'],"),
+        );
+        expect(
+          generatedOutput,
+          contains(
+            "rawInput['tenantId'] = decodeRestScalarParameter<String?>(",
+          ),
+        );
+        expect(
+          generatedOutput,
+          contains("lookupRestHeader(request.headers, 'x-tenant-id')"),
+        );
+        expect(
+          generatedOutput,
+          contains('final input = ((rawInput) => GetUserDto.fromJson('),
+        );
+        expect(
+          generatedOutput,
+          contains('context: \'RPC method "user.getById" input\','),
+        );
+        expect(
+          generatedOutput,
+          contains(
+            'handler: (context, input) => userController.getById(context, input),',
+          ),
+        );
+        expect(generatedOutput, contains("parameterName: 'include',"));
+        expect(
+          generatedOutput,
+          contains('source: ProcedureParameterSourceKind.query,'),
+        );
+        expect(generatedOutput, contains("wireName: 'view',"));
+        expect(generatedOutput, contains("parameterName: 'tenantId',"));
+        expect(
+          generatedOutput,
+          contains('source: ProcedureParameterSourceKind.header,'),
+        );
+        expect(generatedOutput, contains("wireName: 'x-tenant-id',"));
+      },
+    );
+
+    test(
+      'When a REST-enabled method uses @RpcInput(binding: ...) field refs for a POST route then it emits path, header, and body merging code',
+      () async {
+        final run = await _runBuilder(_sharedRpcAndRestBodySource);
+
+        expect(run.result.succeeded, isTrue);
+
+        final generatedOutput = run.generatedOutput;
+        expect(
+          generatedOutput,
+          contains(
+            "path: RestProcedureMetadata(method: 'POST', path: '/users/:userId'),",
+          ),
+        );
+        expect(
+          generatedOutput,
+          contains('final rawInput = request.body.trim().isEmpty'),
+        );
+        expect(generatedOutput, contains("decodeRestBody<JsonObject>("));
+        expect(
+          generatedOutput,
+          contains("rawInput['id'] = decodeRestScalarParameter<String>("),
+        );
+        expect(
+          generatedOutput,
+          contains("rawValue: pathParameters['userId'],"),
+        );
+        expect(
+          generatedOutput,
+          contains(
+            "rawInput['tenantId'] = decodeRestScalarParameter<String?>(",
+          ),
+        );
+        expect(
+          generatedOutput,
+          contains("lookupRestHeader(request.headers, 'x-tenant-id')"),
+        );
+        expect(generatedOutput, contains("parameterName: 'input',"));
+        expect(
+          generatedOutput,
+          contains('source: ProcedureParameterSourceKind.body,'),
         );
       },
     );
@@ -405,6 +561,192 @@ final class GetUserDto {
   final String id;
 
   JsonObject toJson() => {'id': id};
+}
+
+final class UserResponseDto {
+  const UserResponseDto({required this.id, required this.name});
+
+  factory UserResponseDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'UserResponseDto');
+    return UserResponseDto(
+      id: expectStringField(object, 'id', nonEmpty: true),
+      name: expectStringField(object, 'name', nonEmpty: true),
+    );
+  }
+
+  final String id;
+  final String name;
+
+  JsonObject toJson() => {'id': id, 'name': name};
+}
+''';
+
+const _sharedRpcAndRestGetSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+import 'package:dart_orpc_core/dart_orpc_core.dart';
+
+part 'example.g.dart';
+
+@Module(controllers: [UserController], providers: [UserService])
+final class AppModule {
+  const AppModule();
+}
+
+final class UserService {
+  UserResponseDto getById(String id, {String? include, String? tenantId}) =>
+      UserResponseDto(
+        id: id,
+        name: tenantId == 'compact-tenant'
+            ? 'Scoped Ada'
+            : include == 'compact'
+            ? 'Ada'
+            : 'Ada Lovelace',
+      );
+}
+
+@Controller('user')
+final class UserController {
+  UserController(this.userService);
+
+  final UserService userService;
+
+  @RpcMethod(
+    name: 'getById',
+    path: RestMapping.get('/users/:userId'),
+    description: 'Resolve a user by id from a shared contract.',
+    tags: ['user'],
+  )
+  Future<UserResponseDto> getById(
+    RpcContext context,
+    @RpcInput() GetUserDto input,
+  ) async {
+    return userService.getById(
+      input.id,
+      include: input.include,
+      tenantId: input.tenantId,
+    );
+  }
+}
+
+final class GetUserDto {
+  const GetUserDto({required this.id, this.include, this.tenantId});
+
+  factory GetUserDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'GetUserDto');
+    return GetUserDto(
+      id: expectStringField(object, 'id', nonEmpty: true),
+      include: object['include'] as String?,
+      tenantId: object['tenantId'] as String?,
+    );
+  }
+
+  @FromPath('userId')
+  final String id;
+  @FromQuery('view')
+  final String? include;
+  @FromHeader('x-tenant-id')
+  final String? tenantId;
+
+  JsonObject toJson() {
+    final json = <String, Object?>{'id': id};
+    if (include != null) {
+      json['include'] = include;
+    }
+    if (tenantId != null) {
+      json['tenantId'] = tenantId;
+    }
+    return json;
+  }
+}
+
+final class UserResponseDto {
+  const UserResponseDto({required this.id, required this.name});
+
+  factory UserResponseDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'UserResponseDto');
+    return UserResponseDto(
+      id: expectStringField(object, 'id', nonEmpty: true),
+      name: expectStringField(object, 'name', nonEmpty: true),
+    );
+  }
+
+  final String id;
+  final String name;
+
+  JsonObject toJson() => {'id': id, 'name': name};
+}
+''';
+
+const _sharedRpcAndRestBodySource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+import 'package:dart_orpc_core/dart_orpc_core.dart';
+
+part 'example.g.dart';
+
+@Module(controllers: [UserController], providers: [UserService])
+final class AppModule {
+  const AppModule();
+}
+
+final class UserService {
+  UserResponseDto updateUser(UpdateUserDto input) => UserResponseDto(
+        id: input.id,
+        name: input.tenantId == null ? input.name : '${input.name} (${input.tenantId})',
+      );
+}
+
+@Controller('user')
+final class UserController {
+  UserController(this.userService);
+
+  final UserService userService;
+
+  @RpcMethod(
+    name: 'update',
+    path: RestMapping.post('/users/:userId'),
+  )
+  Future<UserResponseDto> update(
+    RpcContext context,
+    @RpcInput(
+      binding: RpcInputBinding<UpdateUserDto>(
+        path: [RpcInputField('id', 'userId')],
+        headers: [RpcInputField('tenantId', 'x-tenant-id')],
+        body: [UpdateUserDtoFields.name],
+      ),
+    )
+    UpdateUserDto input,
+  ) async {
+    return userService.updateUser(input);
+  }
+}
+
+final class UpdateUserDto {
+  const UpdateUserDto({required this.id, required this.name, this.tenantId});
+
+  factory UpdateUserDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'UpdateUserDto');
+    return UpdateUserDto(
+      id: expectStringField(object, 'id', nonEmpty: true),
+      name: expectStringField(object, 'name', nonEmpty: true),
+      tenantId: object['tenantId'] as String?,
+    );
+  }
+
+  final String id;
+  final String name;
+  final String? tenantId;
+
+  JsonObject toJson() {
+    final json = <String, Object?>{'id': id, 'name': name};
+    if (tenantId != null) {
+      json['tenantId'] = tenantId;
+    }
+    return json;
+  }
 }
 
 final class UserResponseDto {

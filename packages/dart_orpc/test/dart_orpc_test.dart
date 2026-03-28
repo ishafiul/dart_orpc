@@ -14,10 +14,19 @@ void main() {
           description: 'Fetch a user by id.',
           tags: ['user', 'read'],
         );
-        const inputAnnotation = RpcInput();
+        const inputAnnotation = RpcInput(
+          binding: RpcInputBinding(
+            path: [RpcInputField('id')],
+            headers: [RpcInputField('tenantId', 'x-tenant-id')],
+          ),
+        );
         const pathParam = PathParam('id');
         const queryParam = QueryParam('include');
         const body = Body();
+        const fromPath = FromPath('userId');
+        const fromQuery = FromQuery('view');
+        const fromHeader = FromHeader('x-tenant-id');
+        const boundField = RpcInputField<String>('id', 'userId');
         const context = RpcContext(headers: {'x-trace-id': 'trace-1'});
         const request = RpcRequest(method: 'user.getById', input: {'id': '1'});
         const successResponse = RpcSuccessResponse(data: {'id': '1'});
@@ -43,6 +52,20 @@ void main() {
             ],
           ),
         ]);
+        final openApiSchemaRegistry = OpenApiSchemaRegistry([
+          OpenApiSchemaComponent(
+            name: 'UserResponseDto',
+            validator: l.withName('UserResponseDto').schema({
+              'id': l.string().required(),
+            }),
+          ),
+        ]);
+        final openApiDocument = createOpenApiDocument(
+          title: 'Facade API',
+          procedures: procedureMetadata,
+          schemas: openApiSchemaRegistry,
+        );
+        final scalarHtml = createScalarHtml(title: 'Facade API');
         const httpRequest = RpcHttpRequest(method: 'POST', path: '/rpc');
         const httpResponse = RpcHttpResponse(statusCode: 200);
         final restRoutes = RestRouteRegistry(const []);
@@ -67,10 +90,16 @@ void main() {
         expect(method.path?.path, '/users/:id');
         expect(method.description, 'Fetch a user by id.');
         expect(method.tags, ['user', 'read']);
-        expect(inputAnnotation, isA<RpcInput>());
+        expect(inputAnnotation.binding?.path.single.field, 'id');
+        expect(inputAnnotation.binding?.headers.single.name, 'x-tenant-id');
         expect(pathParam.name, 'id');
         expect(queryParam.name, 'include');
         expect(body, isA<Body>());
+        expect(fromPath.name, 'userId');
+        expect(fromQuery.name, 'view');
+        expect(fromHeader.name, 'x-tenant-id');
+        expect(boundField.field, 'id');
+        expect(boundField.name, 'userId');
         expect(context.headers['x-trace-id'], 'trace-1');
         expect(expectNoRpcInput(null, context: 'health.check'), isNull);
         expect(request.toJson(), {
@@ -92,6 +121,9 @@ void main() {
           procedureMetadata['user.getById']?.description,
           'Fetch a user by id.',
         );
+        expect(openApiSchemaRegistry.names, ['UserResponseDto']);
+        expect(openApiDocument['paths'], isNotEmpty);
+        expect(scalarHtml, contains('@scalar/api-reference'));
         expect(optionalQuery, isNull);
         expect(result, {'ok': true});
 

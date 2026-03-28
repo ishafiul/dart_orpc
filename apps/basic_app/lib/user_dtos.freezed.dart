@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$GetUserDto {
 
-@HasMin(1) String get id;
+@FromPath()@HasMin(1) String get id;@FromQuery()@JsonKey(includeIfNull: false) String? get include;
 /// Create a copy of GetUserDto
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $GetUserDtoCopyWith<GetUserDto> get copyWith => _$GetUserDtoCopyWithImpl<GetUser
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is GetUserDto&&(identical(other.id, id) || other.id == id));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GetUserDto&&(identical(other.id, id) || other.id == id)&&(identical(other.include, include) || other.include == include));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id);
+int get hashCode => Object.hash(runtimeType,id,include);
 
 @override
 String toString() {
-  return 'GetUserDto(id: $id)';
+  return 'GetUserDto(id: $id, include: $include)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $GetUserDtoCopyWith<$Res>  {
   factory $GetUserDtoCopyWith(GetUserDto value, $Res Function(GetUserDto) _then) = _$GetUserDtoCopyWithImpl;
 @useResult
 $Res call({
-@HasMin(1) String id
+@FromPath()@HasMin(1) String id,@FromQuery()@JsonKey(includeIfNull: false) String? include
 });
 
 
@@ -65,10 +65,11 @@ class _$GetUserDtoCopyWithImpl<$Res>
 
 /// Create a copy of GetUserDto
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? include = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String,
+as String,include: freezed == include ? _self.include : include // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -153,10 +154,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@HasMin(1)  String id)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@FromPath()@HasMin(1)  String id, @FromQuery()@JsonKey(includeIfNull: false)  String? include)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _GetUserDto() when $default != null:
-return $default(_that.id);case _:
+return $default(_that.id,_that.include);case _:
   return orElse();
 
 }
@@ -174,10 +175,10 @@ return $default(_that.id);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@HasMin(1)  String id)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@FromPath()@HasMin(1)  String id, @FromQuery()@JsonKey(includeIfNull: false)  String? include)  $default,) {final _that = this;
 switch (_that) {
 case _GetUserDto():
-return $default(_that.id);case _:
+return $default(_that.id,_that.include);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -194,10 +195,10 @@ return $default(_that.id);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@HasMin(1)  String id)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@FromPath()@HasMin(1)  String id, @FromQuery()@JsonKey(includeIfNull: false)  String? include)?  $default,) {final _that = this;
 switch (_that) {
 case _GetUserDto() when $default != null:
-return $default(_that.id);case _:
+return $default(_that.id,_that.include);case _:
   return null;
 
 }
@@ -209,10 +210,11 @@ return $default(_that.id);case _:
 @JsonSerializable()
 
 class _GetUserDto implements GetUserDto {
-  const _GetUserDto({@HasMin(1) required this.id});
+  const _GetUserDto({@FromPath()@HasMin(1) required this.id, @FromQuery()@JsonKey(includeIfNull: false) this.include});
   factory _GetUserDto.fromJson(Map<String, dynamic> json) => _$GetUserDtoFromJson(json);
 
-@override@HasMin(1) final  String id;
+@override@FromPath()@HasMin(1) final  String id;
+@override@FromQuery()@JsonKey(includeIfNull: false) final  String? include;
 
 /// Create a copy of GetUserDto
 /// with the given fields replaced by the non-null parameter values.
@@ -227,16 +229,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _GetUserDto&&(identical(other.id, id) || other.id == id));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _GetUserDto&&(identical(other.id, id) || other.id == id)&&(identical(other.include, include) || other.include == include));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id);
+int get hashCode => Object.hash(runtimeType,id,include);
 
 @override
 String toString() {
-  return 'GetUserDto(id: $id)';
+  return 'GetUserDto(id: $id, include: $include)';
 }
 
 
@@ -247,7 +249,7 @@ abstract mixin class _$GetUserDtoCopyWith<$Res> implements $GetUserDtoCopyWith<$
   factory _$GetUserDtoCopyWith(_GetUserDto value, $Res Function(_GetUserDto) _then) = __$GetUserDtoCopyWithImpl;
 @override @useResult
 $Res call({
-@HasMin(1) String id
+@FromPath()@HasMin(1) String id,@FromQuery()@JsonKey(includeIfNull: false) String? include
 });
 
 
@@ -264,10 +266,11 @@ class __$GetUserDtoCopyWithImpl<$Res>
 
 /// Create a copy of GetUserDto
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? include = freezed,}) {
   return _then(_GetUserDto(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String,
+as String,include: freezed == include ? _self.include : include // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

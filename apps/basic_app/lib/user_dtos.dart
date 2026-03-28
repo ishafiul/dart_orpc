@@ -7,7 +7,10 @@ part 'user_dtos.g.dart';
 @luthor
 @freezed
 abstract class GetUserDto with _$GetUserDto {
-  const factory GetUserDto({@HasMin(1) required String id}) = _GetUserDto;
+  const factory GetUserDto({
+    @FromPath() @HasMin(1) required String id,
+    @FromQuery() @JsonKey(includeIfNull: false) String? include,
+  }) = _GetUserDto;
 
   factory GetUserDto.fromJson(Map<String, dynamic> json) =>
       _$GetUserDtoFromJson(json);

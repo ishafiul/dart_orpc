@@ -52,22 +52,28 @@ RestRouteRegistry _$createAppModuleRestRouteRegistry() {
       method: 'GET',
       path: '/users/:id',
       handler: (context, request, pathParameters) async {
-        final id = decodeRestScalarParameter<String>(
+        final rawInput = <String, Object?>{};
+        rawInput['id'] = decodeRestScalarParameter<String>(
           rawValue: pathParameters['id'],
           source: 'path parameter',
           name: 'id',
           route: 'GET /users/:id',
         );
-        final view = decodeRestScalarParameter<String?>(
+        rawInput['include'] = decodeRestScalarParameter<String?>(
           rawValue: request.queryParameters['include'],
           source: 'query parameter',
           name: 'include',
           route: 'GET /users/:id',
         );
-        final output = await userController.getByIdRest(id, view);
+        final input = ((rawInput) => decodeRpcInputWithLuthor<GetUserDto>(
+          rawInput: rawInput,
+          method: 'user.getById',
+          validate: $GetUserDtoValidate,
+        ))(rawInput);
+        final output = await userController.getById(context, input);
         return ((output) => encodeRpcOutputWithLuthor<UserResponseDto>(
           output: output,
-          method: 'user.getByIdRest',
+          method: 'user.getById',
           toJson: (output) => output.toJson(),
           validate: $UserResponseDtoValidate,
         ))(output);
@@ -83,24 +89,10 @@ ProcedureMetadataRegistry _$createAppModuleProcedureMetadataRegistry() {
       rpcMethod: 'user.getById',
       controllerNamespace: 'user',
       methodName: 'getById',
+      path: RestProcedureMetadata(method: 'GET', path: '/users/:id'),
       inputTypeCode: 'GetUserDto',
       outputTypeCode: 'UserResponseDto',
-      parameters: [
-        ProcedureParameterMetadata(
-          parameterName: 'input',
-          wireName: 'input',
-          source: ProcedureParameterSourceKind.rpcInput,
-          typeCode: 'GetUserDto',
-        ),
-      ],
-    ),
-    const ProcedureMetadata(
-      rpcMethod: 'user.getByIdRest',
-      controllerNamespace: 'user',
-      methodName: 'getByIdRest',
-      path: RestProcedureMetadata(method: 'GET', path: '/users/:id'),
-      outputTypeCode: 'UserResponseDto',
-      description: 'Resolve a user by id from the REST-style example route.',
+      description: 'Resolve a user by id from the shared RPC and REST method.',
       tags: ['user', 'example'],
       parameters: [
         ProcedureParameterMetadata(
@@ -110,7 +102,7 @@ ProcedureMetadataRegistry _$createAppModuleProcedureMetadataRegistry() {
           typeCode: 'String',
         ),
         ProcedureParameterMetadata(
-          parameterName: 'view',
+          parameterName: 'include',
           wireName: 'include',
           source: ProcedureParameterSourceKind.query,
           typeCode: 'String?',
@@ -126,10 +118,30 @@ ProcedureMetadataRegistry _$createAppModuleProcedureMetadataRegistry() {
   ]);
 }
 
+OpenApiSchemaRegistry _$createAppModuleOpenApiSchemaRegistry() {
+  return OpenApiSchemaRegistry([
+    OpenApiSchemaComponent(name: 'GetUserDto', validator: $GetUserDtoSchema),
+    OpenApiSchemaComponent(
+      name: 'UserResponseDto',
+      validator: $UserResponseDtoSchema,
+    ),
+  ]);
+}
+
+JsonObject _$createAppModuleOpenApiDocument() {
+  return createOpenApiDocument(
+    title: 'App API',
+    procedures: _$createAppModuleProcedureMetadataRegistry(),
+    schemas: _$createAppModuleOpenApiSchemaRegistry(),
+  );
+}
+
 RpcHttpApp _$buildAppModuleRpcApp() {
   return RpcHttpApp(
     procedures: _$createAppModuleProcedureRegistry(),
     restRoutes: _$createAppModuleRestRouteRegistry(),
+    openApiDocument: _$createAppModuleOpenApiDocument(),
+    docsHtml: createScalarHtml(title: 'App API'),
   );
 }
 

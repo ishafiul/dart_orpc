@@ -8,20 +8,12 @@ final class UserService {
     '2': UserResponseDto(id: '2', name: 'Grace Hopper'),
   };
 
-  Future<UserResponseDto> getById(String id) async {
+  Future<UserResponseDto> getById(String id, {String? include}) async {
     final user = _users[id];
     if (user == null) {
       throw RpcException.notFound('User "$id" was not found.');
     }
 
-    return user;
-  }
-
-  Future<UserResponseDto> getByIdForRest({
-    required String id,
-    String? include,
-  }) async {
-    final user = await getById(id);
     if (include == 'compact') {
       return user.copyWith(name: user.name.split(' ').first);
     }

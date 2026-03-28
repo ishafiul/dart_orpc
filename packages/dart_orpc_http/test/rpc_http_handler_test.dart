@@ -39,10 +39,17 @@ void main() {
               name: 'include',
               route: 'GET /users/:id',
             );
+            final tenantId = decodeRestScalarParameter<String?>(
+              rawValue: lookupRestHeader(request.headers, 'x-tenant-id'),
+              source: 'header',
+              name: 'x-tenant-id',
+              route: 'GET /users/:id',
+            );
             return {
               'id': id,
               'name': include == 'compact' ? 'Ada' : 'Ada Lovelace',
               'method': context.httpMethod,
+              if (tenantId != null) 'tenantId': tenantId,
             };
           },
         ),
@@ -65,6 +72,13 @@ void main() {
       handler = createRpcHttpHandler(
         procedures: registry,
         restRoutes: restRoutes,
+        openApiDocument: const {
+          'openapi': '3.0.3',
+          'info': {'title': 'Test API', 'version': '1.0.0'},
+          'paths': {},
+          'components': {'schemas': {}},
+        },
+        docsHtml: '<html><body>Docs</body></html>',
       );
     });
 
@@ -147,6 +161,24 @@ void main() {
       });
     });
 
+    test('reads REST headers case-insensitively', () async {
+      final response = await handler(
+        const RpcHttpRequest(
+          method: 'GET',
+          path: '/users/123',
+          headers: {'X-Tenant-Id': 'tenant-1'},
+        ),
+      );
+
+      expect(response.statusCode, HttpStatus.ok);
+      expect(jsonDecode(response.body), {
+        'id': '123',
+        'name': 'Ada Lovelace',
+        'method': 'GET',
+        'tenantId': 'tenant-1',
+      });
+    });
+
     test(
       'returns method not allowed for REST paths with a wrong method',
       () async {
@@ -177,6 +209,30 @@ void main() {
           'message': 'REST request body for "POST /users" must be valid JSON.',
         },
       });
+    });
+
+    test('returns the generated OpenAPI document', () async {
+      final response = await handler(
+        const RpcHttpRequest(method: 'GET', path: '/openapi.json'),
+      );
+
+      expect(response.statusCode, HttpStatus.ok);
+      expect(jsonDecode(response.body), {
+        'openapi': '3.0.3',
+        'info': {'title': 'Test API', 'version': '1.0.0'},
+        'paths': {},
+        'components': {'schemas': {}},
+      });
+    });
+
+    test('returns the configured docs HTML', () async {
+      final response = await handler(
+        const RpcHttpRequest(method: 'GET', path: '/docs'),
+      );
+
+      expect(response.statusCode, HttpStatus.ok);
+      expect(response.headers['content-type'], contains('text/html'));
+      expect(response.body, '<html><body>Docs</body></html>');
     });
   });
 }

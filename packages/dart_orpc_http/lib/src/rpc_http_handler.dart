@@ -118,11 +118,25 @@ final class RestRouteRegistry {
 RpcHttpHandler createRpcHttpHandler({
   required RpcProcedureRegistry procedures,
   RestRouteRegistry? restRoutes,
+  JsonObject? openApiDocument,
+  String openApiPath = '/openapi.json',
+  String? docsHtml,
+  String docsPath = '/docs',
 }) {
   final effectiveRestRoutes = restRoutes ?? RestRouteRegistry(const []);
+  final normalizedOpenApiPath = _normalizePath(openApiPath);
+  final normalizedDocsPath = _normalizePath(docsPath);
 
   return (request) async {
     final path = _normalizePath(request.path);
+    if (path == normalizedOpenApiPath) {
+      return _handleOpenApiRequest(request, openApiDocument: openApiDocument);
+    }
+
+    if (path == normalizedDocsPath) {
+      return _handleDocsRequest(request, docsHtml: docsHtml);
+    }
+
     if (path == '/rpc') {
       return _handleRpcRequest(request, path: path, procedures: procedures);
     }
@@ -231,6 +245,60 @@ Future<RpcHttpResponse> _handleRestRequest(
   }
 }
 
+Future<RpcHttpResponse> _handleOpenApiRequest(
+  RpcHttpRequest request, {
+  required JsonObject? openApiDocument,
+}) async {
+  if (openApiDocument == null) {
+    return const RpcHttpResponse(
+      statusCode: HttpStatus.notFound,
+      headers: {'content-type': 'text/plain; charset=utf-8'},
+      body: 'Not Found',
+    );
+  }
+
+  if (request.method != 'GET') {
+    return _jsonResponse(
+      HttpStatus.methodNotAllowed,
+      RpcException.badRequest(
+        'OpenAPI endpoint only accepts GET requests.',
+      ).toResponse().toJson(),
+      extraHeaders: const {'allow': 'GET'},
+    );
+  }
+
+  return _jsonResponse(HttpStatus.ok, openApiDocument);
+}
+
+Future<RpcHttpResponse> _handleDocsRequest(
+  RpcHttpRequest request, {
+  required String? docsHtml,
+}) async {
+  if (docsHtml == null) {
+    return const RpcHttpResponse(
+      statusCode: HttpStatus.notFound,
+      headers: {'content-type': 'text/plain; charset=utf-8'},
+      body: 'Not Found',
+    );
+  }
+
+  if (request.method != 'GET') {
+    return _jsonResponse(
+      HttpStatus.methodNotAllowed,
+      RpcException.badRequest(
+        'Docs endpoint only accepts GET requests.',
+      ).toResponse().toJson(),
+      extraHeaders: const {'allow': 'GET'},
+    );
+  }
+
+  return RpcHttpResponse(
+    statusCode: HttpStatus.ok,
+    headers: const {'content-type': 'text/html; charset=utf-8'},
+    body: docsHtml,
+  );
+}
+
 RpcContext _buildContext(RpcHttpRequest request, {required String path}) {
   return RpcContext(
     headers: Map<String, String>.unmodifiable(request.headers),
@@ -288,6 +356,18 @@ String _normalizeRouteSignature(String path) {
     normalizedPath,
   ).map((segment) => segment.startsWith(':') ? ':*' : segment).join('/');
   return '/$segments';
+}
+
+String? lookupRestHeader(Map<String, String> headers, String name) {
+  final normalizedName = name.toLowerCase();
+
+  for (final entry in headers.entries) {
+    if (entry.key.toLowerCase() == normalizedName) {
+      return entry.value;
+    }
+  }
+
+  return null;
 }
 
 T decodeRestScalarParameter<T>({

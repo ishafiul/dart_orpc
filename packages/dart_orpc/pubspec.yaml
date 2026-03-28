@@ -13,6 +13,7 @@ dependencies:
   dart_orpc_core: ^0.1.0-dev.1
   dart_orpc_http: ^0.1.0-dev.1
   dart_orpc_luthor: ^0.1.0-dev.1
+  dart_orpc_openapi: ^0.1.0-dev.1
 
 dev_dependencies:
   test: ^1.26.3

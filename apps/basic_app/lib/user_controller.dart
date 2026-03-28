@@ -9,22 +9,14 @@ final class UserController {
 
   final UserService userService;
 
-  @RpcMethod(name: 'getById')
-  Future<UserResponseDto> getById(RpcContext _, @RpcInput() GetUserDto input) {
-    return userService.getById(input.id);
-  }
-
   @RpcMethod(
-    name: 'getByIdRest',
+    name: 'getById',
     path: RestMapping.get('/users/:id'),
-    description: 'Resolve a user by id from the REST-style example route.',
+    description: 'Resolve a user by id from the shared RPC and REST method.',
     tags: ['user', 'example'],
   )
-  Future<UserResponseDto> getByIdRest(
-    @PathParam() String id,
-    @QueryParam('include') String? view,
-  ) {
-    return userService.getByIdForRest(id: id, include: view);
+  Future<UserResponseDto> getById(RpcContext _, @RpcInput() GetUserDto input) {
+    return userService.getById(input.id, include: input.include);
   }
 
   @RpcMethod()

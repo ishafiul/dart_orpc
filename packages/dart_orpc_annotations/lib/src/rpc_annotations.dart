@@ -48,8 +48,31 @@ final class RpcMethod {
   final List<String> tags;
 }
 
+final class RpcInputField<T> {
+  const RpcInputField(this.field, [this.name]);
+
+  final String field;
+  final String? name;
+}
+
+final class RpcInputBinding<T> {
+  const RpcInputBinding({
+    this.path = const [],
+    this.query = const [],
+    this.headers = const [],
+    this.body = const [],
+  });
+
+  final List<RpcInputField<T>> path;
+  final List<RpcInputField<T>> query;
+  final List<RpcInputField<T>> headers;
+  final List<RpcInputField<T>> body;
+}
+
 final class RpcInput {
-  const RpcInput();
+  const RpcInput({this.binding});
+
+  final RpcInputBinding<dynamic>? binding;
 }
 
 final class PathParam {
@@ -66,4 +89,22 @@ final class QueryParam {
 
 final class Body {
   const Body();
+}
+
+final class FromPath {
+  const FromPath([this.name]);
+
+  final String? name;
+}
+
+final class FromQuery {
+  const FromQuery([this.name]);
+
+  final String? name;
+}
+
+final class FromHeader {
+  const FromHeader([this.name]);
+
+  final String? name;
 }
