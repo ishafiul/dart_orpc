@@ -10,6 +10,7 @@ final class RpcProcedureRegistry {
   final Map<String, RpcCallableProcedure> _procedures;
 
   Iterable<String> get methods => _procedures.keys;
+  Iterable<RpcCallableProcedure> get procedures => _procedures.values;
 
   Future<Object?> dispatch(RpcContext context, RpcRequest request) async {
     final procedure = _procedures[request.method];
