@@ -6,3 +6,10 @@ builders:
     auto_apply: dependents
     build_to: cache
     applies_builders: ["source_gen|combining_builder"]
+  dart_orpc_module:
+    import: "package:dart_orpc_generator/dart_orpc_generator.dart"
+    builder_factories: ["dartOrpcModuleBuilder"]
+    build_extensions: {".dart": [".orpc.dart"]}
+    auto_apply: dependents
+    build_to: source
+    required_inputs: [".g.dart"]

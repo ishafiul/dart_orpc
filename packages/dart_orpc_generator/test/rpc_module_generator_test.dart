@@ -13,7 +13,7 @@ void main() {
         expect(run.result.succeeded, isTrue);
         expect(
           run.result.outputs,
-          contains(AssetId('a', 'lib/example.dart_orpc.g.part')),
+          contains(AssetId('a', 'lib/example.orpc.dart')),
         );
 
         final generatedOutput = run.generatedOutput;
@@ -39,10 +39,6 @@ void main() {
           contains(
             'ProcedureMetadataRegistry _\$createAppModuleProcedureMetadataRegistry() {',
           ),
-        );
-        expect(
-          generatedOutput,
-          contains('abstract final class GetUserDtoFields {'),
         );
         expect(
           generatedOutput,
@@ -75,19 +71,25 @@ void main() {
         expect(generatedOutput, contains('RpcProcedure<Null, UserStatusDto>('));
         expect(
           generatedOutput,
-          contains('RpcHttpApp _\$buildAppModuleRpcApp() {'),
+          contains('RpcHttpApp dartOrpcBuildAppModuleRpcApp() =>'),
+        );
+        expect(
+          generatedOutput,
+          contains('extension DartOrpcAppModuleGenerated on AppModule {'),
         );
         expect(
           generatedOutput,
           contains(
-            'procedures: _\$createAppModuleProcedureRegistry()',
+            'RpcHttpApp buildRpcApp() => dartOrpcBuildAppModuleRpcApp();',
           ),
         );
         expect(
           generatedOutput,
-          contains(
-            'restRoutes: _\$createAppModuleRestRouteRegistry()',
-          ),
+          contains('procedures: _\$createAppModuleProcedureRegistry()'),
+        );
+        expect(
+          generatedOutput,
+          contains('restRoutes: _\$createAppModuleRestRouteRegistry()'),
         );
         expect(
           generatedOutput,
@@ -111,7 +113,7 @@ void main() {
         expect(generatedOutput, contains('class AppClient {'));
         expect(
           generatedOutput,
-          contains('late final UserClient user = UserClient(_caller);'),
+          contains('late final user = UserClient(_caller);'),
         );
         expect(generatedOutput, contains('Future<UserStatusDto> status() {'));
       },
@@ -345,11 +347,11 @@ void main() {
         expect(generatedOutput, contains("method: 'admin.lookup',"));
         expect(
           generatedOutput,
-          contains('late final UserClient user = UserClient(_caller);'),
+          contains('late final user = UserClient(_caller);'),
         );
         expect(
           generatedOutput,
-          contains('late final AdminClient admin = AdminClient(_caller);'),
+          contains('late final admin = AdminClient(_caller);'),
         );
       },
     );
@@ -367,6 +369,33 @@ void main() {
           contains('final adminController = AdminController(userService);'),
         );
         expect(generatedOutput, contains("method: 'admin.lookup',"));
+      },
+    );
+
+    test(
+      'When a module imports another module through an intermediate module then composed client getters avoid transitive type references',
+      () async {
+        final run = await _runBuilder(_transitiveClientCompositionSource);
+
+        expect(run.result.succeeded, isTrue);
+
+        final generatedOutput = run.generatedOutput;
+        expect(
+          generatedOutput,
+          contains(
+            'late final ApiClient _apiModuleClient = ApiClient(transport: _transport);',
+          ),
+        );
+        expect(
+          generatedOutput,
+          contains('late final user = _apiModuleClient.user;'),
+        );
+        expect(
+          generatedOutput,
+          isNot(
+            contains('late final UserClient user = _apiModuleClient.user;'),
+          ),
+        );
       },
     );
 
@@ -523,27 +552,73 @@ Future<_BuilderRun> _runBuilder(String source) async {
   final readerWriter = TestReaderWriter(rootPackage: 'a');
   await readerWriter.testing.loadIsolateSources();
 
-  final result = await testBuilder(
+  final partResult = await testBuilder(
     dartOrpcBuilder(BuilderOptions(const {})),
     {'a|lib/example.dart': source},
     rootPackage: 'a',
     readerWriter: readerWriter,
+    generateFor: {'a|lib/example.dart'},
   );
 
-  return _BuilderRun(readerWriter: readerWriter, result: result);
+  final generatedPartAsset = AssetId(
+    'a',
+    '.dart_tool/build/generated/a/lib/example.dart_orpc.g.part',
+  );
+  if (readerWriter.testing.exists(generatedPartAsset)) {
+    readerWriter.testing.writeString(AssetId('a', 'lib/example.g.dart'), '''
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'example.dart';
+
+${readerWriter.testing.readString(generatedPartAsset)}
+''');
+  }
+
+  final moduleResult = await testBuilder(
+    dartOrpcModuleBuilder(BuilderOptions(const {})),
+    {'a|lib/example.dart': source},
+    rootPackage: 'a',
+    readerWriter: readerWriter,
+    generateFor: {'a|lib/example.dart'},
+  );
+
+  return _BuilderRun(
+    readerWriter: readerWriter,
+    result: _CombinedBuilderResult(
+      partResult: partResult,
+      moduleResult: moduleResult,
+    ),
+  );
 }
 
 final class _BuilderRun {
   const _BuilderRun({required this.readerWriter, required this.result});
 
   final TestReaderWriter readerWriter;
-  final dynamic result;
+  final _CombinedBuilderResult result;
 
   String get generatedOutput {
-    return readerWriter.testing.readString(
-      AssetId('a', '.dart_tool/build/generated/a/lib/example.dart_orpc.g.part'),
+    final outputAsset = readerWriter.testing.assets.firstWhere(
+      (asset) => asset.path.endsWith('example.orpc.dart'),
     );
+    return readerWriter.testing.readString(outputAsset);
   }
+}
+
+final class _CombinedBuilderResult {
+  const _CombinedBuilderResult({
+    required this.partResult,
+    required this.moduleResult,
+  });
+
+  final dynamic partResult;
+  final dynamic moduleResult;
+
+  bool get succeeded => partResult.succeeded && moduleResult.succeeded;
+
+  List<dynamic> get outputs => [...partResult.outputs, ...moduleResult.outputs];
+
+  List<dynamic> get errors => [...partResult.errors, ...moduleResult.errors];
 }
 
 int _countMatches(String value, String pattern) {
@@ -1082,6 +1157,85 @@ final class UserService {
   UserService(this.dependency);
 
   final MissingDependency dependency;
+}
+''';
+
+const _transitiveClientCompositionSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+import 'package:dart_orpc_core/dart_orpc_core.dart';
+
+part 'example.g.dart';
+
+@Module(imports: [ApiModule])
+final class AppModule {
+  const AppModule();
+}
+
+@Module(imports: [UserModule])
+final class ApiModule {
+  const ApiModule();
+}
+
+@Module(
+  controllers: [UserController],
+  providers: [UserService],
+  exports: [UserService],
+)
+final class UserModule {
+  const UserModule();
+}
+
+final class UserService {
+  UserResponseDto getById(String id) => UserResponseDto(id: id, name: 'Ada');
+}
+
+@Controller('user')
+final class UserController {
+  UserController(this.userService);
+
+  final UserService userService;
+
+  @RpcMethod(name: 'getById')
+  Future<UserResponseDto> getById(
+    RpcContext context,
+    @RpcInput() GetUserDto input,
+  ) async {
+    return userService.getById(input.id);
+  }
+}
+
+final class GetUserDto {
+  const GetUserDto({required this.id});
+
+  factory GetUserDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'GetUserDto');
+    return GetUserDto(
+      id: expectStringField(object, 'id', nonEmpty: true),
+    );
+  }
+
+  final String id;
+
+  JsonObject toJson() => {'id': id};
+}
+
+final class UserResponseDto {
+  const UserResponseDto({required this.id, required this.name});
+
+  factory UserResponseDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'UserResponseDto');
+    return UserResponseDto(
+      id: expectStringField(object, 'id', nonEmpty: true),
+      name: expectStringField(object, 'name', nonEmpty: true),
+    );
+  }
+
+  final String id;
+  final String name;
+
+  JsonObject toJson() => {'id': id, 'name': name};
 }
 ''';
 

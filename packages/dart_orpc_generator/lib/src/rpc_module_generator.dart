@@ -52,20 +52,58 @@ const _fromHeaderChecker = TypeChecker.typeNamed(
 );
 const _luthorChecker = TypeChecker.typeNamed(Luthor, inPackage: 'luthor');
 
-final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
+final class RpcModuleGenerator extends Generator {
   @override
-  String generateForAnnotatedElement(
-    Element element,
-    ConstantReader annotation,
-    BuildStep buildStep,
-  ) {
-    if (element is! InterfaceElement) {
-      throw InvalidGenerationSourceError(
-        '@Module can only be applied to classes.',
-        element: element,
-      );
+  Future<String?> generate(LibraryReader library, BuildStep buildStep) async {
+    final modules = library.classes
+        .where((element) => _moduleChecker.hasAnnotationOfExact(element))
+        .toList(growable: false);
+    if (modules.isEmpty) {
+      return null;
     }
 
+    final sourceImportUri = _packageImportUriFor(buildStep.inputId);
+    final imports = <String>{
+      "import 'package:dart_orpc/dart_orpc.dart';",
+      "import '$sourceImportUri';",
+    };
+    final exports = <String>{"export '$sourceImportUri';"};
+    final moduleOutputs = <_GeneratedModuleOutput>[];
+
+    for (final module in modules) {
+      final annotation = _readModuleAnnotation(module);
+      final moduleOutput = await _generateForModule(
+        module,
+        annotation,
+        buildStep,
+      );
+      moduleOutputs.add(moduleOutput);
+      imports.addAll(moduleOutput.importDirectives);
+    }
+
+    final buffer = StringBuffer();
+    for (final exportDirective in exports.toList()..sort()) {
+      buffer.writeln(exportDirective);
+    }
+    buffer.writeln();
+    for (final importDirective in imports.toList()..sort()) {
+      buffer.writeln(importDirective);
+    }
+
+    for (final moduleOutput in moduleOutputs) {
+      buffer
+        ..writeln()
+        ..writeln(moduleOutput.code);
+    }
+
+    return buffer.toString().trimRight();
+  }
+
+  Future<_GeneratedModuleOutput> _generateForModule(
+    InterfaceElement element,
+    ConstantReader annotation,
+    BuildStep buildStep,
+  ) async {
     final moduleName = element.displayName;
     final usedNames = <String>{};
     final moduleGraph = _resolveModuleGraph(
@@ -79,6 +117,12 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
         .where((module) => module.rpcCompatibleControllers.isNotEmpty)
         .toList(growable: false);
     final providerInstantiations = rootModule.providerInstantiations;
+    final importedProviderInstantiations =
+        _collectImportedProviderInstantiationsForRoot(
+          rootModule,
+          rootModuleElement: element,
+          annotation: annotation,
+        );
     final controllerBindings = rootModule.controllerBindings;
 
     final rpcClientControllers = controllerBindings
@@ -125,6 +169,9 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
     final composeOpenApiSchemaRegistryName =
         _publicOpenApiSchemaRegistryFactoryNameFor(moduleName);
     final createOpenApiDocumentName = '_\$create${moduleName}OpenApiDocument';
+    final composeOpenApiDocumentName = _publicOpenApiDocumentFactoryNameFor(
+      moduleName,
+    );
     final containerClassName = '_\$${moduleName}Container';
     final createContainerName = '_\$create${moduleName}Container';
     final createRegistryFromContainerName =
@@ -132,6 +179,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
     final createRestRouteRegistryFromContainerName =
         '_\$create${moduleName}RestRouteRegistryFromContainer';
     final buildAppName = '_\$build${moduleName}RpcApp';
+    final composeBuildAppName = _publicBuildAppFactoryNameFor(moduleName);
     final openApiTitle = _openApiTitleFor(moduleName);
     final openApiSchemaComponents = _collectOpenApiSchemaComponents(
       controllerBindings,
@@ -176,11 +224,22 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       ..writeln()
       ..writeln('$containerClassName $createContainerName() {');
 
+    for (final instantiation in importedProviderInstantiations) {
+      buffer.writeln('  ${instantiation.code}');
+    }
+
+    if (importedProviderInstantiations.isNotEmpty &&
+        providerInstantiations.isNotEmpty) {
+      buffer.writeln();
+    }
+
     for (final instantiation in providerInstantiations) {
       buffer.writeln('  ${instantiation.code}');
     }
 
-    if (providerInstantiations.isNotEmpty && controllerBindings.isNotEmpty) {
+    if ((importedProviderInstantiations.isNotEmpty ||
+            providerInstantiations.isNotEmpty) &&
+        controllerBindings.isNotEmpty) {
       buffer.writeln();
     }
 
@@ -473,12 +532,18 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       ..writeln('  );')
       ..writeln('}')
       ..writeln()
+      ..writeln(
+        'JsonObject $composeOpenApiDocumentName() => $createOpenApiDocumentName();',
+      )
+      ..writeln()
       ..writeln('// ignore: unused_element')
       ..writeln('RpcHttpApp $buildAppName() {')
       ..writeln(
         '  return RpcHttpApp(procedures: $createRegistryName(), restRoutes: $createRestRouteRegistryName(), openApiDocument: $createOpenApiDocumentName(), docsHtml: createScalarHtml(title: \'${_escapeDartString(openApiTitle)}\'));',
       )
       ..writeln('}')
+      ..writeln()
+      ..writeln('RpcHttpApp $composeBuildAppName() => $buildAppName();')
       ..writeln()
       ..writeln('class $rootClientName {')
       ..writeln(
@@ -523,7 +588,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       }
       for (final getter in composedRpcClientGetters) {
         buffer.writeln(
-          '  late final ${getter.clientClassName} ${getter.clientGetterName} = ${getter.initializerExpression};',
+          '  late final ${getter.clientGetterName} = ${getter.initializerExpression};',
         );
       }
     }
@@ -573,7 +638,40 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       buffer.writeln('}');
     }
 
-    return buffer.toString().trimRight();
+    buffer
+      ..writeln()
+      ..writeln('extension DartOrpc${moduleName}Generated on $moduleName {')
+      ..writeln(
+        '  RpcProcedureRegistry procedureRegistry() => $composeProcedureRegistryName();',
+      )
+      ..writeln(
+        '  RestRouteRegistry restRouteRegistry() => $composeRestRouteRegistryName();',
+      )
+      ..writeln(
+        '  ProcedureMetadataRegistry procedureMetadata() => $composeMetadataRegistryName();',
+      )
+      ..writeln(
+        '  OpenApiSchemaRegistry openApiSchemaRegistry() => $composeOpenApiSchemaRegistryName();',
+      )
+      ..writeln(
+        '  JsonObject openApiDocument() => $composeOpenApiDocumentName();',
+      )
+      ..writeln('  RpcHttpApp buildRpcApp() => $composeBuildAppName();')
+      ..writeln(
+        '  $rootClientName createClient({required RpcTransport transport}) => $rootClientName(transport: transport);',
+      )
+      ..writeln('}');
+
+    final importDirectives = await _collectImportDirectivesForModule(
+      rootModule,
+      buildStep: buildStep,
+      importedProviderInstantiations: importedProviderInstantiations,
+    );
+
+    return _GeneratedModuleOutput(
+      code: buffer.toString().trimRight(),
+      importDirectives: importDirectives,
+    );
   }
 
   List<InterfaceElement> _readInterfaceElements(
@@ -726,7 +824,9 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
     final resolvedModule = _ResolvedModule(
       typeKey: moduleTypeKey,
       displayName: moduleElement.displayName,
+      moduleElement: moduleElement,
       importedModules: importedModules,
+      importedProviders: importedProviders,
       providerInstantiations: providerInstantiations,
       controllerBindings: controllerBindings,
       exportedProviders: exportedProviders,
@@ -995,6 +1095,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       typeName: controllerElement.displayName,
       instanceName: controllerInstantiation.variableName,
       instantiationCode: controllerInstantiation.code,
+      controllerElement: controllerElement,
       clientClassName: _clientClassNameFor(controllerElement.displayName),
       clientGetterName: _clientGetterNameFor(namespace),
       procedures: procedures,
@@ -1125,6 +1226,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
             typeCode: 'RpcContext',
             wireName: null,
             typeName: null,
+            typeElement: null,
             usesLuthor: false,
           ),
         );
@@ -1152,6 +1254,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
             typeCode: parameter.type.getDisplayString(),
             wireName: parameter.displayName,
             typeName: parameter.type.element?.displayName,
+            typeElement: parameter.type.element,
             usesLuthor: _usesLuthorValidation(parameter.type),
           ),
         );
@@ -1180,6 +1283,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
             typeCode: parameter.type.getDisplayString(),
             wireName: _pathParamWireName(parameter),
             typeName: parameter.type.element?.displayName,
+            typeElement: parameter.type.element,
             usesLuthor: false,
           ),
         );
@@ -1208,6 +1312,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
             typeCode: parameter.type.getDisplayString(),
             wireName: _queryParamWireName(parameter),
             typeName: parameter.type.element?.displayName,
+            typeElement: parameter.type.element,
             usesLuthor: false,
           ),
         );
@@ -1231,6 +1336,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
             typeCode: parameter.type.getDisplayString(),
             wireName: parameter.displayName,
             typeName: parameter.type.element?.displayName,
+            typeElement: parameter.type.element,
             usesLuthor: _usesLuthorValidation(parameter.type),
           ),
         );
@@ -1259,6 +1365,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       hasInput: inputParameter != null,
       inputTypeCode: inputParameter?.type.getDisplayString(),
       inputTypeName: inputParameter?.type.element?.displayName,
+      inputTypeElement: inputParameter?.type.element,
       inputParameterName: inputParameter?.displayName,
       inputUsesLuthor: inputParameter == null
           ? false
@@ -1266,6 +1373,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       outputTypeCode: outputType.getDisplayString(),
       outputTypeName:
           outputType.element?.displayName ?? outputType.getDisplayString(),
+      outputTypeElement: outputType.element,
       outputUsesLuthor: _usesLuthorValidation(outputType),
       supportsRpcGeneration: supportsRpcGeneration,
       serverInvocationArguments: invocationArguments.join(', '),
@@ -2252,6 +2360,7 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
       typeKey: _typeKeyFor(element.thisType),
       typeName: element.displayName,
       variableName: variableName,
+      providerElement: element,
       code: 'final $variableName = ${element.displayName}($allArguments);',
     );
   }
@@ -2438,6 +2547,12 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
   String _publicOpenApiSchemaRegistryFactoryNameFor(String moduleName) =>
       'dartOrpcCreate${moduleName}OpenApiSchemaRegistry';
 
+  String _publicOpenApiDocumentFactoryNameFor(String moduleName) =>
+      'dartOrpcCreate${moduleName}OpenApiDocument';
+
+  String _publicBuildAppFactoryNameFor(String moduleName) =>
+      'dartOrpcBuild${moduleName}RpcApp';
+
   List<_ComposedRpcClientGetter> _resolveComposedRpcClientGetters(
     _ResolvedModule rootModule, {
     required InterfaceElement moduleElement,
@@ -2485,6 +2600,170 @@ final class RpcModuleGenerator extends GeneratorForAnnotation<Module> {
   }
 
   String _typeKeyFor(DartType type) => type.getDisplayString();
+
+  List<_ResolvedInstantiation> _collectImportedProviderInstantiationsForRoot(
+    _ResolvedModule rootModule, {
+    required InterfaceElement rootModuleElement,
+    required ConstantReader annotation,
+  }) {
+    final ordered = <_ResolvedInstantiation>[];
+    final seenModuleKeys = <String>{};
+
+    void visitModule(_ResolvedModule module) {
+      if (!seenModuleKeys.add(module.typeKey)) {
+        return;
+      }
+      for (final imported in module.importedModules) {
+        visitModule(imported);
+      }
+      ordered.addAll(module.providerInstantiations);
+    }
+
+    for (final imported in rootModule.importedModules) {
+      visitModule(imported);
+    }
+
+    final byTypeKey = {
+      for (final instantiation in ordered) instantiation.typeKey: instantiation,
+    };
+
+    final seedKeys = <String>{};
+    final localProviderElements = _readInterfaceElements(
+      annotation.read('providers'),
+      element: rootModuleElement,
+      fieldName: 'providers',
+    );
+    final controllerElements = _readInterfaceElements(
+      annotation.read('controllers'),
+      element: rootModuleElement,
+      fieldName: 'controllers',
+    );
+    for (final providerElement in localProviderElements) {
+      final ctor = _selectUnnamedConstructor(providerElement);
+      for (final parameter in ctor.formalParameters) {
+        final key = _typeKeyFor(parameter.type);
+        if (rootModule.importedProviders.containsKey(key)) {
+          seedKeys.add(key);
+        }
+      }
+    }
+    for (final controllerElement in controllerElements) {
+      final ctor = _selectUnnamedConstructor(controllerElement);
+      for (final parameter in ctor.formalParameters) {
+        final key = _typeKeyFor(parameter.type);
+        if (rootModule.importedProviders.containsKey(key)) {
+          seedKeys.add(key);
+        }
+      }
+    }
+
+    if (seedKeys.isEmpty) {
+      return const [];
+    }
+
+    var requiredKeys = {...seedKeys};
+    var progressed = true;
+    while (progressed) {
+      progressed = false;
+      final nextKeys = {...requiredKeys};
+      for (final key in requiredKeys) {
+        final instantiation = byTypeKey[key];
+        if (instantiation == null) {
+          continue;
+        }
+        final ctor = _selectUnnamedConstructor(instantiation.providerElement);
+        for (final parameter in ctor.formalParameters) {
+          final depKey = _typeKeyFor(parameter.type);
+          if (byTypeKey.containsKey(depKey) && nextKeys.add(depKey)) {
+            progressed = true;
+          }
+        }
+      }
+      requiredKeys = nextKeys;
+    }
+
+    return [
+      for (final instantiation in ordered)
+        if (requiredKeys.contains(instantiation.typeKey)) instantiation,
+    ];
+  }
+
+  Future<Set<String>> _collectImportDirectivesForModule(
+    _ResolvedModule rootModule, {
+    required BuildStep buildStep,
+    required List<_ResolvedInstantiation> importedProviderInstantiations,
+  }) async {
+    final currentLibraryAsset = buildStep.inputId;
+    final imports = <String>{};
+
+    Future<void> addElementImport(Element? element) async {
+      if (element == null) {
+        return;
+      }
+
+      final library = element.library;
+      if (library == null || library.isInSdk) {
+        return;
+      }
+
+      final asset = await buildStep.resolver.assetIdForElement(element);
+      if (asset == currentLibraryAsset) {
+        return;
+      }
+
+      imports.add("import '${_packageImportUriFor(asset)}';");
+    }
+
+    Future<void> addImportedModuleFactoryImport(_ResolvedModule module) async {
+      final moduleAsset = await buildStep.resolver.assetIdForElement(
+        module.moduleElement,
+      );
+      if (moduleAsset != currentLibraryAsset) {
+        imports.add(
+          "import '${_packageImportUriFor(_orpcAssetFor(moduleAsset))}';",
+        );
+      }
+    }
+
+    for (final importedModule in rootModule.importedModules) {
+      await addImportedModuleFactoryImport(importedModule);
+    }
+
+    for (final instantiation in importedProviderInstantiations) {
+      await addElementImport(instantiation.providerElement);
+    }
+
+    for (final instantiation in rootModule.providerInstantiations) {
+      await addElementImport(instantiation.providerElement);
+    }
+
+    for (final controller in rootModule.controllerBindings) {
+      await addElementImport(controller.controllerElement);
+      for (final procedure in controller.procedures) {
+        await addElementImport(procedure.inputTypeElement);
+        await addElementImport(procedure.outputTypeElement);
+        for (final parameter in procedure.restInvocationParameters) {
+          await addElementImport(parameter.typeElement);
+        }
+      }
+    }
+
+    return imports;
+  }
+
+  AssetId _orpcAssetFor(AssetId asset) => asset.changeExtension('.orpc.dart');
+
+  String _packageImportUriFor(AssetId asset) {
+    if (!asset.path.startsWith('lib/')) {
+      throw ArgumentError.value(
+        asset,
+        'asset',
+        'dart_orpc module generation only supports libraries under lib/.',
+      );
+    }
+
+    return 'package:${asset.package}/${asset.path.substring(4)}';
+  }
 }
 
 final class _ResolvedInstantiation {
@@ -2492,12 +2771,14 @@ final class _ResolvedInstantiation {
     required this.typeKey,
     required this.typeName,
     required this.variableName,
+    required this.providerElement,
     required this.code,
   });
 
   final String typeKey;
   final String typeName;
   final String variableName;
+  final InterfaceElement providerElement;
   final String code;
 }
 
@@ -2513,7 +2794,9 @@ final class _ResolvedModule {
   const _ResolvedModule({
     required this.typeKey,
     required this.displayName,
+    required this.moduleElement,
     required this.importedModules,
+    required this.importedProviders,
     required this.providerInstantiations,
     required this.controllerBindings,
     required this.exportedProviders,
@@ -2521,7 +2804,9 @@ final class _ResolvedModule {
 
   final String typeKey;
   final String displayName;
+  final InterfaceElement moduleElement;
   final List<_ResolvedModule> importedModules;
+  final Map<String, _ResolvedProviderBinding> importedProviders;
   final List<_ResolvedInstantiation> providerInstantiations;
   final List<_ControllerBinding> controllerBindings;
   final Map<String, _ResolvedProviderBinding> exportedProviders;
@@ -2560,6 +2845,7 @@ final class _ControllerBinding {
     required this.typeName,
     required this.instanceName,
     required this.instantiationCode,
+    required this.controllerElement,
     required this.clientClassName,
     required this.clientGetterName,
     required this.procedures,
@@ -2568,6 +2854,7 @@ final class _ControllerBinding {
   final String typeName;
   final String instanceName;
   final String instantiationCode;
+  final InterfaceElement controllerElement;
   final String clientClassName;
   final String clientGetterName;
   final List<_ResolvedProcedure> procedures;
@@ -2608,12 +2895,14 @@ final class _ResolvedProcedure {
     this.path,
     this.inputTypeCode,
     this.inputTypeName,
+    this.inputTypeElement,
     this.inputParameterName,
     this.description,
     this.tags = const [],
     required this.inputUsesLuthor,
     required this.outputTypeCode,
     required this.outputTypeName,
+    required this.outputTypeElement,
     required this.outputUsesLuthor,
     required this.supportsRpcGeneration,
     required this.serverInvocationArguments,
@@ -2629,12 +2918,14 @@ final class _ResolvedProcedure {
   final bool hasInput;
   final String? inputTypeCode;
   final String? inputTypeName;
+  final Element? inputTypeElement;
   final String? inputParameterName;
   final String? description;
   final List<String> tags;
   final bool inputUsesLuthor;
   final String outputTypeCode;
   final String outputTypeName;
+  final Element? outputTypeElement;
   final bool outputUsesLuthor;
   final bool supportsRpcGeneration;
   final String serverInvocationArguments;
@@ -2672,6 +2963,7 @@ final class _ResolvedInvocationParameter {
     required this.typeCode,
     required this.wireName,
     required this.typeName,
+    required this.typeElement,
     required this.usesLuthor,
   });
 
@@ -2680,7 +2972,18 @@ final class _ResolvedInvocationParameter {
   final String typeCode;
   final String? wireName;
   final String? typeName;
+  final Element? typeElement;
   final bool usesLuthor;
+}
+
+final class _GeneratedModuleOutput {
+  const _GeneratedModuleOutput({
+    required this.code,
+    required this.importDirectives,
+  });
+
+  final String code;
+  final Set<String> importDirectives;
 }
 
 final class _ResolvedDtoField {

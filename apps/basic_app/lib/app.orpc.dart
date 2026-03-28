@@ -1,10 +1,16 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
-
-part of 'app.dart';
+// dart format width=80
 
 // **************************************************************************
 // RpcModuleGenerator
 // **************************************************************************
+
+export 'package:basic_app/app.dart';
+
+import 'package:basic_app/app.dart';
+import 'package:basic_app/modules/todo/todo_module.orpc.dart';
+import 'package:basic_app/modules/todo_analysis/todo_analysis_module.orpc.dart';
+import 'package:dart_orpc/dart_orpc.dart';
 
 class _$AppModuleContainer {
   _$AppModuleContainer();
@@ -28,7 +34,8 @@ RpcProcedureRegistry _$createAppModuleProcedureRegistryFromContainer(
 
 RpcProcedureRegistry _$createAppModuleProcedureRegistry() {
   return RpcProcedureRegistry([
-    ...dartOrpcCreateUserModuleProcedureRegistry().procedures,
+    ...dartOrpcCreateTodoModuleProcedureRegistry().procedures,
+    ...dartOrpcCreateTodoAnalysisModuleProcedureRegistry().procedures,
     ..._$createAppModuleLocalProcedureRegistry().procedures,
   ]);
 }
@@ -50,7 +57,8 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
 
 RestRouteRegistry _$createAppModuleRestRouteRegistry() {
   return RestRouteRegistry([
-    ...dartOrpcCreateUserModuleRestRouteRegistry().routes,
+    ...dartOrpcCreateTodoModuleRestRouteRegistry().routes,
+    ...dartOrpcCreateTodoAnalysisModuleRestRouteRegistry().routes,
     ..._$createAppModuleLocalRestRouteRegistry().routes,
   ]);
 }
@@ -65,7 +73,8 @@ ProcedureMetadataRegistry _$createAppModuleLocalProcedureMetadataRegistry() {
 
 ProcedureMetadataRegistry _$createAppModuleProcedureMetadataRegistry() {
   return ProcedureMetadataRegistry([
-    ...dartOrpcCreateUserModuleProcedureMetadataRegistry().procedures,
+    ...dartOrpcCreateTodoModuleProcedureMetadataRegistry().procedures,
+    ...dartOrpcCreateTodoAnalysisModuleProcedureMetadataRegistry().procedures,
     ..._$createAppModuleLocalProcedureMetadataRegistry().procedures,
   ]);
 }
@@ -79,7 +88,8 @@ OpenApiSchemaRegistry _$createAppModuleLocalOpenApiSchemaRegistry() {
 
 OpenApiSchemaRegistry _$createAppModuleOpenApiSchemaRegistry() {
   return OpenApiSchemaRegistry([
-    ...dartOrpcCreateUserModuleOpenApiSchemaRegistry().components,
+    ...dartOrpcCreateTodoModuleOpenApiSchemaRegistry().components,
+    ...dartOrpcCreateTodoAnalysisModuleOpenApiSchemaRegistry().components,
     ..._$createAppModuleLocalOpenApiSchemaRegistry().components,
   ]);
 }
@@ -95,6 +105,9 @@ JsonObject _$createAppModuleOpenApiDocument() {
   );
 }
 
+JsonObject dartOrpcCreateAppModuleOpenApiDocument() =>
+    _$createAppModuleOpenApiDocument();
+
 // ignore: unused_element
 RpcHttpApp _$buildAppModuleRpcApp() {
   return RpcHttpApp(
@@ -105,13 +118,33 @@ RpcHttpApp _$buildAppModuleRpcApp() {
   );
 }
 
+RpcHttpApp dartOrpcBuildAppModuleRpcApp() => _$buildAppModuleRpcApp();
+
 class AppClient {
   AppClient({required RpcTransport transport}) : _transport = transport;
 
   final RpcTransport _transport;
 
-  late final UserClientRoot _userModuleClient = UserClientRoot(
+  late final TodoClientRoot _todoModuleClient = TodoClientRoot(
     transport: _transport,
   );
-  late final UserClient user = _userModuleClient.user;
+  late final TodoAnalysisClientRoot _todoAnalysisModuleClient =
+      TodoAnalysisClientRoot(transport: _transport);
+  late final todo = _todoModuleClient.todo;
+  late final todoAnalysis = _todoAnalysisModuleClient.todoAnalysis;
+}
+
+extension DartOrpcAppModuleGenerated on AppModule {
+  RpcProcedureRegistry procedureRegistry() =>
+      dartOrpcCreateAppModuleProcedureRegistry();
+  RestRouteRegistry restRouteRegistry() =>
+      dartOrpcCreateAppModuleRestRouteRegistry();
+  ProcedureMetadataRegistry procedureMetadata() =>
+      dartOrpcCreateAppModuleProcedureMetadataRegistry();
+  OpenApiSchemaRegistry openApiSchemaRegistry() =>
+      dartOrpcCreateAppModuleOpenApiSchemaRegistry();
+  JsonObject openApiDocument() => dartOrpcCreateAppModuleOpenApiDocument();
+  RpcHttpApp buildRpcApp() => dartOrpcBuildAppModuleRpcApp();
+  AppClient createClient({required RpcTransport transport}) =>
+      AppClient(transport: transport);
 }

@@ -1,4 +1,4 @@
 library basic_app;
 
-export 'app.dart';
-export 'user_dtos.dart';
+export 'app.orpc.dart';
+export 'modules/todo/todo_dtos.dart';
