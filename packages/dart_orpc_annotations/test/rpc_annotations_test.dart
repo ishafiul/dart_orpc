@@ -4,12 +4,19 @@ import 'package:test/test.dart';
 void main() {
   group('Given the public annotation types', () {
     test(
-      'When constructing a Module then it stores controllers and providers',
+      'When constructing a Module then it stores imports, controllers, providers, and exports',
       () {
-        const module = Module(controllers: [String], providers: [int]);
+        const module = Module(
+          imports: [Uri],
+          controllers: [String],
+          providers: [int],
+          exports: [double],
+        );
 
+        expect(module.imports, [Uri]);
         expect(module.controllers, [String]);
         expect(module.providers, [int]);
+        expect(module.exports, [double]);
       },
     );
 

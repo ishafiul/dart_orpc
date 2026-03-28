@@ -6,7 +6,7 @@ void main() {
     test(
       'When importing it then the public runtime APIs are available',
       () async {
-        const module = Module();
+        const module = Module(imports: [Uri], exports: [String]);
         const controller = Controller('user');
         const method = RpcMethod(
           name: 'getById',
@@ -83,7 +83,9 @@ void main() {
           decode: (json) => expectJsonObject(json, context: 'health response'),
         );
 
+        expect(module.imports, [Uri]);
         expect(module.controllers, isEmpty);
+        expect(module.exports, [String]);
         expect(controller.namespace, 'user');
         expect(method.name, 'getById');
         expect(method.path?.method, 'GET');

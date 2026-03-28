@@ -1,8 +1,15 @@
 final class Module {
-  const Module({this.controllers = const [], this.providers = const []});
+  const Module({
+    this.imports = const [],
+    this.controllers = const [],
+    this.providers = const [],
+    this.exports = const [],
+  });
 
+  final List<Type> imports;
   final List<Type> controllers;
   final List<Type> providers;
+  final List<Type> exports;
 }
 
 final class Controller {
