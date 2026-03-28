@@ -6,127 +6,86 @@ part of 'app.dart';
 // RpcModuleGenerator
 // **************************************************************************
 
-RpcProcedureRegistry _$createAppModuleProcedureRegistry() {
-  final userService = UserService();
-
-  final userController = UserController(userService);
-
-  return RpcProcedureRegistry([
-    RpcProcedure<GetUserDto, UserResponseDto>(
-      method: 'user.getById',
-      decodeInput: (rawInput) => decodeRpcInputWithLuthor<GetUserDto>(
-        rawInput: rawInput,
-        method: 'user.getById',
-        validate: $GetUserDtoValidate,
-      ),
-      encodeOutput: (output) => encodeRpcOutputWithLuthor<UserResponseDto>(
-        output: output,
-        method: 'user.getById',
-        toJson: (output) => output.toJson(),
-        validate: $UserResponseDtoValidate,
-      ),
-      handler: (context, input) => userController.getById(context, input),
-    ),
-    RpcProcedure<Null, UserStatusDto>(
-      method: 'user.status',
-      decodeInput: (rawInput) =>
-          expectNoRpcInput(rawInput, context: 'RPC method "user.status"'),
-      encodeOutput: (output) => encodeRpcOutputWithLuthor<UserStatusDto>(
-        output: output,
-        method: 'user.status',
-        toJson: (output) => output.toJson(),
-        validate: $UserStatusDtoValidate,
-      ),
-      handler: (context, input) => userController.status(),
-    ),
-  ]);
+class _$AppModuleContainer {
+  _$AppModuleContainer();
 }
 
-RestRouteRegistry _$createAppModuleRestRouteRegistry() {
-  final userService = UserService();
-
-  final userController = UserController(userService);
-
-  return RestRouteRegistry([
-    RestRoute(
-      method: 'GET',
-      path: '/users/:id',
-      handler: (context, request, pathParameters) async {
-        final rawInput = <String, Object?>{};
-        rawInput['id'] = decodeRestScalarParameter<String>(
-          rawValue: pathParameters['id'],
-          source: 'path parameter',
-          name: 'id',
-          route: 'GET /users/:id',
-        );
-        rawInput['include'] = decodeRestScalarParameter<String?>(
-          rawValue: request.queryParameters['include'],
-          source: 'query parameter',
-          name: 'include',
-          route: 'GET /users/:id',
-        );
-        final input = ((rawInput) => decodeRpcInputWithLuthor<GetUserDto>(
-          rawInput: rawInput,
-          method: 'user.getById',
-          validate: $GetUserDtoValidate,
-        ))(rawInput);
-        final output = await userController.getById(context, input);
-        return ((output) => encodeRpcOutputWithLuthor<UserResponseDto>(
-          output: output,
-          method: 'user.getById',
-          toJson: (output) => output.toJson(),
-          validate: $UserResponseDtoValidate,
-        ))(output);
-      },
-    ),
-  ]);
+_$AppModuleContainer _$createAppModuleContainer() {
+  return _$AppModuleContainer();
 }
 
 // ignore: unused_element
+RpcProcedureRegistry _$createAppModuleLocalProcedureRegistry() {
+  final container = _$createAppModuleContainer();
+  return _$createAppModuleProcedureRegistryFromContainer(container);
+}
+
+RpcProcedureRegistry _$createAppModuleProcedureRegistryFromContainer(
+  _$AppModuleContainer container,
+) {
+  return RpcProcedureRegistry([]);
+}
+
+RpcProcedureRegistry _$createAppModuleProcedureRegistry() {
+  return RpcProcedureRegistry([
+    ...dartOrpcCreateUserModuleProcedureRegistry().procedures,
+    ..._$createAppModuleLocalProcedureRegistry().procedures,
+  ]);
+}
+
+RpcProcedureRegistry dartOrpcCreateAppModuleProcedureRegistry() =>
+    _$createAppModuleProcedureRegistry();
+
+// ignore: unused_element
+RestRouteRegistry _$createAppModuleLocalRestRouteRegistry() {
+  final container = _$createAppModuleContainer();
+  return _$createAppModuleRestRouteRegistryFromContainer(container);
+}
+
+RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
+  _$AppModuleContainer container,
+) {
+  return RestRouteRegistry([]);
+}
+
+RestRouteRegistry _$createAppModuleRestRouteRegistry() {
+  return RestRouteRegistry([
+    ...dartOrpcCreateUserModuleRestRouteRegistry().routes,
+    ..._$createAppModuleLocalRestRouteRegistry().routes,
+  ]);
+}
+
+RestRouteRegistry dartOrpcCreateAppModuleRestRouteRegistry() =>
+    _$createAppModuleRestRouteRegistry();
+
+// ignore: unused_element
+ProcedureMetadataRegistry _$createAppModuleLocalProcedureMetadataRegistry() {
+  return ProcedureMetadataRegistry([]);
+}
+
 ProcedureMetadataRegistry _$createAppModuleProcedureMetadataRegistry() {
   return ProcedureMetadataRegistry([
-    const ProcedureMetadata(
-      rpcMethod: 'user.getById',
-      controllerNamespace: 'user',
-      methodName: 'getById',
-      path: RestProcedureMetadata(method: 'GET', path: '/users/:id'),
-      inputTypeCode: 'GetUserDto',
-      outputTypeCode: 'UserResponseDto',
-      description: 'Resolve a user by id from the shared RPC and REST method.',
-      tags: ['user', 'example'],
-      parameters: [
-        ProcedureParameterMetadata(
-          parameterName: 'id',
-          wireName: 'id',
-          source: ProcedureParameterSourceKind.path,
-          typeCode: 'String',
-        ),
-        ProcedureParameterMetadata(
-          parameterName: 'include',
-          wireName: 'include',
-          source: ProcedureParameterSourceKind.query,
-          typeCode: 'String?',
-        ),
-      ],
-    ),
-    const ProcedureMetadata(
-      rpcMethod: 'user.status',
-      controllerNamespace: 'user',
-      methodName: 'status',
-      outputTypeCode: 'UserStatusDto',
-    ),
+    ...dartOrpcCreateUserModuleProcedureMetadataRegistry().procedures,
+    ..._$createAppModuleLocalProcedureMetadataRegistry().procedures,
   ]);
+}
+
+ProcedureMetadataRegistry dartOrpcCreateAppModuleProcedureMetadataRegistry() =>
+    _$createAppModuleProcedureMetadataRegistry();
+
+OpenApiSchemaRegistry _$createAppModuleLocalOpenApiSchemaRegistry() {
+  return OpenApiSchemaRegistry([]);
 }
 
 OpenApiSchemaRegistry _$createAppModuleOpenApiSchemaRegistry() {
   return OpenApiSchemaRegistry([
-    OpenApiSchemaComponent(name: 'GetUserDto', validator: $GetUserDtoSchema),
-    OpenApiSchemaComponent(
-      name: 'UserResponseDto',
-      validator: $UserResponseDtoSchema,
-    ),
+    ...dartOrpcCreateUserModuleOpenApiSchemaRegistry().components,
+    ..._$createAppModuleLocalOpenApiSchemaRegistry().components,
   ]);
 }
+
+OpenApiSchemaRegistry dartOrpcCreateAppModuleOpenApiSchemaRegistry() =>
+    _$createAppModuleOpenApiSchemaRegistry();
 
 JsonObject _$createAppModuleOpenApiDocument() {
   return createOpenApiDocument(
@@ -136,6 +95,7 @@ JsonObject _$createAppModuleOpenApiDocument() {
   );
 }
 
+// ignore: unused_element
 RpcHttpApp _$buildAppModuleRpcApp() {
   return RpcHttpApp(
     procedures: _$createAppModuleProcedureRegistry(),
@@ -146,38 +106,12 @@ RpcHttpApp _$buildAppModuleRpcApp() {
 }
 
 class AppClient {
-  AppClient({required RpcTransport transport}) : _caller = RpcCaller(transport);
+  AppClient({required RpcTransport transport}) : _transport = transport;
 
-  final RpcCaller _caller;
+  final RpcTransport _transport;
 
-  late final UserClient user = UserClient(_caller);
-}
-
-class UserClient {
-  UserClient(this._caller);
-
-  final RpcCaller _caller;
-
-  Future<UserResponseDto> getById(GetUserDto input) {
-    return _caller.call<UserResponseDto>(
-      method: 'user.getById',
-      input: input.toJson(),
-      decode: (json) => UserResponseDto.fromJson(
-        Map<String, dynamic>.from(
-          expectJsonObject(json, context: 'RPC response for "user.getById"'),
-        ),
-      ),
-    );
-  }
-
-  Future<UserStatusDto> status() {
-    return _caller.call<UserStatusDto>(
-      method: 'user.status',
-      decode: (json) => UserStatusDto.fromJson(
-        Map<String, dynamic>.from(
-          expectJsonObject(json, context: 'RPC response for "user.status"'),
-        ),
-      ),
-    );
-  }
+  late final UserClientRoot _userModuleClient = UserClientRoot(
+    transport: _transport,
+  );
+  late final UserClient user = _userModuleClient.user;
 }

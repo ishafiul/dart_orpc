@@ -1,12 +1,10 @@
 import 'package:dart_orpc/dart_orpc.dart';
 
-import 'user_controller.dart';
-import 'user_dtos.dart';
-import 'user_service.dart';
+import 'user_module.dart';
 
 part 'app.g.dart';
 
-@Module(controllers: [UserController], providers: [UserService])
+@Module(imports: [UserModule])
 final class AppModule {
   const AppModule();
 }
