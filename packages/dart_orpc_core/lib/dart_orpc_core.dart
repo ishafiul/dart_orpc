@@ -5,6 +5,7 @@ export 'src/procedure_metadata.dart';
 export 'src/rpc_context.dart';
 export 'src/rpc_error_code.dart';
 export 'src/rpc_exception.dart';
+export 'src/rpc_guard.dart';
 export 'src/rpc_procedure.dart';
 export 'src/rpc_procedure_registry.dart';
 export 'src/rpc_request.dart';

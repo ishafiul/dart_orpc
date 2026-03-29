@@ -16,8 +16,16 @@ const _rpcMethodChecker = TypeChecker.typeNamed(
   RpcMethod,
   inPackage: 'dart_orpc_annotations',
 );
+const _useGuardsChecker = TypeChecker.typeNamed(
+  UseGuards,
+  inPackage: 'dart_orpc_annotations',
+);
 const _rpcContextChecker = TypeChecker.typeNamed(
   RpcContext,
+  inPackage: 'dart_orpc_core',
+);
+const _rpcGuardChecker = TypeChecker.typeNamed(
+  RpcGuard,
   inPackage: 'dart_orpc_core',
 );
 const _pathParamChecker = TypeChecker.typeNamed(

@@ -10,7 +10,10 @@ void _writeContainerAndProcedureSections(
   _writeProcedureRegistry(buffer, context);
 }
 
-void _writeContainerClass(StringBuffer buffer, _ModuleGenerationContext context) {
+void _writeContainerClass(
+  StringBuffer buffer,
+  _ModuleGenerationContext context,
+) {
   final names = context.generatedNames;
   buffer.writeln('class ${names.containerClassName} {');
   if (context.containerMembers.isEmpty) {
@@ -20,7 +23,9 @@ void _writeContainerClass(StringBuffer buffer, _ModuleGenerationContext context)
     for (final member in context.containerMembers) {
       buffer.writeln('    required this.${member.name},');
     }
-    buffer..writeln('  });')..writeln();
+    buffer
+      ..writeln('  });')
+      ..writeln();
     for (var index = 0; index < context.containerMembers.length; index++) {
       final member = context.containerMembers[index];
       buffer.writeln('  final ${member.typeName} ${member.name};');
@@ -38,7 +43,9 @@ void _writeContainerFactory(
 ) {
   final names = context.generatedNames;
   final rootModule = context.rootModule;
-  buffer..writeln()..writeln('${names.containerClassName} ${names.createContainerName}() {');
+  buffer
+    ..writeln()
+    ..writeln('${names.containerClassName} ${names.createContainerName}() {');
   for (final instantiation in context.importedProviderInstantiations) {
     buffer.writeln('  ${instantiation.code}');
   }
@@ -55,21 +62,27 @@ void _writeContainerFactory(
     buffer.writeln();
   }
   for (var index = 0; index < rootModule.controllerBindings.length; index++) {
-    buffer.writeln('  ${rootModule.controllerBindings[index].instantiationCode}');
+    buffer.writeln(
+      '  ${rootModule.controllerBindings[index].instantiationCode}',
+    );
     if (index < rootModule.controllerBindings.length - 1) {
       buffer.writeln();
     }
   }
   buffer..writeln();
   if (context.containerMembers.isEmpty) {
-    buffer..writeln('  return ${names.containerClassName}();')..writeln('}');
+    buffer
+      ..writeln('  return ${names.containerClassName}();')
+      ..writeln('}');
     return;
   }
   buffer..writeln('  return ${names.containerClassName}(');
   for (final member in context.containerMembers) {
     buffer.writeln('    ${member.name}: ${member.name},');
   }
-  buffer..writeln('  );')..writeln('}');
+  buffer
+    ..writeln('  );')
+    ..writeln('}');
 }
 
 void _writeLocalProcedureRegistry(
@@ -85,23 +98,37 @@ void _writeLocalProcedureRegistry(
     ..writeln('  return ${names.createRegistryFromContainerName}(container);')
     ..writeln('}')
     ..writeln()
-    ..writeln('RpcProcedureRegistry ${names.createRegistryFromContainerName}(${names.containerClassName} container) {')
+    ..writeln(
+      'RpcProcedureRegistry ${names.createRegistryFromContainerName}(${names.containerClassName} container) {',
+    )
+    ..writeln(
+      _hasLocalGuardedRpcProcedures(context)
+          ? '  final metadataRegistry = ${names.createLocalMetadataRegistryName}();'
+          : '',
+    )
     ..writeln('  return RpcProcedureRegistry([');
 
   for (final controller in context.rootModule.controllerBindings) {
     for (final procedure in controller.rpcCompatibleProcedures) {
       final inputTypeCode = procedure.inputTypeCode ?? 'Null';
       buffer
-        ..writeln('    RpcProcedure<$inputTypeCode, ${procedure.outputTypeCode}>(')
+        ..writeln(
+          '    RpcProcedure<$inputTypeCode, ${procedure.outputTypeCode}>(',
+        )
         ..writeln("      method: '${procedure.rpcMethod}',")
         ..writeln('      decodeInput: ${_decodeInputExpression(procedure)},')
         ..writeln('      encodeOutput: ${_encodeOutputExpression(procedure)},')
-        ..writeln('      handler: (context, input) => container.${controller.instanceName}.${procedure.methodName}(${procedure.serverInvocationArguments}),')
+        ..writeln(_rpcGuardInvocationBlock(procedure))
+        ..writeln(
+          '      handler: (context, input) => container.${controller.instanceName}.${procedure.methodName}(${procedure.serverInvocationArguments}),',
+        )
         ..writeln('    ),');
     }
   }
 
-  buffer..writeln('  ]);')..writeln('}');
+  buffer
+    ..writeln('  ]);')
+    ..writeln('}');
 }
 
 void _writeProcedureRegistry(
@@ -123,5 +150,7 @@ void _writeProcedureRegistry(
     ..writeln('  ]);')
     ..writeln('}')
     ..writeln()
-    ..writeln('RpcProcedureRegistry ${names.composeProcedureRegistryName}() => ${names.createRegistryName}();');
+    ..writeln(
+      'RpcProcedureRegistry ${names.composeProcedureRegistryName}() => ${names.createRegistryName}();',
+    );
 }

@@ -18,14 +18,25 @@ void _writeRestRouteRegistries(
     ..writeln('// ignore: unused_element')
     ..writeln('RestRouteRegistry ${names.createLocalRestRouteRegistryName}() {')
     ..writeln('  final container = ${names.createContainerName}();')
-    ..writeln('  return ${names.createRestRouteRegistryFromContainerName}(container);')
+    ..writeln(
+      '  return ${names.createRestRouteRegistryFromContainerName}(container);',
+    )
     ..writeln('}')
     ..writeln()
-    ..writeln('RestRouteRegistry ${names.createRestRouteRegistryFromContainerName}(${names.containerClassName} container) {')
+    ..writeln(
+      'RestRouteRegistry ${names.createRestRouteRegistryFromContainerName}(${names.containerClassName} container) {',
+    )
+    ..writeln(
+      _hasLocalGuardedRestProcedures(context)
+          ? '  final metadataRegistry = ${names.createLocalMetadataRegistryName}();'
+          : '',
+    )
     ..writeln('  return RestRouteRegistry([');
 
   for (final controller in context.rootModule.controllerBindings) {
-    for (final procedure in controller.procedures.where((procedure) => procedure.path != null)) {
+    for (final procedure in controller.procedures.where(
+      (procedure) => procedure.path != null,
+    )) {
       buffer
         ..writeln('    RestRoute(')
         ..writeln("      method: '${procedure.path!.method}',")
@@ -51,8 +62,13 @@ void _writeRestRouteRegistries(
           .map(_restInvocationArgumentExpression)
           .join(', ');
       buffer
-        ..writeln('        final output = await container.${controller.instanceName}.${procedure.methodName}($invocationArguments);')
-        ..writeln('        return (${_encodeOutputExpression(procedure)})(output);')
+        ..writeln(_restGuardInvocationBlock(procedure))
+        ..writeln(
+          '        final output = await container.${controller.instanceName}.${procedure.methodName}($invocationArguments);',
+        )
+        ..writeln(
+          '        return (${_encodeOutputExpression(procedure)})(output);',
+        )
         ..writeln('      },')
         ..writeln('    ),');
     }
@@ -74,7 +90,9 @@ void _writeRestRouteRegistries(
     ..writeln('  ]);')
     ..writeln('}')
     ..writeln()
-    ..writeln('RestRouteRegistry ${names.composeRestRouteRegistryName}() => ${names.createRestRouteRegistryName}();');
+    ..writeln(
+      'RestRouteRegistry ${names.composeRestRouteRegistryName}() => ${names.createRestRouteRegistryName}();',
+    );
 }
 
 void _writeMetadataRegistries(
@@ -85,7 +103,9 @@ void _writeMetadataRegistries(
   buffer
     ..writeln()
     ..writeln('// ignore: unused_element')
-    ..writeln('ProcedureMetadataRegistry ${names.createLocalMetadataRegistryName}() {')
+    ..writeln(
+      'ProcedureMetadataRegistry ${names.createLocalMetadataRegistryName}() {',
+    )
     ..writeln('  return ProcedureMetadataRegistry([');
   for (final controller in context.rootModule.controllerBindings) {
     for (final procedure in controller.procedures) {
@@ -96,7 +116,9 @@ void _writeMetadataRegistries(
     ..writeln('  ]);')
     ..writeln('}')
     ..writeln()
-    ..writeln('ProcedureMetadataRegistry ${names.createMetadataRegistryName}() {')
+    ..writeln(
+      'ProcedureMetadataRegistry ${names.createMetadataRegistryName}() {',
+    )
     ..writeln('  return ProcedureMetadataRegistry([');
   for (final importedModule in context.rootModule.importedModules) {
     buffer.writeln(
@@ -108,29 +130,45 @@ void _writeMetadataRegistries(
     ..writeln('  ]);')
     ..writeln('}')
     ..writeln()
-    ..writeln('ProcedureMetadataRegistry ${names.composeMetadataRegistryName}() => ${names.createMetadataRegistryName}();');
+    ..writeln(
+      'ProcedureMetadataRegistry ${names.composeMetadataRegistryName}() => ${names.createMetadataRegistryName}();',
+    );
 }
 
-void _writeProcedureMetadata(StringBuffer buffer, _ResolvedProcedure procedure) {
+void _writeProcedureMetadata(
+  StringBuffer buffer,
+  _ResolvedProcedure procedure,
+) {
   buffer
     ..writeln('    const ProcedureMetadata(')
     ..writeln("      rpcMethod: '${procedure.rpcMethod}',")
     ..writeln("      controllerNamespace: '${procedure.controllerNamespace}',")
     ..writeln("      methodName: '${procedure.methodName}',");
   if (procedure.path != null) {
-    buffer.writeln("      path: RestProcedureMetadata(method: '${procedure.path!.method}', path: '${procedure.path!.path}'),");
+    buffer.writeln(
+      "      path: RestProcedureMetadata(method: '${procedure.path!.method}', path: '${procedure.path!.path}'),",
+    );
   }
   if (procedure.inputTypeCode != null) {
     buffer.writeln("      inputTypeCode: '${procedure.inputTypeCode}',");
   }
   buffer.writeln("      outputTypeCode: '${procedure.outputTypeCode}',");
   if (procedure.description != null) {
-    buffer.writeln("      description: '${_escapeDartString(procedure.description!)}',");
+    buffer.writeln(
+      "      description: '${_escapeDartString(procedure.description!)}',",
+    );
   }
   if (procedure.tags.isNotEmpty) {
     buffer..writeln('      tags: [');
     for (final tag in procedure.tags) {
       buffer.writeln("        '${_escapeDartString(tag)}',");
+    }
+    buffer.writeln('      ],');
+  }
+  if (procedure.guardTypeNames.isNotEmpty) {
+    buffer..writeln('      guardTypes: [');
+    for (final guardType in procedure.guardTypeNames) {
+      buffer.writeln("        '${_escapeDartString(guardType)}',");
     }
     buffer.writeln('      ],');
   }
@@ -141,11 +179,76 @@ void _writeProcedureMetadata(StringBuffer buffer, _ResolvedProcedure procedure) 
         ..writeln('        ProcedureParameterMetadata(')
         ..writeln("          parameterName: '${parameter.parameterName}',")
         ..writeln("          wireName: '${parameter.wireName}',")
-        ..writeln('          source: ProcedureParameterSourceKind.${parameter.source.name},')
+        ..writeln(
+          '          source: ProcedureParameterSourceKind.${parameter.source.name},',
+        )
         ..writeln("          typeCode: '${parameter.typeCode}',")
         ..writeln('        ),');
     }
     buffer.writeln('      ],');
   }
   buffer.writeln('    ),');
+}
+
+bool _hasLocalGuardedRpcProcedures(_ModuleGenerationContext context) {
+  return context.rootModule.controllerBindings.any(
+    (controller) => controller.rpcCompatibleProcedures.any(
+      (procedure) => procedure.guardBindings.isNotEmpty,
+    ),
+  );
+}
+
+bool _hasLocalGuardedRestProcedures(_ModuleGenerationContext context) {
+  return context.rootModule.controllerBindings.any(
+    (controller) => controller.procedures.any(
+      (procedure) =>
+          procedure.path != null && procedure.guardBindings.isNotEmpty,
+    ),
+  );
+}
+
+String _guardInputExpression(_ResolvedProcedure procedure) {
+  return procedure.inputParameterName ?? 'null';
+}
+
+String _rpcGuardInvocationBlock(_ResolvedProcedure procedure) {
+  if (procedure.guardBindings.isEmpty) {
+    return '';
+  }
+
+  final buffer = StringBuffer()
+    ..writeln('      beforeInvoke: (context, input) => runRpcGuards(')
+    ..writeln('        [');
+  for (final guardBinding in procedure.guardBindings) {
+    buffer.writeln('          container.${guardBinding.variableName},');
+  }
+  buffer
+    ..writeln('        ],')
+    ..writeln('        rpcContext: context,')
+    ..writeln("        procedure: metadataRegistry['${procedure.rpcMethod}']!,")
+    ..writeln('        input: input,')
+    ..write('      ),');
+  return buffer.toString();
+}
+
+String _restGuardInvocationBlock(_ResolvedProcedure procedure) {
+  if (procedure.guardBindings.isEmpty) {
+    return '';
+  }
+
+  final buffer = StringBuffer()
+    ..writeln('        await runRpcGuards(')
+    ..writeln('          [');
+  for (final guardBinding in procedure.guardBindings) {
+    buffer.writeln('            container.${guardBinding.variableName},');
+  }
+  buffer
+    ..writeln('          ],')
+    ..writeln('          rpcContext: context,')
+    ..writeln(
+      "          procedure: metadataRegistry['${procedure.rpcMethod}']!,",
+    )
+    ..writeln('          input: ${_guardInputExpression(procedure)},')
+    ..write('        );');
+  return buffer.toString();
 }

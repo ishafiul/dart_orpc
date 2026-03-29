@@ -180,6 +180,13 @@ void main() {
 
   group('Given RpcProcedure input and output handling', () {
     const context = RpcContext(headers: {'x-trace-id': 'trace-1'});
+    const procedureMetadata = ProcedureMetadata(
+      rpcMethod: 'user.echo',
+      controllerNamespace: 'user',
+      methodName: 'echo',
+      outputTypeCode: 'String',
+      guardTypes: ['AuthGuard'],
+    );
 
     test(
       'When invoke succeeds then it decodes input, calls the handler, and encodes output',
@@ -198,6 +205,52 @@ void main() {
         final result = await procedure.invoke(context, {'id': '1'});
 
         expect(result, {'value': '1'});
+      },
+    );
+
+    test(
+      'When beforeInvoke is configured then it runs before the controller handler',
+      () async {
+        final callOrder = <String>[];
+        final procedure = RpcProcedure<JsonObject, JsonObject>(
+          method: 'user.guarded',
+          decodeInput: (rawInput) =>
+              expectJsonObject(rawInput, context: 'user.guarded input'),
+          encodeOutput: (output) => output,
+          beforeInvoke: (receivedContext, input) async {
+            expect(receivedContext.headers['x-trace-id'], 'trace-1');
+            expect(input['id'], '1');
+            callOrder.add('beforeInvoke');
+          },
+          handler: (_, input) async {
+            callOrder.add('handler');
+            return input;
+          },
+        );
+
+        final result = await procedure.invoke(context, {'id': '1'});
+
+        expect(result, {'id': '1'});
+        expect(callOrder, ['beforeInvoke', 'handler']);
+      },
+    );
+
+    test(
+      'When runRpcGuards is called then it executes guards in order with the resolved procedure metadata',
+      () async {
+        final calls = <String>[];
+
+        await runRpcGuards(
+          [_RecordingGuard(calls, 'first'), _RecordingGuard(calls, 'second')],
+          rpcContext: context,
+          procedure: procedureMetadata,
+          input: const {'id': '1'},
+        );
+
+        expect(calls, [
+          'first:user.echo:trace-1:AuthGuard',
+          'second:user.echo:trace-1:AuthGuard',
+        ]);
       },
     );
 
@@ -263,4 +316,18 @@ final class _NestedJsonValue {
   final String id;
 
   JsonObject toJson() => {'id': id};
+}
+
+final class _RecordingGuard implements RpcGuard {
+  const _RecordingGuard(this.calls, this.name);
+
+  final List<String> calls;
+  final String name;
+
+  @override
+  void canActivate(RpcGuardContext context) {
+    calls.add(
+      '$name:${context.procedure.rpcMethod}:${context.rpcContext.headers['x-trace-id']}:${context.procedure.guardTypes.single}',
+    );
+  }
 }

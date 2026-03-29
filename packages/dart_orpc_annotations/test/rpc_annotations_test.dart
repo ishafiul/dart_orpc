@@ -26,6 +26,12 @@ void main() {
       expect(controller.namespace, 'user');
     });
 
+    test('When constructing UseGuards then it stores the guard types', () {
+      const useGuards = UseGuards([String, int]);
+
+      expect(useGuards.guards, [String, int]);
+    });
+
     test('When constructing an RpcMethod then it stores the optional name', () {
       const namedMethod = RpcMethod(name: 'getById');
       const unnamedMethod = RpcMethod();

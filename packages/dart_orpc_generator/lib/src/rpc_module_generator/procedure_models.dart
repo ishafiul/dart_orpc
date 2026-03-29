@@ -24,6 +24,18 @@ final class _ControllerBinding {
       .toList(growable: false);
 }
 
+final class _ResolvedGuardBinding {
+  const _ResolvedGuardBinding({
+    required this.typeKey,
+    required this.typeName,
+    required this.variableName,
+  });
+
+  final String typeKey;
+  final String typeName;
+  final String variableName;
+}
+
 final class _GeneratedContainerMember {
   const _GeneratedContainerMember({required this.typeName, required this.name});
 
@@ -48,6 +60,7 @@ final class _ResolvedProcedure {
     required this.controllerNamespace,
     required this.methodName,
     required this.rpcMethod,
+    required this.guardBindings,
     required this.parameters,
     required this.restInvocationParameters,
     this.restRpcInput,
@@ -71,6 +84,7 @@ final class _ResolvedProcedure {
   final String controllerNamespace;
   final String methodName;
   final String rpcMethod;
+  final List<_ResolvedGuardBinding> guardBindings;
   final _ResolvedPathMapping? path;
   final List<_ResolvedParameter> parameters;
   final List<_ResolvedInvocationParameter> restInvocationParameters;
@@ -89,6 +103,10 @@ final class _ResolvedProcedure {
   final bool outputUsesLuthor;
   final bool supportsRpcGeneration;
   final String serverInvocationArguments;
+
+  List<String> get guardTypeNames => [
+    for (final guardBinding in guardBindings) guardBinding.typeName,
+  ];
 }
 
 final class _ResolvedParameter {

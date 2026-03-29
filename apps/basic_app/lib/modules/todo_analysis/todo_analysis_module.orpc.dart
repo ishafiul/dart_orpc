@@ -71,6 +71,7 @@ RpcProcedureRegistry _$createTodoAnalysisModuleProcedureRegistryFromContainer(
             toJson: (output) => output.toJson(),
             validate: $TodoAnalysisSummaryDtoValidate,
           ),
+
       handler: (context, input) =>
           container.todoAnalysisController.summary(context),
     ),

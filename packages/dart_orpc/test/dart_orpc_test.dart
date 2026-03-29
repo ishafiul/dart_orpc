@@ -8,6 +8,7 @@ void main() {
       () async {
         const module = Module(imports: [Uri], exports: [String]);
         const controller = Controller('user');
+        const useGuards = UseGuards([_FacadeGuard]);
         const method = RpcMethod(
           name: 'getById',
           path: RestMapping.get('users/:id'),
@@ -42,6 +43,7 @@ void main() {
             path: RestProcedureMetadata(method: 'GET', path: '/users/:id'),
             description: 'Fetch a user by id.',
             tags: ['user', 'read'],
+            guardTypes: ['AuthGuard'],
             parameters: [
               ProcedureParameterMetadata(
                 parameterName: 'id',
@@ -84,6 +86,8 @@ void main() {
         const httpRequest = RpcHttpRequest(method: 'POST', path: '/rpc');
         const httpResponse = RpcHttpResponse(statusCode: 200);
         final middleware = <RpcHttpMiddleware>[(next) => next];
+        final guardCalls = <String>[];
+        final guard = _FacadeGuard(guardCalls);
         final restRoutes = RestRouteRegistry(const []);
         final transport = HttpRpcTransport(baseUrl: 'http://localhost:3000');
         final caller = RpcCaller(const _StaticTransport({'ok': true}));
@@ -98,11 +102,18 @@ void main() {
           method: 'health.check',
           decode: (json) => expectJsonObject(json, context: 'health response'),
         );
+        await runRpcGuards(
+          [guard],
+          rpcContext: context,
+          procedure: procedureMetadata['user.getById']!,
+          input: request.input,
+        );
 
         expect(module.imports, [Uri]);
         expect(module.controllers, isEmpty);
         expect(module.exports, [String]);
         expect(controller.namespace, 'user');
+        expect(useGuards.guards, [_FacadeGuard]);
         expect(method.name, 'getById');
         expect(method.path?.method, 'GET');
         expect(method.path?.path, '/users/:id');
@@ -133,6 +144,7 @@ void main() {
         expect(httpRequest.path, '/rpc');
         expect(httpResponse.statusCode, 200);
         expect(middleware, hasLength(1));
+        expect(guardCalls, ['user.getById']);
         expect(restRoutes.routes, isEmpty);
         expect(transport.endpointUri.toString(), 'http://localhost:3000/rpc');
         expect(procedureMetadata['user.getById']?.methodName, 'getById');
@@ -165,4 +177,15 @@ final class _StaticTransport implements RpcTransport {
 
   @override
   Future<Object?> send(RpcRequest request) async => response;
+}
+
+final class _FacadeGuard implements RpcGuard {
+  const _FacadeGuard(this.calls);
+
+  final List<String> calls;
+
+  @override
+  void canActivate(RpcGuardContext context) {
+    calls.add(context.procedure.rpcMethod);
+  }
 }

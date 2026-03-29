@@ -1,8 +1,10 @@
 import 'package:dart_orpc/dart_orpc.dart';
 
 import 'todo_dtos.dart';
+import 'todo_route_logger_guard.dart';
 import 'todo_service.dart';
 
+@UseGuards([TodoRouteLoggerGuard])
 @Controller('todo')
 final class TodoController {
   TodoController(this.todoService);

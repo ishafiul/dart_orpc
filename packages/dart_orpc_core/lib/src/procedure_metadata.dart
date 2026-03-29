@@ -31,6 +31,7 @@ final class ProcedureMetadata {
     this.inputTypeCode,
     this.description,
     this.tags = const [],
+    this.guardTypes = const [],
     this.parameters = const [],
   });
 
@@ -42,6 +43,7 @@ final class ProcedureMetadata {
   final String outputTypeCode;
   final String? description;
   final List<String> tags;
+  final List<String> guardTypes;
   final List<ProcedureParameterMetadata> parameters;
 }
 

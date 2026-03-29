@@ -1,6 +1,11 @@
 part of '../rpc_module_generator.dart';
 
-_ResolvedProcedure _buildMethodBinding(String namespace, MethodElement method) {
+_ResolvedProcedure _buildMethodBinding(
+  String namespace,
+  MethodElement method, {
+  required Map<String, String> availableProviders,
+  List<_ResolvedGuardBinding> inheritedGuardBindings = const [],
+}) {
   final methodAnnotation = _rpcMethodChecker.firstAnnotationOfExact(method);
   if (methodAnnotation == null) {
     throw InvalidGenerationSourceError(
@@ -14,6 +19,15 @@ _ResolvedProcedure _buildMethodBinding(String namespace, MethodElement method) {
   final path = _readPathMapping(annotationReader);
   final description = annotationReader.peek('description')?.stringValue;
   final tags = _readTags(annotationReader);
+  final guardBindings = _mergeGuardBindings(
+    inheritedGuardBindings,
+    _resolveGuardBindings(
+      method,
+      availableProviders: availableProviders,
+      ownerLabel:
+          'method "${method.enclosingElement?.displayName ?? '<unknown>'}.${method.displayName}"',
+    ),
+  );
   final rpcInputParameters = method.formalParameters
       .where((parameter) => _rpcInputChecker.hasAnnotationOfExact(parameter))
       .toList(growable: false);
@@ -88,6 +102,7 @@ _ResolvedProcedure _buildMethodBinding(String namespace, MethodElement method) {
     controllerNamespace: namespace,
     methodName: methodName,
     rpcMethod: '$namespace.$wireName',
+    guardBindings: guardBindings,
     path: path,
     description: description,
     tags: tags,
@@ -99,14 +114,86 @@ _ResolvedProcedure _buildMethodBinding(String namespace, MethodElement method) {
     inputTypeName: inputParameter?.type.element?.displayName,
     inputTypeElement: inputParameter?.type.element,
     inputParameterName: inputParameter?.displayName,
-    inputUsesLuthor: inputParameter != null && _usesLuthorValidation(inputParameter.type),
+    inputUsesLuthor:
+        inputParameter != null && _usesLuthorValidation(inputParameter.type),
     outputTypeCode: outputType.getDisplayString(),
-    outputTypeName: outputType.element?.displayName ?? outputType.getDisplayString(),
+    outputTypeName:
+        outputType.element?.displayName ?? outputType.getDisplayString(),
     outputTypeElement: outputType.element,
     outputUsesLuthor: _usesLuthorValidation(outputType),
     supportsRpcGeneration: invocationDetails.supportsRpcGeneration,
     serverInvocationArguments: invocationDetails.invocationArguments.join(', '),
   );
+}
+
+List<_ResolvedGuardBinding> _resolveGuardBindings(
+  Element element, {
+  required Map<String, String> availableProviders,
+  required String ownerLabel,
+}) {
+  final resolvedGuards = <_ResolvedGuardBinding>[];
+  final seenTypeKeys = <String>{};
+
+  for (final annotation in _useGuardsChecker.annotationsOfExact(element)) {
+    final annotationReader = ConstantReader(annotation);
+    for (final guardObject in annotationReader.read('guards').listValue) {
+      final guardType = guardObject.toTypeValue();
+      if (guardType is! InterfaceType) {
+        throw InvalidGenerationSourceError(
+          '$ownerLabel declares a @UseGuards entry that is not a class type.',
+          element: element,
+        );
+      }
+      if (!_rpcGuardChecker.isAssignableFromType(guardType)) {
+        throw InvalidGenerationSourceError(
+          '$ownerLabel declares "${guardType.element.displayName}" in @UseGuards, but it does not implement RpcGuard.',
+          element: element,
+        );
+      }
+
+      final typeKey = _typeKeyFor(guardType);
+      if (!seenTypeKeys.add(typeKey)) {
+        continue;
+      }
+
+      final variableName = availableProviders[typeKey];
+      if (variableName == null) {
+        throw InvalidGenerationSourceError(
+          '$ownerLabel declares guard "${guardType.element.displayName}" in @UseGuards, but that guard is not available as a module provider or imported exported provider.',
+          element: element,
+        );
+      }
+
+      resolvedGuards.add(
+        _ResolvedGuardBinding(
+          typeKey: typeKey,
+          typeName: guardType.element.displayName,
+          variableName: variableName,
+        ),
+      );
+    }
+  }
+
+  return resolvedGuards;
+}
+
+List<_ResolvedGuardBinding> _mergeGuardBindings(
+  List<_ResolvedGuardBinding> inheritedGuardBindings,
+  List<_ResolvedGuardBinding> localGuardBindings,
+) {
+  final merged = <_ResolvedGuardBinding>[];
+  final seenTypeKeys = <String>{};
+
+  for (final guardBinding in [
+    ...inheritedGuardBindings,
+    ...localGuardBindings,
+  ]) {
+    if (seenTypeKeys.add(guardBinding.typeKey)) {
+      merged.add(guardBinding);
+    }
+  }
+
+  return merged;
 }
 
 _ResolvedPathMapping? _readPathMapping(ConstantReader annotationReader) {

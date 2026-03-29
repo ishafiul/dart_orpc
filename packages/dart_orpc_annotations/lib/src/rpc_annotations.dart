@@ -55,6 +55,12 @@ final class RpcMethod {
   final List<String> tags;
 }
 
+final class UseGuards {
+  const UseGuards(this.guards);
+
+  final List<Type> guards;
+}
+
 final class RpcInputField<T> {
   const RpcInputField(this.field, [this.name]);
 

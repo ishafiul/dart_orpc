@@ -18,6 +18,11 @@ _ControllerBinding _buildControllerBinding(
   final namespace = ConstantReader(
     controllerAnnotation,
   ).read('namespace').stringValue;
+  final controllerGuardBindings = _resolveGuardBindings(
+    controllerElement,
+    availableProviders: availableProviders,
+    ownerLabel: 'controller "${controllerElement.displayName}"',
+  );
   final controllerInstantiation = _tryBuildInstantiation(
     controllerElement,
     availableProviders: availableProviders,
@@ -32,7 +37,14 @@ _ControllerBinding _buildControllerBinding(
 
   final procedures = controllerElement.methods
       .where((method) => _rpcMethodChecker.hasAnnotationOfExact(method))
-      .map((method) => _buildMethodBinding(namespace, method))
+      .map(
+        (method) => _buildMethodBinding(
+          namespace,
+          method,
+          availableProviders: availableProviders,
+          inheritedGuardBindings: controllerGuardBindings,
+        ),
+      )
       .toList(growable: false);
   if (procedures.isEmpty) {
     throw InvalidGenerationSourceError(

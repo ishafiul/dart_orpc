@@ -80,10 +80,7 @@ void main() {
           contains('extension DartOrpcAppModuleGenerated on AppModule {'),
         );
         expect(generatedOutput, contains('RpcHttpApp buildRpcApp({'));
-        expect(
-          generatedOutput,
-          contains('dartOrpcBuildAppModuleRpcApp('),
-        );
+        expect(generatedOutput, contains('dartOrpcBuildAppModuleRpcApp('));
         expect(
           generatedOutput,
           contains(
@@ -151,6 +148,39 @@ void main() {
         expect(
           run.generatedOutput,
           contains("export 'package:a/contracts.dart';"),
+        );
+      },
+    );
+
+    test(
+      'When controller and method guards are declared then the generated module resolves guard providers and runs them for both RPC and REST',
+      () async {
+        final run = await _runBuilder(_guardedRpcModuleSource);
+
+        expect(run.result.succeeded, isTrue);
+
+        final generatedOutput = run.generatedOutput;
+        expect(generatedOutput, contains('final authGuard = AuthGuard();'));
+        expect(
+          generatedOutput,
+          contains('final userReadGuard = UserReadGuard(userService);'),
+        );
+        expect(
+          generatedOutput,
+          contains('beforeInvoke: (context, input) => runRpcGuards('),
+        );
+        expect(
+          generatedOutput,
+          contains("procedure: metadataRegistry['user.getById']!,"),
+        );
+        expect(
+          generatedOutput,
+          contains('[container.authGuard, container.userReadGuard],'),
+        );
+        expect(generatedOutput, contains('await runRpcGuards('));
+        expect(
+          generatedOutput,
+          contains("guardTypes: ['AuthGuard', 'UserReadGuard'],"),
         );
       },
     );
@@ -469,6 +499,20 @@ void main() {
     );
 
     test(
+      'When a guard is declared but not registered as a provider then generation fails',
+      () async {
+        final run = await _runBuilder(_missingGuardProviderSource);
+
+        expect(run.result.succeeded, isFalse);
+        expect(run.result.errors.join('\n'), contains('guard "AuthGuard"'));
+        expect(
+          run.result.errors.join('\n'),
+          contains('not available as a module provider'),
+        );
+      },
+    );
+
+    test(
       'When a module import entry is not annotated with Module then generation fails',
       () async {
         final run = await _runBuilder(_invalidImportedModuleSource);
@@ -770,6 +814,124 @@ final class UserStatusDto {
   final String status;
 
   JsonObject toJson() => {'status': status};
+}
+''';
+
+const _guardedRpcModuleSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+import 'package:dart_orpc_core/dart_orpc_core.dart';
+
+part 'example.g.dart';
+
+@Module(
+  controllers: [UserController],
+  providers: [UserService, AuthGuard, UserReadGuard],
+)
+final class AppModule {
+  const AppModule();
+}
+
+final class UserService {
+  UserResponseDto getById(String id) => UserResponseDto(id: id, name: 'Ada');
+}
+
+final class AuthGuard implements RpcGuard {
+  @override
+  Future<void> canActivate(RpcGuardContext context) async {}
+}
+
+final class UserReadGuard implements RpcGuard {
+  UserReadGuard(this.userService);
+
+  final UserService userService;
+
+  @override
+  Future<void> canActivate(RpcGuardContext context) async {
+    userService.getById('guard');
+  }
+}
+
+@UseGuards([AuthGuard])
+@Controller('user')
+final class UserController {
+  UserController(this.userService);
+
+  final UserService userService;
+
+  @UseGuards([UserReadGuard])
+  @RpcMethod(name: 'getById', path: RestMapping.get('/users/:id'))
+  Future<UserResponseDto> getById(
+    RpcContext context,
+    @RpcInput() GetUserDto input,
+  ) async {
+    return userService.getById(input.id);
+  }
+}
+
+final class GetUserDto {
+  const GetUserDto({required this.id});
+
+  factory GetUserDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'GetUserDto');
+    return GetUserDto(
+      id: expectStringField(object, 'id', nonEmpty: true),
+    );
+  }
+
+  final String id;
+
+  JsonObject toJson() => {'id': id};
+}
+
+final class UserResponseDto {
+  const UserResponseDto({required this.id, required this.name});
+
+  factory UserResponseDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'UserResponseDto');
+    return UserResponseDto(
+      id: expectStringField(object, 'id', nonEmpty: true),
+      name: expectStringField(object, 'name', nonEmpty: true),
+    );
+  }
+
+  final String id;
+  final String name;
+
+  JsonObject toJson() => {'id': id, 'name': name};
+}
+''';
+
+const _missingGuardProviderSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+import 'package:dart_orpc_core/dart_orpc_core.dart';
+
+part 'example.g.dart';
+
+@Module(controllers: [UserController], providers: [UserService])
+final class AppModule {
+  const AppModule();
+}
+
+final class UserService {}
+
+final class AuthGuard implements RpcGuard {
+  @override
+  Future<void> canActivate(RpcGuardContext context) async {}
+}
+
+@UseGuards([AuthGuard])
+@Controller('user')
+final class UserController {
+  UserController(this.userService);
+
+  final UserService userService;
+
+  @RpcMethod(name: 'status')
+  JsonObject status() => {'ready': true};
 }
 ''';
 

@@ -6,6 +6,8 @@ import 'rpc_exception.dart';
 typedef RpcInputDecoder<I> = I Function(Object? rawInput);
 typedef RpcOutputEncoder<O> = Object? Function(O output);
 typedef RpcHandler<I, O> = FutureOr<O> Function(RpcContext context, I input);
+typedef RpcBeforeInvoke<I> =
+    FutureOr<void> Function(RpcContext context, I input);
 
 abstract interface class RpcCallableProcedure {
   String get method;
@@ -19,6 +21,7 @@ final class RpcProcedure<I, O> implements RpcCallableProcedure {
     required this.decodeInput,
     required this.encodeOutput,
     required this.handler,
+    this.beforeInvoke,
   });
 
   @override
@@ -26,10 +29,12 @@ final class RpcProcedure<I, O> implements RpcCallableProcedure {
   final RpcInputDecoder<I> decodeInput;
   final RpcOutputEncoder<O> encodeOutput;
   final RpcHandler<I, O> handler;
+  final RpcBeforeInvoke<I>? beforeInvoke;
 
   @override
   Future<Object?> invoke(RpcContext context, Object? rawInput) async {
     final input = _decode(rawInput);
+    await beforeInvoke?.call(context, input);
     final output = await handler(context, input);
 
     try {
