@@ -60,12 +60,27 @@ void main() {
             }),
           ),
         ]);
+        const openApiServer = OpenApiServer(url: 'http://localhost:3000');
+        const openApiOptions = OpenApiDocumentOptions(
+          title: 'Facade API',
+          description: 'Facade docs',
+          servers: [openApiServer],
+        );
         final openApiDocument = createOpenApiDocument(
           title: 'Facade API',
+          servers: const [openApiServer],
           procedures: procedureMetadata,
           schemas: openApiSchemaRegistry,
         );
         final scalarHtml = createScalarHtml(title: 'Facade API');
+        const docsBasicAuth = RpcHttpBasicAuth(
+          username: 'docs',
+          password: 'secret',
+        );
+        const docsOptions = RpcHttpDocsOptions(
+          title: 'Facade Docs',
+          basicAuth: docsBasicAuth,
+        );
         const httpRequest = RpcHttpRequest(method: 'POST', path: '/rpc');
         const httpResponse = RpcHttpResponse(statusCode: 200);
         final restRoutes = RestRouteRegistry(const []);
@@ -125,6 +140,12 @@ void main() {
         );
         expect(openApiSchemaRegistry.names, ['UserResponseDto']);
         expect(openApiDocument['paths'], isNotEmpty);
+        expect((openApiDocument['servers'] as List<Object?>).single, {
+          'url': 'http://localhost:3000',
+        });
+        expect(openApiOptions.title, 'Facade API');
+        expect(docsBasicAuth.username, 'docs');
+        expect(docsOptions.title, 'Facade Docs');
         expect(scalarHtml, contains('@scalar/api-reference'));
         expect(optionalQuery, isNull);
         expect(result, {'ok': true});

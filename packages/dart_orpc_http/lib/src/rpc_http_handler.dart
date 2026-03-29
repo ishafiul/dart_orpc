@@ -13,6 +13,34 @@ typedef RestRouteHandler =
       Map<String, String> pathParameters,
     );
 
+final class RpcHttpBasicAuth {
+  const RpcHttpBasicAuth({
+    required this.username,
+    required this.password,
+    this.realm = 'Restricted',
+  });
+
+  final String username;
+  final String password;
+  final String realm;
+}
+
+final class RpcHttpDocsOptions {
+  const RpcHttpDocsOptions({
+    this.openApiPath = '/openapi.json',
+    this.docsPath = '/docs',
+    this.title,
+    this.html,
+    this.basicAuth,
+  });
+
+  final String openApiPath;
+  final String docsPath;
+  final String? title;
+  final String? html;
+  final RpcHttpBasicAuth? basicAuth;
+}
+
 final class RpcHttpRequest {
   const RpcHttpRequest({
     required this.method,
@@ -122,6 +150,7 @@ RpcHttpHandler createRpcHttpHandler({
   String openApiPath = '/openapi.json',
   String? docsHtml,
   String docsPath = '/docs',
+  RpcHttpBasicAuth? docsBasicAuth,
 }) {
   final effectiveRestRoutes = restRoutes ?? RestRouteRegistry(const []);
   final normalizedOpenApiPath = _normalizePath(openApiPath);
@@ -129,6 +158,16 @@ RpcHttpHandler createRpcHttpHandler({
 
   return (request) async {
     final path = _normalizePath(request.path);
+    if (docsBasicAuth != null &&
+        (path == normalizedOpenApiPath || path == normalizedDocsPath)) {
+      final unauthorizedResponse = _requireDocsBasicAuth(
+        request,
+        docsBasicAuth,
+      );
+      if (unauthorizedResponse != null) {
+        return unauthorizedResponse;
+      }
+    }
     if (path == normalizedOpenApiPath) {
       return _handleOpenApiRequest(request, openApiDocument: openApiDocument);
     }
@@ -167,6 +206,59 @@ RpcHttpHandler createRpcHttpHandler({
       body: 'Not Found',
     );
   };
+}
+
+RpcHttpResponse? _requireDocsBasicAuth(
+  RpcHttpRequest request,
+  RpcHttpBasicAuth basicAuth,
+) {
+  final authorization = lookupRestHeader(request.headers, 'authorization');
+  if (authorization == null) {
+    return _docsUnauthorizedResponse(basicAuth.realm);
+  }
+
+  const prefix = 'basic ';
+  if (authorization.length < prefix.length ||
+      authorization.substring(0, prefix.length).toLowerCase() != prefix) {
+    return _docsUnauthorizedResponse(basicAuth.realm);
+  }
+
+  final encoded = authorization.substring(prefix.length).trim();
+  if (encoded.isEmpty) {
+    return _docsUnauthorizedResponse(basicAuth.realm);
+  }
+
+  late final String decoded;
+  try {
+    decoded = utf8.decode(base64Decode(encoded));
+  } catch (_) {
+    return _docsUnauthorizedResponse(basicAuth.realm);
+  }
+
+  final separatorIndex = decoded.indexOf(':');
+  if (separatorIndex == -1) {
+    return _docsUnauthorizedResponse(basicAuth.realm);
+  }
+
+  final username = decoded.substring(0, separatorIndex);
+  final password = decoded.substring(separatorIndex + 1);
+  if (username != basicAuth.username || password != basicAuth.password) {
+    return _docsUnauthorizedResponse(basicAuth.realm);
+  }
+
+  return null;
+}
+
+RpcHttpResponse _docsUnauthorizedResponse(String realm) {
+  final escapedRealm = realm.replaceAll('"', r'\"');
+  return RpcHttpResponse(
+    statusCode: HttpStatus.unauthorized,
+    headers: {
+      'content-type': 'text/plain; charset=utf-8',
+      'www-authenticate': 'Basic realm="$escapedRealm"',
+    },
+    body: 'Unauthorized',
+  );
 }
 
 String _normalizePath(String path) {

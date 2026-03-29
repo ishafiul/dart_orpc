@@ -99,28 +99,53 @@ OpenApiSchemaRegistry _$createAppModuleOpenApiSchemaRegistry() {
 OpenApiSchemaRegistry dartOrpcCreateAppModuleOpenApiSchemaRegistry() =>
     _$createAppModuleOpenApiSchemaRegistry();
 
-JsonObject _$createAppModuleOpenApiDocument() {
+JsonObject _$createAppModuleOpenApiDocument({OpenApiDocumentOptions? options}) {
+  final effectiveOptions = options ?? const OpenApiDocumentOptions();
   return createOpenApiDocument(
-    title: 'App API',
+    title: effectiveOptions.title ?? 'App API',
+    version: effectiveOptions.version,
+    description: effectiveOptions.description,
+    servers: effectiveOptions.servers,
     procedures: _$createAppModuleProcedureMetadataRegistry(),
     schemas: _$createAppModuleOpenApiSchemaRegistry(),
   );
 }
 
-JsonObject dartOrpcCreateAppModuleOpenApiDocument() =>
-    _$createAppModuleOpenApiDocument();
+JsonObject dartOrpcCreateAppModuleOpenApiDocument({
+  OpenApiDocumentOptions? options,
+}) => _$createAppModuleOpenApiDocument(options: options);
 
 // ignore: unused_element
-RpcHttpApp _$buildAppModuleRpcApp() {
+RpcHttpApp _$buildAppModuleRpcApp({
+  OpenApiDocumentOptions? openApi,
+  RpcHttpDocsOptions? docs,
+}) {
+  final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();
+  final effectiveDocs = docs ?? const RpcHttpDocsOptions();
+  final effectiveOpenApiTitle = effectiveOpenApi.title ?? 'App API';
+  final effectiveOpenApiPath = effectiveDocs.openApiPath;
   return RpcHttpApp(
     procedures: _$createAppModuleProcedureRegistry(),
     restRoutes: _$createAppModuleRestRouteRegistry(),
-    openApiDocument: _$createAppModuleOpenApiDocument(),
-    docsHtml: createScalarHtml(title: 'App API'),
+    openApiDocument: _$createAppModuleOpenApiDocument(
+      options: effectiveOpenApi,
+    ),
+    openApiPath: effectiveOpenApiPath,
+    docsHtml:
+        effectiveDocs.html ??
+        createScalarHtml(
+          title: effectiveDocs.title ?? effectiveOpenApiTitle,
+          openApiPath: effectiveOpenApiPath,
+        ),
+    docsPath: effectiveDocs.docsPath,
+    docsBasicAuth: effectiveDocs.basicAuth,
   );
 }
 
-RpcHttpApp dartOrpcBuildAppModuleRpcApp() => _$buildAppModuleRpcApp();
+RpcHttpApp dartOrpcBuildAppModuleRpcApp({
+  OpenApiDocumentOptions? openApi,
+  RpcHttpDocsOptions? docs,
+}) => _$buildAppModuleRpcApp(openApi: openApi, docs: docs);
 
 class AppClient {
   AppClient({required RpcTransport transport}) : _transport = transport;
@@ -145,8 +170,12 @@ extension DartOrpcAppModuleGenerated on AppModule {
       dartOrpcCreateAppModuleProcedureMetadataRegistry();
   OpenApiSchemaRegistry openApiSchemaRegistry() =>
       dartOrpcCreateAppModuleOpenApiSchemaRegistry();
-  JsonObject openApiDocument() => dartOrpcCreateAppModuleOpenApiDocument();
-  RpcHttpApp buildRpcApp() => dartOrpcBuildAppModuleRpcApp();
+  JsonObject openApiDocument({OpenApiDocumentOptions? options}) =>
+      dartOrpcCreateAppModuleOpenApiDocument(options: options);
+  RpcHttpApp buildRpcApp({
+    OpenApiDocumentOptions? openApi,
+    RpcHttpDocsOptions? docs,
+  }) => dartOrpcBuildAppModuleRpcApp(openApi: openApi, docs: docs);
   AppClient createClient({required RpcTransport transport}) =>
       AppClient(transport: transport);
 }

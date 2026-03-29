@@ -11,13 +11,19 @@ void _writeClientSections(
 
 void _writeRootClient(StringBuffer buffer, _ModuleGenerationContext context) {
   final names = context.generatedNames;
-  buffer..writeln()..writeln('class ${names.rootClientName} {');
+  buffer
+    ..writeln()
+    ..writeln('class ${names.rootClientName} {');
   buffer.writeln(_rootClientConstructorLine(context));
   if (context.needsTransportField) {
-    buffer..writeln()..writeln('  final RpcTransport _transport;');
+    buffer
+      ..writeln()
+      ..writeln('  final RpcTransport _transport;');
   }
   if (context.hasLocalRpcClientControllers) {
-    buffer..writeln()..writeln('  final RpcCaller _caller;');
+    buffer
+      ..writeln()
+      ..writeln('  final RpcCaller _caller;');
   }
   if (context.hasImportedRpcClientControllers ||
       context.composedRpcClientGetters.isNotEmpty) {
@@ -83,7 +89,9 @@ void _writeClientProcedure(StringBuffer buffer, _ResolvedProcedure procedure) {
   if (procedure.hasInput) {
     buffer
       ..writeln()
-      ..writeln('  Future<${procedure.outputTypeCode}> ${procedure.methodName}(${procedure.inputTypeCode!} ${procedure.inputParameterName!}) {')
+      ..writeln(
+        '  Future<${procedure.outputTypeCode}> ${procedure.methodName}(${procedure.inputTypeCode!} ${procedure.inputParameterName!}) {',
+      )
       ..writeln('    return _caller.call<${procedure.outputTypeCode}>(')
       ..writeln("      method: '${procedure.rpcMethod}',")
       ..writeln('      input: ${procedure.inputParameterName!}.toJson(),')
@@ -94,7 +102,9 @@ void _writeClientProcedure(StringBuffer buffer, _ResolvedProcedure procedure) {
   }
   buffer
     ..writeln()
-    ..writeln('  Future<${procedure.outputTypeCode}> ${procedure.methodName}() {')
+    ..writeln(
+      '  Future<${procedure.outputTypeCode}> ${procedure.methodName}() {',
+    )
     ..writeln('    return _caller.call<${procedure.outputTypeCode}>(')
     ..writeln("      method: '${procedure.rpcMethod}',")
     ..writeln(decodeLine)
@@ -109,13 +119,29 @@ void _writeGeneratedExtension(
   final names = context.generatedNames;
   buffer
     ..writeln()
-    ..writeln('extension DartOrpc${context.moduleName}Generated on ${context.moduleName} {')
-    ..writeln('  RpcProcedureRegistry procedureRegistry() => ${names.composeProcedureRegistryName}();')
-    ..writeln('  RestRouteRegistry restRouteRegistry() => ${names.composeRestRouteRegistryName}();')
-    ..writeln('  ProcedureMetadataRegistry procedureMetadata() => ${names.composeMetadataRegistryName}();')
-    ..writeln('  OpenApiSchemaRegistry openApiSchemaRegistry() => ${names.composeOpenApiSchemaRegistryName}();')
-    ..writeln('  JsonObject openApiDocument() => ${names.composeOpenApiDocumentName}();')
-    ..writeln('  RpcHttpApp buildRpcApp() => ${names.composeBuildAppName}();')
-    ..writeln('  ${names.rootClientName} createClient({required RpcTransport transport}) => ${names.rootClientName}(transport: transport);')
+    ..writeln(
+      'extension DartOrpc${context.moduleName}Generated on ${context.moduleName} {',
+    )
+    ..writeln(
+      '  RpcProcedureRegistry procedureRegistry() => ${names.composeProcedureRegistryName}();',
+    )
+    ..writeln(
+      '  RestRouteRegistry restRouteRegistry() => ${names.composeRestRouteRegistryName}();',
+    )
+    ..writeln(
+      '  ProcedureMetadataRegistry procedureMetadata() => ${names.composeMetadataRegistryName}();',
+    )
+    ..writeln(
+      '  OpenApiSchemaRegistry openApiSchemaRegistry() => ${names.composeOpenApiSchemaRegistryName}();',
+    )
+    ..writeln(
+      '  JsonObject openApiDocument({OpenApiDocumentOptions? options}) => ${names.composeOpenApiDocumentName}(options: options);',
+    )
+    ..writeln(
+      '  RpcHttpApp buildRpcApp({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs}) => ${names.composeBuildAppName}(openApi: openApi, docs: docs);',
+    )
+    ..writeln(
+      '  ${names.rootClientName} createClient({required RpcTransport transport}) => ${names.rootClientName}(transport: transport);',
+    )
     ..writeln('}');
 }

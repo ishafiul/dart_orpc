@@ -429,28 +429,55 @@ OpenApiSchemaRegistry _$createTodoModuleOpenApiSchemaRegistry() {
 OpenApiSchemaRegistry dartOrpcCreateTodoModuleOpenApiSchemaRegistry() =>
     _$createTodoModuleOpenApiSchemaRegistry();
 
-JsonObject _$createTodoModuleOpenApiDocument() {
+JsonObject _$createTodoModuleOpenApiDocument({
+  OpenApiDocumentOptions? options,
+}) {
+  final effectiveOptions = options ?? const OpenApiDocumentOptions();
   return createOpenApiDocument(
-    title: 'Todo API',
+    title: effectiveOptions.title ?? 'Todo API',
+    version: effectiveOptions.version,
+    description: effectiveOptions.description,
+    servers: effectiveOptions.servers,
     procedures: _$createTodoModuleProcedureMetadataRegistry(),
     schemas: _$createTodoModuleOpenApiSchemaRegistry(),
   );
 }
 
-JsonObject dartOrpcCreateTodoModuleOpenApiDocument() =>
-    _$createTodoModuleOpenApiDocument();
+JsonObject dartOrpcCreateTodoModuleOpenApiDocument({
+  OpenApiDocumentOptions? options,
+}) => _$createTodoModuleOpenApiDocument(options: options);
 
 // ignore: unused_element
-RpcHttpApp _$buildTodoModuleRpcApp() {
+RpcHttpApp _$buildTodoModuleRpcApp({
+  OpenApiDocumentOptions? openApi,
+  RpcHttpDocsOptions? docs,
+}) {
+  final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();
+  final effectiveDocs = docs ?? const RpcHttpDocsOptions();
+  final effectiveOpenApiTitle = effectiveOpenApi.title ?? 'Todo API';
+  final effectiveOpenApiPath = effectiveDocs.openApiPath;
   return RpcHttpApp(
     procedures: _$createTodoModuleProcedureRegistry(),
     restRoutes: _$createTodoModuleRestRouteRegistry(),
-    openApiDocument: _$createTodoModuleOpenApiDocument(),
-    docsHtml: createScalarHtml(title: 'Todo API'),
+    openApiDocument: _$createTodoModuleOpenApiDocument(
+      options: effectiveOpenApi,
+    ),
+    openApiPath: effectiveOpenApiPath,
+    docsHtml:
+        effectiveDocs.html ??
+        createScalarHtml(
+          title: effectiveDocs.title ?? effectiveOpenApiTitle,
+          openApiPath: effectiveOpenApiPath,
+        ),
+    docsPath: effectiveDocs.docsPath,
+    docsBasicAuth: effectiveDocs.basicAuth,
   );
 }
 
-RpcHttpApp dartOrpcBuildTodoModuleRpcApp() => _$buildTodoModuleRpcApp();
+RpcHttpApp dartOrpcBuildTodoModuleRpcApp({
+  OpenApiDocumentOptions? openApi,
+  RpcHttpDocsOptions? docs,
+}) => _$buildTodoModuleRpcApp(openApi: openApi, docs: docs);
 
 class TodoClientRoot {
   TodoClientRoot({required RpcTransport transport})
@@ -535,8 +562,12 @@ extension DartOrpcTodoModuleGenerated on TodoModule {
       dartOrpcCreateTodoModuleProcedureMetadataRegistry();
   OpenApiSchemaRegistry openApiSchemaRegistry() =>
       dartOrpcCreateTodoModuleOpenApiSchemaRegistry();
-  JsonObject openApiDocument() => dartOrpcCreateTodoModuleOpenApiDocument();
-  RpcHttpApp buildRpcApp() => dartOrpcBuildTodoModuleRpcApp();
+  JsonObject openApiDocument({OpenApiDocumentOptions? options}) =>
+      dartOrpcCreateTodoModuleOpenApiDocument(options: options);
+  RpcHttpApp buildRpcApp({
+    OpenApiDocumentOptions? openApi,
+    RpcHttpDocsOptions? docs,
+  }) => dartOrpcBuildTodoModuleRpcApp(openApi: openApi, docs: docs);
   TodoClientRoot createClient({required RpcTransport transport}) =>
       TodoClientRoot(transport: transport);
 }

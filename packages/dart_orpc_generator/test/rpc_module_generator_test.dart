@@ -48,7 +48,9 @@ void main() {
         );
         expect(
           generatedOutput,
-          contains('JsonObject _\$createAppModuleOpenApiDocument() {'),
+          contains(
+            'JsonObject _\$createAppModuleOpenApiDocument({OpenApiDocumentOptions? options}) {',
+          ),
         );
         expect(
           generatedOutput,
@@ -71,17 +73,28 @@ void main() {
         expect(generatedOutput, contains('RpcProcedure<Null, UserStatusDto>('));
         expect(
           generatedOutput,
-          contains('RpcHttpApp dartOrpcBuildAppModuleRpcApp() =>'),
+          contains('RpcHttpApp dartOrpcBuildAppModuleRpcApp({'),
         );
         expect(
           generatedOutput,
           contains('extension DartOrpcAppModuleGenerated on AppModule {'),
         );
+        expect(generatedOutput, contains('RpcHttpApp buildRpcApp({'));
         expect(
           generatedOutput,
           contains(
-            'RpcHttpApp buildRpcApp() => dartOrpcBuildAppModuleRpcApp();',
+            'dartOrpcBuildAppModuleRpcApp(openApi: openApi, docs: docs);',
           ),
+        );
+        expect(
+          generatedOutput,
+          contains(
+            'JsonObject openApiDocument({OpenApiDocumentOptions? options}) =>',
+          ),
+        );
+        expect(
+          generatedOutput,
+          contains('dartOrpcCreateAppModuleOpenApiDocument(options: options);'),
         );
         expect(
           generatedOutput,
@@ -93,11 +106,19 @@ void main() {
         );
         expect(
           generatedOutput,
-          contains('openApiDocument: _\$createAppModuleOpenApiDocument()'),
+          contains('openApiDocument: _\$createAppModuleOpenApiDocument('),
         );
+        expect(generatedOutput, contains('docsHtml:'));
+        expect(generatedOutput, contains('effectiveDocs.html ??'));
         expect(
           generatedOutput,
-          contains("docsHtml: createScalarHtml(title: 'App API')"),
+          contains('title: effectiveDocs.title ?? effectiveOpenApiTitle,'),
+        );
+        expect(generatedOutput, contains('openApiPath: effectiveOpenApiPath,'));
+        expect(generatedOutput, contains('docsPath: effectiveDocs.docsPath,'));
+        expect(
+          generatedOutput,
+          contains('docsBasicAuth: effectiveDocs.basicAuth,'),
         );
         expect(
           _countMatches(generatedOutput, 'final userService = UserService();'),
@@ -157,7 +178,9 @@ void main() {
         );
         expect(
           generatedOutput,
-          contains('JsonObject _\$createAppModuleOpenApiDocument() {'),
+          contains(
+            'JsonObject _\$createAppModuleOpenApiDocument({OpenApiDocumentOptions? options}) {',
+          ),
         );
         expect(
           generatedOutput,

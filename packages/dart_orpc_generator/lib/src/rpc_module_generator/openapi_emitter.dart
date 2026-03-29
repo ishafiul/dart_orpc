@@ -7,7 +7,9 @@ void _writeOpenApiSections(
   final names = context.generatedNames;
   buffer
     ..writeln()
-    ..writeln('OpenApiSchemaRegistry ${names.createLocalOpenApiSchemaRegistryName}() {')
+    ..writeln(
+      'OpenApiSchemaRegistry ${names.createLocalOpenApiSchemaRegistryName}() {',
+    )
     ..writeln('  return OpenApiSchemaRegistry([');
   for (final component in context.openApiSchemaComponents) {
     buffer
@@ -20,7 +22,9 @@ void _writeOpenApiSections(
     ..writeln('  ]);')
     ..writeln('}')
     ..writeln()
-    ..writeln('OpenApiSchemaRegistry ${names.createOpenApiSchemaRegistryName}() {')
+    ..writeln(
+      'OpenApiSchemaRegistry ${names.createOpenApiSchemaRegistryName}() {',
+    )
     ..writeln('  return OpenApiSchemaRegistry([');
   for (final importedModule in context.rootModule.importedModules) {
     buffer.writeln(
@@ -28,26 +32,66 @@ void _writeOpenApiSections(
     );
   }
   buffer
-    ..writeln('    ...${names.createLocalOpenApiSchemaRegistryName}().components,')
+    ..writeln(
+      '    ...${names.createLocalOpenApiSchemaRegistryName}().components,',
+    )
     ..writeln('  ]);')
     ..writeln('}')
     ..writeln()
-    ..writeln('OpenApiSchemaRegistry ${names.composeOpenApiSchemaRegistryName}() => ${names.createOpenApiSchemaRegistryName}();')
+    ..writeln(
+      'OpenApiSchemaRegistry ${names.composeOpenApiSchemaRegistryName}() => ${names.createOpenApiSchemaRegistryName}();',
+    )
     ..writeln()
-    ..writeln('JsonObject ${names.createOpenApiDocumentName}() {')
+    ..writeln(
+      'JsonObject ${names.createOpenApiDocumentName}({OpenApiDocumentOptions? options}) {',
+    )
+    ..writeln(
+      '  final effectiveOptions = options ?? const OpenApiDocumentOptions();',
+    )
     ..writeln('  return createOpenApiDocument(')
-    ..writeln("    title: '${_escapeDartString(context.openApiTitle)}',")
+    ..writeln(
+      "    title: effectiveOptions.title ?? '${_escapeDartString(context.openApiTitle)}',",
+    )
+    ..writeln('    version: effectiveOptions.version,')
+    ..writeln('    description: effectiveOptions.description,')
+    ..writeln('    servers: effectiveOptions.servers,')
     ..writeln('    procedures: ${names.createMetadataRegistryName}(),')
     ..writeln('    schemas: ${names.createOpenApiSchemaRegistryName}(),')
     ..writeln('  );')
     ..writeln('}')
     ..writeln()
-    ..writeln('JsonObject ${names.composeOpenApiDocumentName}() => ${names.createOpenApiDocumentName}();')
+    ..writeln(
+      'JsonObject ${names.composeOpenApiDocumentName}({OpenApiDocumentOptions? options}) => ${names.createOpenApiDocumentName}(options: options);',
+    )
     ..writeln()
     ..writeln('// ignore: unused_element')
-    ..writeln('RpcHttpApp ${names.buildAppName}() {')
-    ..writeln("  return RpcHttpApp(procedures: ${names.createRegistryName}(), restRoutes: ${names.createRestRouteRegistryName}(), openApiDocument: ${names.createOpenApiDocumentName}(), docsHtml: createScalarHtml(title: '${_escapeDartString(context.openApiTitle)}'));")
+    ..writeln(
+      'RpcHttpApp ${names.buildAppName}({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs}) {',
+    )
+    ..writeln(
+      '  final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();',
+    )
+    ..writeln('  final effectiveDocs = docs ?? const RpcHttpDocsOptions();')
+    ..writeln(
+      "  final effectiveOpenApiTitle = effectiveOpenApi.title ?? '${_escapeDartString(context.openApiTitle)}';",
+    )
+    ..writeln('  final effectiveOpenApiPath = effectiveDocs.openApiPath;')
+    ..writeln('  return RpcHttpApp(')
+    ..writeln('    procedures: ${names.createRegistryName}(),')
+    ..writeln('    restRoutes: ${names.createRestRouteRegistryName}(),')
+    ..writeln(
+      '    openApiDocument: ${names.createOpenApiDocumentName}(options: effectiveOpenApi),',
+    )
+    ..writeln('    openApiPath: effectiveOpenApiPath,')
+    ..writeln(
+      '    docsHtml: effectiveDocs.html ?? createScalarHtml(title: effectiveDocs.title ?? effectiveOpenApiTitle, openApiPath: effectiveOpenApiPath),',
+    )
+    ..writeln('    docsPath: effectiveDocs.docsPath,')
+    ..writeln('    docsBasicAuth: effectiveDocs.basicAuth,')
+    ..writeln('  );')
     ..writeln('}')
     ..writeln()
-    ..writeln('RpcHttpApp ${names.composeBuildAppName}() => ${names.buildAppName}();');
+    ..writeln(
+      'RpcHttpApp ${names.composeBuildAppName}({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs}) => ${names.buildAppName}(openApi: openApi, docs: docs);',
+    );
 }

@@ -205,6 +205,96 @@ void main() {
       },
     );
   });
+
+  group('Given a running RpcHttpApp with docs basic auth', () {
+    late HttpServer server;
+    late Uri baseUri;
+
+    setUp(() async {
+      final app = RpcHttpApp(
+        procedures: RpcProcedureRegistry(const []),
+        openApiDocument: const {
+          'openapi': '3.0.3',
+          'info': {'title': 'Secure API', 'version': '1.0.0'},
+          'paths': {},
+          'components': {'schemas': {}},
+        },
+        docsHtml: '<html><body>Secure Docs</body></html>',
+        docsBasicAuth: const RpcHttpBasicAuth(
+          username: 'docs',
+          password: 'secret',
+          realm: 'Docs',
+        ),
+      );
+
+      server = await app.listen(
+        0,
+        hostname: InternetAddress.loopbackIPv4.address,
+      );
+      baseUri = Uri.parse('http://${server.address.address}:${server.port}');
+    });
+
+    tearDown(() async {
+      await server.close(force: true);
+    });
+
+    test(
+      'When requesting docs without credentials then it returns unauthorized',
+      () async {
+        final response = await _send(baseUri.resolve('/docs'), method: 'GET');
+
+        expect(response.statusCode, HttpStatus.unauthorized);
+        expect(
+          response.headers.value('www-authenticate'),
+          'Basic realm="Docs"',
+        );
+        expect(response.body, 'Unauthorized');
+      },
+    );
+
+    test(
+      'When requesting the OpenAPI document with invalid credentials then it returns unauthorized',
+      () async {
+        final response = await _send(
+          baseUri.resolve('/openapi.json'),
+          method: 'GET',
+          headers: {'authorization': _basicAuthHeader('docs', 'wrong')},
+        );
+
+        expect(response.statusCode, HttpStatus.unauthorized);
+        expect(
+          response.headers.value('www-authenticate'),
+          'Basic realm="Docs"',
+        );
+      },
+    );
+
+    test(
+      'When requesting docs and OpenAPI with valid credentials then it serves both resources',
+      () async {
+        final docsResponse = await _send(
+          baseUri.resolve('/docs'),
+          method: 'GET',
+          headers: {'authorization': _basicAuthHeader('docs', 'secret')},
+        );
+        final openApiResponse = await _send(
+          baseUri.resolve('/openapi.json'),
+          method: 'GET',
+          headers: {'authorization': _basicAuthHeader('docs', 'secret')},
+        );
+
+        expect(docsResponse.statusCode, HttpStatus.ok);
+        expect(docsResponse.body, '<html><body>Secure Docs</body></html>');
+        expect(openApiResponse.statusCode, HttpStatus.ok);
+        expect(jsonDecode(openApiResponse.body), {
+          'openapi': '3.0.3',
+          'info': {'title': 'Secure API', 'version': '1.0.0'},
+          'paths': {},
+          'components': {'schemas': {}},
+        });
+      },
+    );
+  });
 }
 
 Future<_HttpResponseData> _send(
@@ -244,4 +334,9 @@ final class _HttpResponseData {
   final int statusCode;
   final HttpHeaders headers;
   final String body;
+}
+
+String _basicAuthHeader(String username, String password) {
+  final credentials = base64Encode(utf8.encode('$username:$password'));
+  return 'Basic $credentials';
 }

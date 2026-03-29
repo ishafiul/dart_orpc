@@ -41,28 +41,65 @@ final class OpenApiSchemaRegistry {
   }
 }
 
+final class OpenApiServer {
+  const OpenApiServer({required this.url, this.description});
+
+  final String url;
+  final String? description;
+
+  JsonObject toJson() {
+    final json = <String, Object?>{'url': url};
+    if (description != null && description!.isNotEmpty) {
+      json['description'] = description;
+    }
+    return json;
+  }
+}
+
+final class OpenApiDocumentOptions {
+  const OpenApiDocumentOptions({
+    this.title,
+    this.version = '1.0.0',
+    this.description,
+    this.servers = const [],
+  });
+
+  final String? title;
+  final String version;
+  final String? description;
+  final List<OpenApiServer> servers;
+}
+
 JsonObject createOpenApiDocument({
   required String title,
   String version = '1.0.0',
   String? description,
+  Iterable<OpenApiServer> servers = const [],
   required ProcedureMetadataRegistry procedures,
   OpenApiSchemaRegistry? schemas,
 }) {
   final effectiveSchemas = schemas ?? OpenApiSchemaRegistry(const []);
   final paths = _buildPaths(procedures, effectiveSchemas);
   final componentSchemas = _buildComponentSchemas(effectiveSchemas);
+  final serverList = servers.toList(growable: false);
 
   final info = <String, Object?>{'title': title, 'version': version};
   if (description != null && description.isNotEmpty) {
     info['description'] = description;
   }
 
-  return <String, Object?>{
+  final document = <String, Object?>{
     'openapi': '3.0.3',
     'info': info,
     'paths': paths,
     'components': {'schemas': componentSchemas},
   };
+
+  if (serverList.isNotEmpty) {
+    document['servers'] = [for (final server in serverList) server.toJson()];
+  }
+
+  return document;
 }
 
 String createScalarHtml({

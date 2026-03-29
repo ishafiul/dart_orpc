@@ -121,6 +121,28 @@ void main() {
     );
 
     test(
+      'When OpenAPI servers are provided then the document includes the servers array',
+      () {
+        final document = createOpenApiDocument(
+          title: 'Example API',
+          servers: const [
+            OpenApiServer(
+              url: 'https://api.example.com',
+              description: 'Production',
+            ),
+            OpenApiServer(url: 'http://localhost:3000'),
+          ],
+          procedures: ProcedureMetadataRegistry(const []),
+        );
+
+        expect(document['servers'], [
+          {'url': 'https://api.example.com', 'description': 'Production'},
+          {'url': 'http://localhost:3000'},
+        ]);
+      },
+    );
+
+    test(
       'When a REST operation shares one input DTO between path, header, and body then the request body schema excludes externally-bound fields',
       () {
         final document = createOpenApiDocument(
