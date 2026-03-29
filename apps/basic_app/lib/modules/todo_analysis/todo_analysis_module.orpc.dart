@@ -134,7 +134,7 @@ _$createTodoAnalysisModuleLocalProcedureMetadataRegistry() {
       ),
       outputTypeCode: 'TodoAnalysisSummaryDto',
       description: 'Aggregate todo counts and completion rate.',
-      tags: ['todo', 'analysis'],
+      tags: ['analysis'],
     ),
   ]);
 }

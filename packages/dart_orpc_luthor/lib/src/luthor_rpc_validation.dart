@@ -30,7 +30,10 @@ JsonObject encodeRpcOutputWithLuthor<T>({
   required JsonObject Function(T output) toJson,
   required LuthorSchemaValidator<T> validate,
 }) {
-  final json = toJson(output);
+  final json = normalizeJsonObject(
+    toJson(output),
+    context: 'RPC method "$method" output',
+  );
   final result = validate(Map<String, dynamic>.from(json));
 
   return switch (result) {

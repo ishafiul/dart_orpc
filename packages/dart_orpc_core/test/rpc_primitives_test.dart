@@ -33,6 +33,21 @@ void main() {
     );
 
     test(
+      'When normalizeJsonObject receives nested toJson values then it canonicalizes them',
+      () {
+        final normalized = normalizeJsonObject({
+          'items': [const _NestedJsonValue(id: '1')],
+        }, context: 'test payload');
+
+        expect(normalized, {
+          'items': [
+            {'id': '1'},
+          ],
+        });
+      },
+    );
+
+    test(
       'When expectNoRpcInput receives null or an empty object then it accepts the payload',
       () {
         expect(expectNoRpcInput(null, context: 'health.check'), isNull);
@@ -240,4 +255,12 @@ void main() {
       },
     );
   });
+}
+
+final class _NestedJsonValue {
+  const _NestedJsonValue({required this.id});
+
+  final String id;
+
+  JsonObject toJson() => {'id': id};
 }

@@ -52,6 +52,24 @@ void main() {
         ),
       );
     });
+
+    test(
+      'encodes nested DTO output to plain JSON before validating list schemas',
+      () {
+        final encoded = encodeRpcOutputWithLuthor<_TestListDto>(
+          output: const _TestListDto(items: [_TestDto(id: '1')]),
+          method: 'user.list',
+          toJson: (output) => output.toJson(),
+          validate: _validateTestListDto,
+        );
+
+        expect(encoded, {
+          'items': [
+            {'id': '1'},
+          ],
+        });
+      },
+    );
   });
 }
 
@@ -61,6 +79,19 @@ final Validator _testDtoSchema = l.withName('_TestDto').schema({
 
 SchemaValidationResult<_TestDto> _validateTestDto(Map<String, dynamic> json) {
   return _testDtoSchema.validateSchema(json, fromJson: _TestDto.fromJson);
+}
+
+final Validator _testListDtoSchema = l.withName('_TestListDto').schema({
+  'items': l.list(validators: [_testDtoSchema.required()]).required(),
+});
+
+SchemaValidationResult<_TestListDto> _validateTestListDto(
+  Map<String, dynamic> json,
+) {
+  return _testListDtoSchema.validateSchema(
+    json,
+    fromJson: _TestListDto.fromJson,
+  );
 }
 
 final class _TestDto {
@@ -74,4 +105,21 @@ final class _TestDto {
   final String id;
 
   JsonObject toJson() => {'id': id};
+}
+
+final class _TestListDto {
+  const _TestListDto({required this.items});
+
+  factory _TestListDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: '_TestListDto');
+    return _TestListDto(
+      items: (object['items'] as List<Object?>)
+          .map(_TestDto.fromJson)
+          .toList(growable: false),
+    );
+  }
+
+  final List<_TestDto> items;
+
+  JsonObject toJson() => {'items': items};
 }

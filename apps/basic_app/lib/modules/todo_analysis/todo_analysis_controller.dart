@@ -13,7 +13,7 @@ final class TodoAnalysisController {
     name: 'summary',
     path: RestMapping.get('/todos/analysis/summary'),
     description: 'Aggregate todo counts and completion rate.',
-    tags: ['todo', 'analysis'],
+    tags: ['analysis'],
   )
   Future<TodoAnalysisSummaryDto> summary(RpcContext _) {
     return todoAnalysisService.summary();

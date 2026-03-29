@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'rpc_exception.dart';
 
 typedef JsonObject = Map<String, Object?>;
@@ -41,4 +43,8 @@ String expectStringField(
   }
 
   return value;
+}
+
+JsonObject normalizeJsonObject(Object? value, {required String context}) {
+  return expectJsonObject(jsonDecode(jsonEncode(value)), context: context);
 }
