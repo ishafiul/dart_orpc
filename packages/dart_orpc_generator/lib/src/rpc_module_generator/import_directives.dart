@@ -27,7 +27,9 @@ Future<Set<String>> _collectImportDirectivesForModule(
       importedModule.moduleElement,
     );
     if (moduleAsset != currentLibraryAsset) {
-      imports.add("import '${_packageImportUriFor(_orpcAssetFor(moduleAsset))}';");
+      imports.add(
+        "import '${_packageImportUriFor(_orpcAssetFor(moduleAsset))}';",
+      );
     }
   }
 
@@ -50,6 +52,51 @@ Future<Set<String>> _collectImportDirectivesForModule(
   }
 
   return imports;
+}
+
+Future<Set<String>> _collectExportDirectivesForModule(
+  _ResolvedModule rootModule, {
+  required BuildStep buildStep,
+}) async {
+  final currentLibraryAsset = buildStep.inputId;
+  final exports = <String>{};
+
+  Future<void> addElementExport(Element? element) async {
+    if (element == null) {
+      return;
+    }
+    final library = element.library;
+    if (library == null || library.isInSdk) {
+      return;
+    }
+    final asset = await buildStep.resolver.assetIdForElement(element);
+    if (asset != currentLibraryAsset) {
+      exports.add("export '${_packageImportUriFor(asset)}';");
+    }
+  }
+
+  for (final importedModule in rootModule.importedModules) {
+    if (importedModule.rpcCompatibleControllers.isEmpty) {
+      continue;
+    }
+    final moduleAsset = await buildStep.resolver.assetIdForElement(
+      importedModule.moduleElement,
+    );
+    if (moduleAsset != currentLibraryAsset) {
+      exports.add(
+        "export '${_packageImportUriFor(_orpcAssetFor(moduleAsset))}';",
+      );
+    }
+  }
+
+  for (final controller in rootModule.controllerBindings) {
+    for (final procedure in controller.rpcCompatibleProcedures) {
+      await addElementExport(procedure.inputTypeElement);
+      await addElementExport(procedure.outputTypeElement);
+    }
+  }
+
+  return exports;
 }
 
 AssetId _orpcAssetFor(AssetId asset) => asset.changeExtension('.orpc.dart');

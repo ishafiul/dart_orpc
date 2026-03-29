@@ -21,9 +21,14 @@ Future<_GeneratedModuleOutput> _generateForModule(
     buildStep: buildStep,
     importedProviderInstantiations: context.importedProviderInstantiations,
   );
+  final exportDirectives = await _collectExportDirectivesForModule(
+    context.rootModule,
+    buildStep: buildStep,
+  );
 
   return _GeneratedModuleOutput(
     code: buffer.toString().trimRight(),
     importDirectives: importDirectives,
+    exportDirectives: exportDirectives,
   );
 }

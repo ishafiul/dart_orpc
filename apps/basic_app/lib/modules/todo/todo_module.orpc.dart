@@ -5,6 +5,7 @@
 // RpcModuleGenerator
 // **************************************************************************
 
+export 'package:basic_app/modules/todo/todo_dtos.dart';
 export 'package:basic_app/modules/todo/todo_module.dart';
 
 import 'package:basic_app/database/app_database.dart';

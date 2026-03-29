@@ -120,6 +120,22 @@ void main() {
     );
 
     test(
+      'When client DTOs live in a separate contract library then the generated module library re-exports that contract library',
+      () async {
+        final run = await _runBuilder(
+          _splitContractModuleSource,
+          additionalSources: {'lib/contracts.dart': _splitContractDtoSource},
+        );
+
+        expect(run.result.succeeded, isTrue);
+        expect(
+          run.generatedOutput,
+          contains("export 'package:a/contracts.dart';"),
+        );
+      },
+    );
+
+    test(
       'When a module includes a REST-enabled method then it emits procedure metadata for explicit REST parameters',
       () async {
         final run = await _runBuilder(_validRestMetadataSource);
@@ -400,6 +416,22 @@ void main() {
     );
 
     test(
+      'When a module imports another module from a separate library then the generated module library re-exports the child generated library',
+      () async {
+        final run = await _runBuilder(
+          _importingModuleSource,
+          additionalSources: {'lib/api_module.dart': _importedApiModuleSource},
+        );
+
+        expect(run.result.succeeded, isTrue);
+        expect(
+          run.generatedOutput,
+          contains("export 'package:a/api_module.orpc.dart';"),
+        );
+      },
+    );
+
+    test(
       'When provider dependencies cannot be resolved then the builder reports a generation error',
       () async {
         final run = await _runBuilder(_missingProviderDependencySource);
@@ -548,13 +580,22 @@ void main() {
   });
 }
 
-Future<_BuilderRun> _runBuilder(String source) async {
+Future<_BuilderRun> _runBuilder(
+  String source, {
+  Map<String, String> additionalSources = const {},
+}) async {
   final readerWriter = TestReaderWriter(rootPackage: 'a');
   await readerWriter.testing.loadIsolateSources();
 
+  final sources = <String, String>{
+    'a|lib/example.dart': source,
+    for (final entry in additionalSources.entries)
+      'a|${entry.key}': entry.value,
+  };
+
   final partResult = await testBuilder(
     dartOrpcBuilder(BuilderOptions(const {})),
-    {'a|lib/example.dart': source},
+    sources,
     rootPackage: 'a',
     readerWriter: readerWriter,
     generateFor: {'a|lib/example.dart'},
@@ -576,7 +617,7 @@ ${readerWriter.testing.readString(generatedPartAsset)}
 
   final moduleResult = await testBuilder(
     dartOrpcModuleBuilder(BuilderOptions(const {})),
-    {'a|lib/example.dart': source},
+    sources,
     rootPackage: 'a',
     readerWriter: readerWriter,
     generateFor: {'a|lib/example.dart'},
@@ -755,6 +796,78 @@ final class UserController {
     return userService.getById(id);
   }
 }
+
+final class GetUserDto {
+  const GetUserDto({required this.id});
+
+  factory GetUserDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'GetUserDto');
+    return GetUserDto(
+      id: expectStringField(object, 'id', nonEmpty: true),
+    );
+  }
+
+  final String id;
+
+  JsonObject toJson() => {'id': id};
+}
+
+final class UserResponseDto {
+  const UserResponseDto({required this.id, required this.name});
+
+  factory UserResponseDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'UserResponseDto');
+    return UserResponseDto(
+      id: expectStringField(object, 'id', nonEmpty: true),
+      name: expectStringField(object, 'name', nonEmpty: true),
+    );
+  }
+
+  final String id;
+  final String name;
+
+  JsonObject toJson() => {'id': id, 'name': name};
+}
+''';
+
+const _splitContractModuleSource = r'''
+library example;
+
+import 'package:a/contracts.dart';
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+import 'package:dart_orpc_core/dart_orpc_core.dart';
+
+part 'example.g.dart';
+
+@Module(controllers: [UserController], providers: [UserService])
+final class AppModule {
+  const AppModule();
+}
+
+final class UserService {
+  UserResponseDto getById(String id) => UserResponseDto(id: id, name: 'Ada');
+}
+
+@Controller('user')
+final class UserController {
+  UserController(this.userService);
+
+  final UserService userService;
+
+  @RpcMethod(name: 'getById')
+  Future<UserResponseDto> getById(
+    RpcContext context,
+    @RpcInput() GetUserDto input,
+  ) async {
+    return userService.getById(input.id);
+  }
+}
+''';
+
+const _splitContractDtoSource = r'''
+library contracts;
+
+import 'package:dart_orpc_core/dart_orpc_core.dart';
 
 final class GetUserDto {
   const GetUserDto({required this.id});
@@ -1099,6 +1212,83 @@ final class AdminController {
 
   @RpcMethod(name: 'lookup')
   Future<UserResponseDto> lookup(
+    RpcContext context,
+    @RpcInput() GetUserDto input,
+  ) async {
+    return userService.getById(input.id);
+  }
+}
+
+final class GetUserDto {
+  const GetUserDto({required this.id});
+
+  factory GetUserDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'GetUserDto');
+    return GetUserDto(
+      id: expectStringField(object, 'id', nonEmpty: true),
+    );
+  }
+
+  final String id;
+
+  JsonObject toJson() => {'id': id};
+}
+
+final class UserResponseDto {
+  const UserResponseDto({required this.id, required this.name});
+
+  factory UserResponseDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'UserResponseDto');
+    return UserResponseDto(
+      id: expectStringField(object, 'id', nonEmpty: true),
+      name: expectStringField(object, 'name', nonEmpty: true),
+    );
+  }
+
+  final String id;
+  final String name;
+
+  JsonObject toJson() => {'id': id, 'name': name};
+}
+''';
+
+const _importingModuleSource = r'''
+library example;
+
+import 'api_module.dart';
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+part 'example.g.dart';
+
+@Module(imports: [ApiModule])
+final class AppModule {
+  const AppModule();
+}
+''';
+
+const _importedApiModuleSource = r'''
+library api_module;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+import 'package:dart_orpc_core/dart_orpc_core.dart';
+
+@Module(controllers: [UserController], providers: [UserService])
+final class ApiModule {
+  const ApiModule();
+}
+
+final class UserService {
+  UserResponseDto getById(String id) => UserResponseDto(id: id, name: 'Ada');
+}
+
+@Controller('user')
+final class UserController {
+  UserController(this.userService);
+
+  final UserService userService;
+
+  @RpcMethod(name: 'getById')
+  Future<UserResponseDto> getById(
     RpcContext context,
     @RpcInput() GetUserDto input,
   ) async {

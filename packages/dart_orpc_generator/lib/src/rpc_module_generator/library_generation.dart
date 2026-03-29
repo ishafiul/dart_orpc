@@ -28,6 +28,7 @@ Future<String?> _generateModuleLibrary(
     );
     moduleOutputs.add(moduleOutput);
     imports.addAll(moduleOutput.importDirectives);
+    exports.addAll(moduleOutput.exportDirectives);
   }
 
   final buffer = StringBuffer();

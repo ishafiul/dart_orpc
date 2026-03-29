@@ -6,6 +6,8 @@
 // **************************************************************************
 
 export 'package:basic_app/app.dart';
+export 'package:basic_app/modules/todo/todo_module.orpc.dart';
+export 'package:basic_app/modules/todo_analysis/todo_analysis_module.orpc.dart';
 
 import 'package:basic_app/app.dart';
 import 'package:basic_app/modules/todo/todo_module.orpc.dart';

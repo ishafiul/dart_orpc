@@ -4,10 +4,12 @@ final class _GeneratedModuleOutput {
   const _GeneratedModuleOutput({
     required this.code,
     required this.importDirectives,
+    required this.exportDirectives,
   });
 
   final String code;
   final Set<String> importDirectives;
+  final Set<String> exportDirectives;
 }
 
 final class _GeneratedModuleNames {
