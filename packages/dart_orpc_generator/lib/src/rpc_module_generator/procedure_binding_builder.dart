@@ -5,6 +5,7 @@ _ResolvedProcedure _buildMethodBinding(
   MethodElement method, {
   required Map<String, String> availableProviders,
   List<_ResolvedGuardBinding> inheritedGuardBindings = const [],
+  List<_ResolvedCustomMetadata> inheritedCustomMetadata = const [],
 }) {
   final methodAnnotation = _rpcMethodChecker.firstAnnotationOfExact(method);
   if (methodAnnotation == null) {
@@ -28,6 +29,14 @@ _ResolvedProcedure _buildMethodBinding(
           'method "${method.enclosingElement?.displayName ?? '<unknown>'}.${method.displayName}"',
     ),
   );
+  final customMetadata = [
+    ...inheritedCustomMetadata,
+    ..._resolveCustomMetadata(
+      method,
+      ownerLabel:
+          'method "${method.enclosingElement?.displayName ?? '<unknown>'}.${method.displayName}"',
+    ),
+  ];
   final rpcInputParameters = method.formalParameters
       .where((parameter) => _rpcInputChecker.hasAnnotationOfExact(parameter))
       .toList(growable: false);
@@ -103,6 +112,7 @@ _ResolvedProcedure _buildMethodBinding(
     methodName: methodName,
     rpcMethod: '$namespace.$wireName',
     guardBindings: guardBindings,
+    customMetadata: customMetadata,
     path: path,
     description: description,
     tags: tags,
@@ -194,6 +204,157 @@ List<_ResolvedGuardBinding> _mergeGuardBindings(
   }
 
   return merged;
+}
+
+List<_ResolvedCustomMetadata> _resolveCustomMetadata(
+  Element element, {
+  required String ownerLabel,
+}) {
+  final resolvedMetadata = <_ResolvedCustomMetadata>[];
+
+  for (final annotation in element.metadata.annotations) {
+    final annotationElement = annotation.element?.enclosingElement;
+    if (annotationElement is! InterfaceElement) {
+      continue;
+    }
+
+    final metadataAnnotation = _rpcMetadataChecker.firstAnnotationOfExact(
+      annotationElement,
+    );
+    if (metadataAnnotation == null) {
+      continue;
+    }
+
+    final annotationValue = annotation.computeConstantValue();
+    if (annotationValue == null) {
+      throw InvalidGenerationSourceError(
+        '$ownerLabel declares @${annotationElement.displayName}, but that metadata annotation could not be resolved as a constant.',
+        element: element,
+      );
+    }
+
+    final metadataKey = ConstantReader(
+      metadataAnnotation,
+    ).read('key').stringValue;
+    resolvedMetadata.add(
+      _ResolvedCustomMetadata(
+        key: metadataKey,
+        value: _serializeCustomMetadataAnnotation(
+          annotationValue,
+          annotationElement,
+          ownerLabel: ownerLabel,
+          metadataKey: metadataKey,
+          sourceElement: element,
+        ),
+      ),
+    );
+  }
+
+  return resolvedMetadata;
+}
+
+JsonObject _serializeCustomMetadataAnnotation(
+  DartObject annotationValue,
+  InterfaceElement annotationElement, {
+  required String ownerLabel,
+  required String metadataKey,
+  required Element sourceElement,
+}) {
+  final serialized = <String, Object?>{};
+
+  for (final field in annotationElement.fields) {
+    if (field.isStatic || field.isSynthetic) {
+      continue;
+    }
+    final fieldName = field.displayName;
+    final fieldValue = _resolveCustomMetadataValue(
+      annotationValue.getField(fieldName),
+      ownerLabel: ownerLabel,
+      metadataKey: metadataKey,
+      fieldName: fieldName,
+      sourceElement: sourceElement,
+    );
+
+    if (fieldValue != null) {
+      serialized[fieldName] = fieldValue;
+    }
+  }
+
+  return serialized;
+}
+
+Object? _resolveCustomMetadataValue(
+  DartObject? value, {
+  required String ownerLabel,
+  required String metadataKey,
+  required String fieldName,
+  required Element sourceElement,
+}) {
+  if (value == null || value.isNull) {
+    return null;
+  }
+
+  final boolValue = value.toBoolValue();
+  if (boolValue != null) {
+    return boolValue;
+  }
+
+  final intValue = value.toIntValue();
+  if (intValue != null) {
+    return intValue;
+  }
+
+  final doubleValue = value.toDoubleValue();
+  if (doubleValue != null) {
+    return doubleValue;
+  }
+
+  final stringValue = value.toStringValue();
+  if (stringValue != null) {
+    return stringValue;
+  }
+
+  final listValue = value.toListValue();
+  if (listValue != null) {
+    return [
+      for (final item in listValue)
+        _resolveCustomMetadataValue(
+          item,
+          ownerLabel: ownerLabel,
+          metadataKey: metadataKey,
+          fieldName: fieldName,
+          sourceElement: sourceElement,
+        ),
+    ];
+  }
+
+  final mapValue = value.toMapValue();
+  if (mapValue != null) {
+    final serialized = <String, Object?>{};
+    for (final entry in mapValue.entries) {
+      final mapKey = entry.key?.toStringValue();
+      if (mapKey == null) {
+        throw InvalidGenerationSourceError(
+          '$ownerLabel declares @RpcMetadata("$metadataKey") via field "$fieldName" with a non-string map key.',
+          element: sourceElement,
+        );
+      }
+
+      serialized[mapKey] = _resolveCustomMetadataValue(
+        entry.value,
+        ownerLabel: ownerLabel,
+        metadataKey: metadataKey,
+        fieldName: fieldName,
+        sourceElement: sourceElement,
+      );
+    }
+    return serialized;
+  }
+
+  throw InvalidGenerationSourceError(
+    '$ownerLabel declares @RpcMetadata("$metadataKey") via field "$fieldName" with a value that is not JSON-like. Supported values are null, bool, num, String, List, and Map<String, ...>.',
+    element: sourceElement,
+  );
 }
 
 _ResolvedPathMapping? _readPathMapping(ConstantReader annotationReader) {

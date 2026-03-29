@@ -178,6 +178,46 @@ void main() {
     );
   });
 
+  group('Given procedure custom metadata', () {
+    test(
+      'When custom metadata is stored then keyed lookups return the matching value maps',
+      () {
+        const procedure = ProcedureMetadata(
+          rpcMethod: 'todo.list',
+          controllerNamespace: 'todo',
+          methodName: 'list',
+          outputTypeCode: 'TodoListResponseDto',
+          customMetadata: [
+            ProcedureCustomMetadata(
+              key: 'permissions',
+              value: {
+                'allOf': ['tenant.active'],
+              },
+            ),
+            ProcedureCustomMetadata(
+              key: 'permissions',
+              value: {
+                'anyOf': ['todo.read', 'todo.admin'],
+              },
+            ),
+            ProcedureCustomMetadata(key: 'rateLimit', value: {'limit': 10}),
+          ],
+        );
+
+        expect(procedure.firstMetadataValue('rateLimit'), {'limit': 10});
+        expect(procedure.firstMetadataValue('missing'), isNull);
+        expect(procedure.metadataValues('permissions'), [
+          {
+            'allOf': ['tenant.active'],
+          },
+          {
+            'anyOf': ['todo.read', 'todo.admin'],
+          },
+        ]);
+      },
+    );
+  });
+
   group('Given RpcProcedure input and output handling', () {
     const context = RpcContext(headers: {'x-trace-id': 'trace-1'});
     const procedureMetadata = ProcedureMetadata(
@@ -186,6 +226,14 @@ void main() {
       methodName: 'echo',
       outputTypeCode: 'String',
       guardTypes: ['AuthGuard'],
+      customMetadata: [
+        ProcedureCustomMetadata(
+          key: 'permissions',
+          value: {
+            'allOf': ['tenant.active'],
+          },
+        ),
+      ],
     );
 
     test(
@@ -248,8 +296,8 @@ void main() {
         );
 
         expect(calls, [
-          'first:user.echo:trace-1:AuthGuard',
-          'second:user.echo:trace-1:AuthGuard',
+          'first:user.echo:trace-1:AuthGuard:tenant.active',
+          'second:user.echo:trace-1:AuthGuard:tenant.active',
         ]);
       },
     );
@@ -326,8 +374,10 @@ final class _RecordingGuard implements RpcGuard {
 
   @override
   void canActivate(RpcGuardContext context) {
+    final permissions =
+        context.procedure.firstMetadataValue('permissions')?['allOf'] as List?;
     calls.add(
-      '$name:${context.procedure.rpcMethod}:${context.rpcContext.headers['x-trace-id']}:${context.procedure.guardTypes.single}',
+      '$name:${context.procedure.rpcMethod}:${context.rpcContext.headers['x-trace-id']}:${context.procedure.guardTypes.single}:${permissions?.single}',
     );
   }
 }

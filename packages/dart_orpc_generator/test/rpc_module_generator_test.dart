@@ -182,6 +182,12 @@ void main() {
           generatedOutput,
           contains("guardTypes: ['AuthGuard', 'UserReadGuard'],"),
         );
+        expect(generatedOutput, contains('customMetadata: ['));
+        expect(generatedOutput, contains("'allOf': ['tenant.active'],"));
+        expect(
+          generatedOutput,
+          contains("'anyOf': ['user.read', 'user.admin'],"),
+        );
       },
     );
 
@@ -853,7 +859,17 @@ final class UserReadGuard implements RpcGuard {
   }
 }
 
+@RpcMetadata('permissions')
+final class RequirePermissions {
+  const RequirePermissions({this.anyOf, this.allOf})
+    : assert((anyOf == null) != (allOf == null));
+
+  final List<String>? anyOf;
+  final List<String>? allOf;
+}
+
 @UseGuards([AuthGuard])
+@RequirePermissions(allOf: ['tenant.active'])
 @Controller('user')
 final class UserController {
   UserController(this.userService);
@@ -861,6 +877,7 @@ final class UserController {
   final UserService userService;
 
   @UseGuards([UserReadGuard])
+  @RequirePermissions(anyOf: ['user.read', 'user.admin'])
   @RpcMethod(name: 'getById', path: RestMapping.get('/users/:id'))
   Future<UserResponseDto> getById(
     RpcContext context,

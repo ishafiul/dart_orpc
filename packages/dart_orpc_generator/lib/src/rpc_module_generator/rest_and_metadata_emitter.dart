@@ -172,6 +172,15 @@ void _writeProcedureMetadata(
     }
     buffer.writeln('      ],');
   }
+  if (procedure.customMetadata.isNotEmpty) {
+    buffer..writeln('      customMetadata: [');
+    for (final metadata in procedure.customMetadata) {
+      buffer.writeln(
+        "        ProcedureCustomMetadata(key: '${_escapeDartString(metadata.key)}', value: ${_metadataValueExpression(metadata.value)}),",
+      );
+    }
+    buffer.writeln('      ],');
+  }
   if (procedure.parameters.isNotEmpty) {
     buffer..writeln('      parameters: [');
     for (final parameter in procedure.parameters) {
@@ -251,4 +260,30 @@ String _restGuardInvocationBlock(_ResolvedProcedure procedure) {
     ..writeln('          input: ${_guardInputExpression(procedure)},')
     ..write('        );');
   return buffer.toString();
+}
+
+String _metadataValueExpression(Object? value) {
+  if (value == null) {
+    return 'null';
+  }
+  if (value is String) {
+    return "'${_escapeDartString(value)}'";
+  }
+  if (value is bool || value is num) {
+    return '$value';
+  }
+  if (value is List) {
+    return '[${value.map(_metadataValueExpression).join(', ')}]';
+  }
+  if (value is Map<String, Object?>) {
+    final entries = value.entries
+        .map(
+          (entry) =>
+              "'${_escapeDartString(entry.key)}': ${_metadataValueExpression(entry.value)}",
+        )
+        .join(', ');
+    return '{$entries}';
+  }
+
+  throw StateError('Unsupported procedure custom metadata value: $value');
 }

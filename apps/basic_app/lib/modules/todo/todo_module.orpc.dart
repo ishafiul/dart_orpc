@@ -9,10 +9,11 @@ export 'package:basic_app/modules/todo/todo_dtos.dart';
 export 'package:basic_app/modules/todo/todo_module.dart';
 
 import 'package:basic_app/database/app_database.dart';
+import 'package:basic_app/guard/logger_guard.dart';
+import 'package:basic_app/guard/permission_guard.dart';
 import 'package:basic_app/modules/todo/todo_controller.dart';
 import 'package:basic_app/modules/todo/todo_dtos.dart';
 import 'package:basic_app/modules/todo/todo_module.dart';
-import 'package:basic_app/modules/todo/todo_route_logger_guard.dart';
 import 'package:basic_app/modules/todo/todo_service.dart';
 import 'package:dart_orpc/dart_orpc.dart';
 
@@ -21,6 +22,7 @@ class _$TodoModuleContainer {
     required this.appDatabase,
     required this.todoService,
     required this.todoRouteLoggerGuard,
+    required this.todoPermissionGuard,
     required this.todoController,
   });
 
@@ -30,6 +32,8 @@ class _$TodoModuleContainer {
 
   final TodoRouteLoggerGuard todoRouteLoggerGuard;
 
+  final TodoPermissionGuard todoPermissionGuard;
+
   final TodoController todoController;
 }
 
@@ -37,6 +41,7 @@ _$TodoModuleContainer _$createTodoModuleContainer() {
   final appDatabase = AppDatabase();
   final todoService = TodoService(appDatabase);
   final todoRouteLoggerGuard = TodoRouteLoggerGuard();
+  final todoPermissionGuard = TodoPermissionGuard();
 
   final todoController = TodoController(todoService);
 
@@ -44,6 +49,7 @@ _$TodoModuleContainer _$createTodoModuleContainer() {
     appDatabase: appDatabase,
     todoService: todoService,
     todoRouteLoggerGuard: todoRouteLoggerGuard,
+    todoPermissionGuard: todoPermissionGuard,
     todoController: todoController,
   );
 }
@@ -70,7 +76,7 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
         validate: $TodoListResponseDtoValidate,
       ),
       beforeInvoke: (context, input) => runRpcGuards(
-        [container.todoRouteLoggerGuard],
+        [container.todoRouteLoggerGuard, container.todoPermissionGuard],
         rpcContext: context,
         procedure: metadataRegistry['todo.list']!,
         input: input,
@@ -91,7 +97,7 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
         validate: $TodoResponseDtoValidate,
       ),
       beforeInvoke: (context, input) => runRpcGuards(
-        [container.todoRouteLoggerGuard],
+        [container.todoRouteLoggerGuard, container.todoPermissionGuard],
         rpcContext: context,
         procedure: metadataRegistry['todo.getById']!,
         input: input,
@@ -113,7 +119,7 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
         validate: $TodoResponseDtoValidate,
       ),
       beforeInvoke: (context, input) => runRpcGuards(
-        [container.todoRouteLoggerGuard],
+        [container.todoRouteLoggerGuard, container.todoPermissionGuard],
         rpcContext: context,
         procedure: metadataRegistry['todo.create']!,
         input: input,
@@ -135,7 +141,7 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
         validate: $TodoResponseDtoValidate,
       ),
       beforeInvoke: (context, input) => runRpcGuards(
-        [container.todoRouteLoggerGuard],
+        [container.todoRouteLoggerGuard, container.todoPermissionGuard],
         rpcContext: context,
         procedure: metadataRegistry['todo.update']!,
         input: input,
@@ -158,7 +164,7 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
             validate: $DeleteTodoResponseDtoValidate,
           ),
       beforeInvoke: (context, input) => runRpcGuards(
-        [container.todoRouteLoggerGuard],
+        [container.todoRouteLoggerGuard, container.todoPermissionGuard],
         rpcContext: context,
         procedure: metadataRegistry['todo.delete']!,
         input: input,
@@ -194,7 +200,7 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
       path: '/todos',
       handler: (context, request, pathParameters) async {
         await runRpcGuards(
-          [container.todoRouteLoggerGuard],
+          [container.todoRouteLoggerGuard, container.todoPermissionGuard],
           rpcContext: context,
           procedure: metadataRegistry['todo.list']!,
           input: null,
@@ -225,7 +231,7 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           validate: $GetTodoDtoValidate,
         ))(rawInput);
         await runRpcGuards(
-          [container.todoRouteLoggerGuard],
+          [container.todoRouteLoggerGuard, container.todoPermissionGuard],
           rpcContext: context,
           procedure: metadataRegistry['todo.getById']!,
           input: input,
@@ -260,7 +266,7 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           validate: $CreateTodoDtoValidate,
         ))(rawInput);
         await runRpcGuards(
-          [container.todoRouteLoggerGuard],
+          [container.todoRouteLoggerGuard, container.todoPermissionGuard],
           rpcContext: context,
           procedure: metadataRegistry['todo.create']!,
           input: input,
@@ -303,7 +309,7 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           validate: $UpdateTodoDtoValidate,
         ))(rawInput);
         await runRpcGuards(
-          [container.todoRouteLoggerGuard],
+          [container.todoRouteLoggerGuard, container.todoPermissionGuard],
           rpcContext: context,
           procedure: metadataRegistry['todo.update']!,
           input: input,
@@ -334,7 +340,7 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           validate: $GetTodoDtoValidate,
         ))(rawInput);
         await runRpcGuards(
-          [container.todoRouteLoggerGuard],
+          [container.todoRouteLoggerGuard, container.todoPermissionGuard],
           rpcContext: context,
           procedure: metadataRegistry['todo.delete']!,
           input: input,
@@ -371,7 +377,15 @@ ProcedureMetadataRegistry _$createTodoModuleLocalProcedureMetadataRegistry() {
       outputTypeCode: 'TodoListResponseDto',
       description: 'List all todos.',
       tags: ['todo'],
-      guardTypes: ['TodoRouteLoggerGuard'],
+      guardTypes: ['TodoRouteLoggerGuard', 'TodoPermissionGuard'],
+      customMetadata: [
+        ProcedureCustomMetadata(
+          key: 'permissions',
+          value: {
+            'anyOf': ['todo.read', 'todo.admin'],
+          },
+        ),
+      ],
     ),
     const ProcedureMetadata(
       rpcMethod: 'todo.getById',
@@ -382,7 +396,15 @@ ProcedureMetadataRegistry _$createTodoModuleLocalProcedureMetadataRegistry() {
       outputTypeCode: 'TodoResponseDto',
       description: 'Get a single todo by id.',
       tags: ['todo'],
-      guardTypes: ['TodoRouteLoggerGuard'],
+      guardTypes: ['TodoRouteLoggerGuard', 'TodoPermissionGuard'],
+      customMetadata: [
+        ProcedureCustomMetadata(
+          key: 'permissions',
+          value: {
+            'anyOf': ['todo.read', 'todo.admin'],
+          },
+        ),
+      ],
       parameters: [
         ProcedureParameterMetadata(
           parameterName: 'id',
@@ -401,7 +423,15 @@ ProcedureMetadataRegistry _$createTodoModuleLocalProcedureMetadataRegistry() {
       outputTypeCode: 'TodoResponseDto',
       description: 'Create a todo.',
       tags: ['todo'],
-      guardTypes: ['TodoRouteLoggerGuard'],
+      guardTypes: ['TodoRouteLoggerGuard', 'TodoPermissionGuard'],
+      customMetadata: [
+        ProcedureCustomMetadata(
+          key: 'permissions',
+          value: {
+            'allOf': ['tenant.active'],
+          },
+        ),
+      ],
       parameters: [
         ProcedureParameterMetadata(
           parameterName: 'input',
@@ -420,7 +450,15 @@ ProcedureMetadataRegistry _$createTodoModuleLocalProcedureMetadataRegistry() {
       outputTypeCode: 'TodoResponseDto',
       description: 'Update a todo.',
       tags: ['todo'],
-      guardTypes: ['TodoRouteLoggerGuard'],
+      guardTypes: ['TodoRouteLoggerGuard', 'TodoPermissionGuard'],
+      customMetadata: [
+        ProcedureCustomMetadata(
+          key: 'permissions',
+          value: {
+            'anyOf': ['todo.write', 'todo.admin'],
+          },
+        ),
+      ],
       parameters: [
         ProcedureParameterMetadata(
           parameterName: 'id',
@@ -445,7 +483,15 @@ ProcedureMetadataRegistry _$createTodoModuleLocalProcedureMetadataRegistry() {
       outputTypeCode: 'DeleteTodoResponseDto',
       description: 'Delete a todo.',
       tags: ['todo'],
-      guardTypes: ['TodoRouteLoggerGuard'],
+      guardTypes: ['TodoRouteLoggerGuard', 'TodoPermissionGuard'],
+      customMetadata: [
+        ProcedureCustomMetadata(
+          key: 'permissions',
+          value: {
+            'allOf': ['tenant.active'],
+          },
+        ),
+      ],
       parameters: [
         ProcedureParameterMetadata(
           parameterName: 'id',

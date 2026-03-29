@@ -1,3 +1,5 @@
+import 'json_utils.dart';
+
 enum ProcedureParameterSourceKind { rpcInput, path, query, header, body }
 
 final class ProcedureParameterMetadata {
@@ -21,6 +23,13 @@ final class RestProcedureMetadata {
   final String path;
 }
 
+final class ProcedureCustomMetadata {
+  const ProcedureCustomMetadata({required this.key, required this.value});
+
+  final String key;
+  final JsonObject value;
+}
+
 final class ProcedureMetadata {
   const ProcedureMetadata({
     required this.rpcMethod,
@@ -32,6 +41,7 @@ final class ProcedureMetadata {
     this.description,
     this.tags = const [],
     this.guardTypes = const [],
+    this.customMetadata = const [],
     this.parameters = const [],
   });
 
@@ -44,7 +54,32 @@ final class ProcedureMetadata {
   final String? description;
   final List<String> tags;
   final List<String> guardTypes;
+  final List<ProcedureCustomMetadata> customMetadata;
   final List<ProcedureParameterMetadata> parameters;
+
+  Iterable<ProcedureCustomMetadata> metadataEntries(String key) sync* {
+    for (final metadata in customMetadata) {
+      if (metadata.key == key) {
+        yield metadata;
+      }
+    }
+  }
+
+  Iterable<JsonObject> metadataValues(String key) sync* {
+    for (final metadata in metadataEntries(key)) {
+      yield metadata.value;
+    }
+  }
+
+  JsonObject? firstMetadataValue(String key) {
+    for (final metadata in customMetadata) {
+      if (metadata.key == key) {
+        return metadata.value;
+      }
+    }
+
+    return null;
+  }
 }
 
 final class ProcedureMetadataRegistry {

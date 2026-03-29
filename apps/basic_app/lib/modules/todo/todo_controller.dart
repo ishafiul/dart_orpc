@@ -1,16 +1,19 @@
+import 'package:basic_app/guard/permission_guard.dart';
 import 'package:dart_orpc/dart_orpc.dart';
 
+import '../../guard/logger_guard.dart';
+import 'package:basic_app/utils/require_permissions.dart';
 import 'todo_dtos.dart';
-import 'todo_route_logger_guard.dart';
 import 'todo_service.dart';
 
-@UseGuards([TodoRouteLoggerGuard])
+@UseGuards([TodoRouteLoggerGuard, TodoPermissionGuard])
 @Controller('todo')
 final class TodoController {
   TodoController(this.todoService);
 
   final TodoService todoService;
 
+  @RequirePermissions(anyOf: ['todo.read', 'todo.admin'])
   @RpcMethod(
     name: 'list',
     path: RestMapping.get('/todos'),
@@ -21,19 +24,18 @@ final class TodoController {
     return todoService.list();
   }
 
+  @RequirePermissions(anyOf: ['todo.read', 'todo.admin'])
   @RpcMethod(
     name: 'getById',
     path: RestMapping.get('/todos/:id'),
     description: 'Get a single todo by id.',
     tags: ['todo'],
   )
-  Future<TodoResponseDto> getById(
-    RpcContext _,
-    @RpcInput() GetTodoDto input,
-  ) {
+  Future<TodoResponseDto> getById(RpcContext _, @RpcInput() GetTodoDto input) {
     return todoService.getById(input.id);
   }
 
+  @RequirePermissions(allOf: ['tenant.active'])
   @RpcMethod(
     name: 'create',
     path: RestMapping.post('/todos'),
@@ -47,6 +49,7 @@ final class TodoController {
     return todoService.create(input.title);
   }
 
+  @RequirePermissions(anyOf: ['todo.write', 'todo.admin'])
   @RpcMethod(
     name: 'update',
     path: RestMapping.patch('/todos/:id'),
@@ -64,6 +67,7 @@ final class TodoController {
     );
   }
 
+  @RequirePermissions(allOf: ['tenant.active'])
   @RpcMethod(
     name: 'delete',
     path: RestMapping.delete('/todos/:id'),

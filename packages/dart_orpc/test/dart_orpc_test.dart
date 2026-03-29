@@ -9,6 +9,7 @@ void main() {
         const module = Module(imports: [Uri], exports: [String]);
         const controller = Controller('user');
         const useGuards = UseGuards([_FacadeGuard]);
+        const rpcMetadata = RpcMetadata('permissions');
         const method = RpcMethod(
           name: 'getById',
           path: RestMapping.get('users/:id'),
@@ -44,6 +45,15 @@ void main() {
             description: 'Fetch a user by id.',
             tags: ['user', 'read'],
             guardTypes: ['AuthGuard'],
+            customMetadata: [
+              ProcedureCustomMetadata(
+                key: 'permissions',
+                value: {
+                  'anyOf': ['user.read', 'user.admin'],
+                  'allOf': ['tenant.active'],
+                },
+              ),
+            ],
             parameters: [
               ProcedureParameterMetadata(
                 parameterName: 'id',
@@ -114,6 +124,7 @@ void main() {
         expect(module.exports, [String]);
         expect(controller.namespace, 'user');
         expect(useGuards.guards, [_FacadeGuard]);
+        expect(rpcMetadata.key, 'permissions');
         expect(method.name, 'getById');
         expect(method.path?.method, 'GET');
         expect(method.path?.path, '/users/:id');
@@ -151,6 +162,13 @@ void main() {
         expect(
           procedureMetadata['user.getById']?.description,
           'Fetch a user by id.',
+        );
+        expect(
+          procedureMetadata['user.getById']?.firstMetadataValue('permissions'),
+          {
+            'anyOf': ['user.read', 'user.admin'],
+            'allOf': ['tenant.active'],
+          },
         );
         expect(openApiSchemaRegistry.names, ['UserResponseDto']);
         expect(openApiDocument['paths'], isNotEmpty);

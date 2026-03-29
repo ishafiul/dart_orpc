@@ -32,6 +32,15 @@ void main() {
       expect(useGuards.guards, [String, int]);
     });
 
+    test(
+      'When constructing RpcMetadata then it stores the custom metadata key',
+      () {
+        const metadata = RpcMetadata('permissions');
+
+        expect(metadata.key, 'permissions');
+      },
+    );
+
     test('When constructing an RpcMethod then it stores the optional name', () {
       const namedMethod = RpcMethod(name: 'getById');
       const unnamedMethod = RpcMethod();

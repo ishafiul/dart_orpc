@@ -61,6 +61,12 @@ final class UseGuards {
   final List<Type> guards;
 }
 
+final class RpcMetadata {
+  const RpcMetadata(this.key);
+
+  final String key;
+}
+
 final class RpcInputField<T> {
   const RpcInputField(this.field, [this.name]);
 

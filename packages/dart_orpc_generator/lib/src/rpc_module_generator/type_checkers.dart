@@ -20,6 +20,10 @@ const _useGuardsChecker = TypeChecker.typeNamed(
   UseGuards,
   inPackage: 'dart_orpc_annotations',
 );
+const _rpcMetadataChecker = TypeChecker.typeNamed(
+  RpcMetadata,
+  inPackage: 'dart_orpc_annotations',
+);
 const _rpcContextChecker = TypeChecker.typeNamed(
   RpcContext,
   inPackage: 'dart_orpc_core',

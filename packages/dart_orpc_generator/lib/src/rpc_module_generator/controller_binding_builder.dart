@@ -23,6 +23,10 @@ _ControllerBinding _buildControllerBinding(
     availableProviders: availableProviders,
     ownerLabel: 'controller "${controllerElement.displayName}"',
   );
+  final controllerCustomMetadata = _resolveCustomMetadata(
+    controllerElement,
+    ownerLabel: 'controller "${controllerElement.displayName}"',
+  );
   final controllerInstantiation = _tryBuildInstantiation(
     controllerElement,
     availableProviders: availableProviders,
@@ -43,6 +47,7 @@ _ControllerBinding _buildControllerBinding(
           method,
           availableProviders: availableProviders,
           inheritedGuardBindings: controllerGuardBindings,
+          inheritedCustomMetadata: controllerCustomMetadata,
         ),
       )
       .toList(growable: false);
