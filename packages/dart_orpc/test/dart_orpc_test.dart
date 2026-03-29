@@ -83,6 +83,7 @@ void main() {
         );
         const httpRequest = RpcHttpRequest(method: 'POST', path: '/rpc');
         const httpResponse = RpcHttpResponse(statusCode: 200);
+        final middleware = <RpcHttpMiddleware>[(next) => next];
         final restRoutes = RestRouteRegistry(const []);
         final transport = HttpRpcTransport(baseUrl: 'http://localhost:3000');
         final caller = RpcCaller(const _StaticTransport({'ok': true}));
@@ -131,6 +132,7 @@ void main() {
         });
         expect(httpRequest.path, '/rpc');
         expect(httpResponse.statusCode, 200);
+        expect(middleware, hasLength(1));
         expect(restRoutes.routes, isEmpty);
         expect(transport.endpointUri.toString(), 'http://localhost:3000/rpc');
         expect(procedureMetadata['user.getById']?.methodName, 'getById');

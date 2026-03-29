@@ -66,7 +66,7 @@ void _writeOpenApiSections(
     ..writeln()
     ..writeln('// ignore: unused_element')
     ..writeln(
-      'RpcHttpApp ${names.buildAppName}({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs}) {',
+      'RpcHttpApp ${names.buildAppName}({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, Iterable<RpcHttpMiddleware> middleware = const []}) {',
     )
     ..writeln(
       '  final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();',
@@ -88,10 +88,11 @@ void _writeOpenApiSections(
     )
     ..writeln('    docsPath: effectiveDocs.docsPath,')
     ..writeln('    docsBasicAuth: effectiveDocs.basicAuth,')
+    ..writeln('    middleware: middleware,')
     ..writeln('  );')
     ..writeln('}')
     ..writeln()
     ..writeln(
-      'RpcHttpApp ${names.composeBuildAppName}({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs}) => ${names.buildAppName}(openApi: openApi, docs: docs);',
+      'RpcHttpApp ${names.composeBuildAppName}({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, Iterable<RpcHttpMiddleware> middleware = const []}) => ${names.buildAppName}(openApi: openApi, docs: docs, middleware: middleware);',
     );
 }

@@ -15,8 +15,27 @@ Future<void> main() async {
         realm: 'Basic App Docs',
       ),
     ),
+    middleware: [_requestLoggingMiddleware],
   );
   final server = await app.listen(3000);
   final baseUrl = 'http://127.0.0.1:${server.port}';
   print('RPC server listening on $baseUrl/rpc');
+}
+
+RpcHttpHandler _requestLoggingMiddleware(RpcHttpHandler next) {
+  return (request) async {
+    final startedAt = DateTime.now();
+    try {
+      final response = await next(request);
+      final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
+      print(
+        '[${request.method}] ${request.path} -> ${response.statusCode} (${elapsedMs}ms)',
+      );
+      return response;
+    } catch (error) {
+      final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
+      print('[${request.method}] ${request.path} -> ERROR (${elapsedMs}ms)');
+      rethrow;
+    }
+  };
 }

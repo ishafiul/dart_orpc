@@ -295,6 +295,78 @@ void main() {
       },
     );
   });
+
+  group('Given a running RpcHttpApp with middleware', () {
+    late HttpServer server;
+    late Uri baseUri;
+
+    setUp(() async {
+      final app = RpcHttpApp(
+        procedures: RpcProcedureRegistry([
+          RpcProcedure<JsonObject, JsonObject>(
+            method: 'meta.echo',
+            decodeInput: (rawInput) =>
+                expectJsonObject(rawInput, context: 'meta.echo input'),
+            encodeOutput: (output) => output,
+            handler: (context, input) async {
+              return {'traceId': context.headers['x-trace-id'], 'input': input};
+            },
+          ),
+        ]),
+        middleware: [
+          (next) => (request) async {
+            final response = await next(
+              RpcHttpRequest(
+                method: request.method,
+                path: request.path,
+                headers: {...request.headers, 'x-trace-id': 'middleware-trace'},
+                queryParameters: request.queryParameters,
+                body: request.body,
+              ),
+            );
+            return RpcHttpResponse(
+              statusCode: response.statusCode,
+              headers: {...response.headers, 'x-middleware': 'enabled'},
+              body: response.body,
+            );
+          },
+        ],
+      );
+
+      server = await app.listen(
+        0,
+        hostname: InternetAddress.loopbackIPv4.address,
+      );
+      baseUri = Uri.parse('http://${server.address.address}:${server.port}');
+    });
+
+    tearDown(() async {
+      await server.close(force: true);
+    });
+
+    test(
+      'When POSTing through the app then middleware can wrap the request and response',
+      () async {
+        final response = await _send(
+          baseUri.resolve('/rpc'),
+          method: 'POST',
+          body: jsonEncode({
+            'method': 'meta.echo',
+            'input': {'id': '1'},
+          }),
+        );
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(response.headers.value('x-middleware'), 'enabled');
+        expect(jsonDecode(response.body), {
+          'data': {
+            'traceId': 'middleware-trace',
+            'input': {'id': '1'},
+          },
+        });
+      },
+    );
+  });
 }
 
 Future<_HttpResponseData> _send(

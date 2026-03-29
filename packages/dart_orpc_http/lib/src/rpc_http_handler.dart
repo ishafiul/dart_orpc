@@ -6,6 +6,7 @@ import 'package:dart_orpc_core/dart_orpc_core.dart';
 
 typedef RpcHttpHandler =
     Future<RpcHttpResponse> Function(RpcHttpRequest request);
+typedef RpcHttpMiddleware = RpcHttpHandler Function(RpcHttpHandler next);
 typedef RestRouteHandler =
     FutureOr<Object?> Function(
       RpcContext context,
@@ -151,12 +152,12 @@ RpcHttpHandler createRpcHttpHandler({
   String? docsHtml,
   String docsPath = '/docs',
   RpcHttpBasicAuth? docsBasicAuth,
+  Iterable<RpcHttpMiddleware> middleware = const [],
 }) {
   final effectiveRestRoutes = restRoutes ?? RestRouteRegistry(const []);
   final normalizedOpenApiPath = _normalizePath(openApiPath);
   final normalizedDocsPath = _normalizePath(docsPath);
-
-  return (request) async {
+  final baseHandler = (RpcHttpRequest request) async {
     final path = _normalizePath(request.path);
     if (docsBasicAuth != null &&
         (path == normalizedOpenApiPath || path == normalizedDocsPath)) {
@@ -206,6 +207,20 @@ RpcHttpHandler createRpcHttpHandler({
       body: 'Not Found',
     );
   };
+
+  return _applyMiddleware(baseHandler, middleware);
+}
+
+RpcHttpHandler _applyMiddleware(
+  RpcHttpHandler handler,
+  Iterable<RpcHttpMiddleware> middleware,
+) {
+  final pipeline = middleware.toList(growable: false);
+  var current = handler;
+  for (final layer in pipeline.reversed) {
+    current = layer(current);
+  }
+  return current;
 }
 
 RpcHttpResponse? _requireDocsBasicAuth(

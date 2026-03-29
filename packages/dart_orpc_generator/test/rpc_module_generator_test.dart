@@ -82,9 +82,7 @@ void main() {
         expect(generatedOutput, contains('RpcHttpApp buildRpcApp({'));
         expect(
           generatedOutput,
-          contains(
-            'dartOrpcBuildAppModuleRpcApp(openApi: openApi, docs: docs);',
-          ),
+          contains('dartOrpcBuildAppModuleRpcApp('),
         );
         expect(
           generatedOutput,
@@ -120,6 +118,7 @@ void main() {
           generatedOutput,
           contains('docsBasicAuth: effectiveDocs.basicAuth,'),
         );
+        expect(generatedOutput, contains('middleware: middleware,'));
         expect(
           _countMatches(generatedOutput, 'final userService = UserService();'),
           1,

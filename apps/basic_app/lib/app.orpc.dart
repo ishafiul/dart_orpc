@@ -119,6 +119,7 @@ JsonObject dartOrpcCreateAppModuleOpenApiDocument({
 RpcHttpApp _$buildAppModuleRpcApp({
   OpenApiDocumentOptions? openApi,
   RpcHttpDocsOptions? docs,
+  Iterable<RpcHttpMiddleware> middleware = const [],
 }) {
   final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();
   final effectiveDocs = docs ?? const RpcHttpDocsOptions();
@@ -139,13 +140,19 @@ RpcHttpApp _$buildAppModuleRpcApp({
         ),
     docsPath: effectiveDocs.docsPath,
     docsBasicAuth: effectiveDocs.basicAuth,
+    middleware: middleware,
   );
 }
 
 RpcHttpApp dartOrpcBuildAppModuleRpcApp({
   OpenApiDocumentOptions? openApi,
   RpcHttpDocsOptions? docs,
-}) => _$buildAppModuleRpcApp(openApi: openApi, docs: docs);
+  Iterable<RpcHttpMiddleware> middleware = const [],
+}) => _$buildAppModuleRpcApp(
+  openApi: openApi,
+  docs: docs,
+  middleware: middleware,
+);
 
 class AppClient {
   AppClient({required RpcTransport transport}) : _transport = transport;
@@ -175,7 +182,12 @@ extension DartOrpcAppModuleGenerated on AppModule {
   RpcHttpApp buildRpcApp({
     OpenApiDocumentOptions? openApi,
     RpcHttpDocsOptions? docs,
-  }) => dartOrpcBuildAppModuleRpcApp(openApi: openApi, docs: docs);
+    Iterable<RpcHttpMiddleware> middleware = const [],
+  }) => dartOrpcBuildAppModuleRpcApp(
+    openApi: openApi,
+    docs: docs,
+    middleware: middleware,
+  );
   AppClient createClient({required RpcTransport transport}) =>
       AppClient(transport: transport);
 }

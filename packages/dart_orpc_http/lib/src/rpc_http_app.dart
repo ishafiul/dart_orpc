@@ -15,8 +15,10 @@ final class RpcHttpApp {
     this.docsHtml,
     this.docsPath = '/docs',
     this.docsBasicAuth,
+    Iterable<RpcHttpMiddleware> middleware = const [],
   }) : procedures = procedures,
        restRoutes = restRoutes ?? RestRouteRegistry(const []),
+       middleware = List<RpcHttpMiddleware>.unmodifiable(middleware),
        handler = createRpcHttpHandler(
          procedures: procedures,
          restRoutes: restRoutes,
@@ -25,6 +27,7 @@ final class RpcHttpApp {
          docsHtml: docsHtml,
          docsPath: docsPath,
          docsBasicAuth: docsBasicAuth,
+         middleware: middleware,
        );
 
   final RpcProcedureRegistry procedures;
@@ -34,6 +37,7 @@ final class RpcHttpApp {
   final String? docsHtml;
   final String docsPath;
   final RpcHttpBasicAuth? docsBasicAuth;
+  final List<RpcHttpMiddleware> middleware;
   final RpcHttpHandler handler;
 
   Future<HttpServer> listen(int port, {String hostname = '0.0.0.0'}) async {

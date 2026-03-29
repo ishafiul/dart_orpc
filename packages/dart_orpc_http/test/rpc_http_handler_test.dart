@@ -8,9 +8,11 @@ import 'package:test/test.dart';
 void main() {
   group('createRpcHttpHandler', () {
     late RpcHttpHandler handler;
+    late RpcProcedureRegistry registry;
+    late RestRouteRegistry restRoutes;
 
     setUp(() {
-      final registry = RpcProcedureRegistry([
+      registry = RpcProcedureRegistry([
         RpcProcedure<JsonObject, JsonObject>(
           method: 'user.getById',
           decodeInput: (rawInput) =>
@@ -22,7 +24,7 @@ void main() {
         ),
       ]);
 
-      final restRoutes = RestRouteRegistry([
+      restRoutes = RestRouteRegistry([
         RestRoute(
           method: 'GET',
           path: '/users/:id',
@@ -233,6 +235,99 @@ void main() {
       expect(response.statusCode, HttpStatus.ok);
       expect(response.headers['content-type'], contains('text/html'));
       expect(response.body, '<html><body>Docs</body></html>');
+    });
+
+    test(
+      'applies middleware in declaration order and allows request and response wrapping',
+      () async {
+        final trace = <String>[];
+        final middlewareHandler = createRpcHttpHandler(
+          procedures: registry,
+          restRoutes: restRoutes,
+          middleware: [
+            (next) => (request) async {
+              trace.add('first-before');
+              final response = await next(
+                RpcHttpRequest(
+                  method: request.method,
+                  path: request.path,
+                  headers: {
+                    ...request.headers,
+                    'x-tenant-id': 'tenant-from-middleware',
+                  },
+                  queryParameters: request.queryParameters,
+                  body: request.body,
+                ),
+              );
+              trace.add('first-after');
+              return RpcHttpResponse(
+                statusCode: response.statusCode,
+                headers: {...response.headers, 'x-middleware': 'wrapped'},
+                body: response.body,
+              );
+            },
+            (next) => (request) async {
+              trace.add('second-before');
+              final response = await next(request);
+              trace.add('second-after');
+              return response;
+            },
+          ],
+        );
+
+        final response = await middlewareHandler(
+          const RpcHttpRequest(method: 'GET', path: '/users/123'),
+        );
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(response.headers['x-middleware'], 'wrapped');
+        expect(jsonDecode(response.body), {
+          'id': '123',
+          'name': 'Ada Lovelace',
+          'method': 'GET',
+          'tenantId': 'tenant-from-middleware',
+        });
+        expect(trace, [
+          'first-before',
+          'second-before',
+          'second-after',
+          'first-after',
+        ]);
+      },
+    );
+
+    test('allows middleware to short-circuit requests', () async {
+      final middlewareHandler = createRpcHttpHandler(
+        procedures: registry,
+        restRoutes: restRoutes,
+        middleware: [
+          (next) => (request) async {
+            if (request.path == '/rpc') {
+              return const RpcHttpResponse(
+                statusCode: HttpStatus.forbidden,
+                headers: {'content-type': 'text/plain; charset=utf-8'},
+                body: 'Blocked by middleware',
+              );
+            }
+
+            return next(request);
+          },
+        ],
+      );
+
+      final response = await middlewareHandler(
+        RpcHttpRequest(
+          method: 'POST',
+          path: '/rpc',
+          body: jsonEncode({
+            'method': 'user.getById',
+            'input': {'id': '123'},
+          }),
+        ),
+      );
+
+      expect(response.statusCode, HttpStatus.forbidden);
+      expect(response.body, 'Blocked by middleware');
     });
   });
 }

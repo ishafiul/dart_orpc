@@ -451,6 +451,7 @@ JsonObject dartOrpcCreateTodoModuleOpenApiDocument({
 RpcHttpApp _$buildTodoModuleRpcApp({
   OpenApiDocumentOptions? openApi,
   RpcHttpDocsOptions? docs,
+  Iterable<RpcHttpMiddleware> middleware = const [],
 }) {
   final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();
   final effectiveDocs = docs ?? const RpcHttpDocsOptions();
@@ -471,13 +472,19 @@ RpcHttpApp _$buildTodoModuleRpcApp({
         ),
     docsPath: effectiveDocs.docsPath,
     docsBasicAuth: effectiveDocs.basicAuth,
+    middleware: middleware,
   );
 }
 
 RpcHttpApp dartOrpcBuildTodoModuleRpcApp({
   OpenApiDocumentOptions? openApi,
   RpcHttpDocsOptions? docs,
-}) => _$buildTodoModuleRpcApp(openApi: openApi, docs: docs);
+  Iterable<RpcHttpMiddleware> middleware = const [],
+}) => _$buildTodoModuleRpcApp(
+  openApi: openApi,
+  docs: docs,
+  middleware: middleware,
+);
 
 class TodoClientRoot {
   TodoClientRoot({required RpcTransport transport})
@@ -567,7 +574,12 @@ extension DartOrpcTodoModuleGenerated on TodoModule {
   RpcHttpApp buildRpcApp({
     OpenApiDocumentOptions? openApi,
     RpcHttpDocsOptions? docs,
-  }) => dartOrpcBuildTodoModuleRpcApp(openApi: openApi, docs: docs);
+    Iterable<RpcHttpMiddleware> middleware = const [],
+  }) => dartOrpcBuildTodoModuleRpcApp(
+    openApi: openApi,
+    docs: docs,
+    middleware: middleware,
+  );
   TodoClientRoot createClient({required RpcTransport transport}) =>
       TodoClientRoot(transport: transport);
 }
