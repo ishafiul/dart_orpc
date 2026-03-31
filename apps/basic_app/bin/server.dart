@@ -15,7 +15,10 @@ Future<void> main() async {
         realm: 'Basic App Docs',
       ),
     ),
-    middleware: [_requestLoggingMiddleware],
+    middleware: [
+      createCorsMiddleware(),
+      _requestLoggingMiddleware,
+    ],
   );
   final server = await app.listen(3000);
   final baseUrl = 'http://127.0.0.1:${server.port}';
