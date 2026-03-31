@@ -19,6 +19,11 @@ Future<void> main() async {
       createCorsMiddleware(),
       _requestLoggingMiddleware,
     ],
+    staticAssets: const RpcHttpStaticOptions(
+      directory: 'public',
+    ),
+    health: const RpcHttpHealthOptions(),
+    metrics: const RpcHttpMetricsOptions(),
   );
   final server = await app.listen(3000);
   final baseUrl = 'http://127.0.0.1:${server.port}';

@@ -20,10 +20,16 @@ abstract final class UpdateTodoDtoFields {
   static const title = RpcInputField<UpdateTodoDto>('title');
 }
 
+abstract final class TodoMetadataDtoFields {
+  static const priority = RpcInputField<TodoMetadataDto>('priority');
+  static const tags = RpcInputField<TodoMetadataDto>('tags');
+}
+
 abstract final class TodoResponseDtoFields {
   static const completed = RpcInputField<TodoResponseDto>('completed');
   static const createdAt = RpcInputField<TodoResponseDto>('createdAt');
   static const id = RpcInputField<TodoResponseDto>('id');
+  static const metadata = RpcInputField<TodoResponseDto>('metadata');
   static const title = RpcInputField<TodoResponseDto>('title');
 }
 
@@ -65,12 +71,24 @@ Map<String, dynamic> _$UpdateTodoDtoToJson(_UpdateTodoDto instance) =>
       'completed': ?instance.completed,
     };
 
+_TodoMetadataDto _$TodoMetadataDtoFromJson(Map<String, dynamic> json) =>
+    _TodoMetadataDto(
+      priority: json['priority'] as String,
+      tags: (json['tags'] as List<dynamic>).map((e) => e as String).toList(),
+    );
+
+Map<String, dynamic> _$TodoMetadataDtoToJson(_TodoMetadataDto instance) =>
+    <String, dynamic>{'priority': instance.priority, 'tags': instance.tags};
+
 _TodoResponseDto _$TodoResponseDtoFromJson(Map<String, dynamic> json) =>
     _TodoResponseDto(
       id: (json['id'] as num).toInt(),
       title: json['title'] as String,
       completed: json['completed'] as bool,
       createdAt: DateTime.parse(json['createdAt'] as String),
+      metadata: json['metadata'] == null
+          ? null
+          : TodoMetadataDto.fromJson(json['metadata'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$TodoResponseDtoToJson(_TodoResponseDto instance) =>
@@ -79,6 +97,7 @@ Map<String, dynamic> _$TodoResponseDtoToJson(_TodoResponseDto instance) =>
       'title': instance.title,
       'completed': instance.completed,
       'createdAt': instance.createdAt.toIso8601String(),
+      'metadata': instance.metadata,
     };
 
 _TodoListResponseDto _$TodoListResponseDtoFromJson(Map<String, dynamic> json) =>
@@ -174,11 +193,37 @@ const UpdateTodoDtoErrorKeys = (
 );
 
 // ignore: constant_identifier_names
+const TodoMetadataDtoSchemaKeys = (priority: "priority", tags: "tags");
+
+Validator $TodoMetadataDtoSchema = l.withName('TodoMetadataDto').schema({
+  TodoMetadataDtoSchemaKeys.priority: l.string().required(),
+  TodoMetadataDtoSchemaKeys.tags: l
+      .list(validators: [l.string().required()])
+      .required(),
+});
+
+SchemaValidationResult<TodoMetadataDto> $TodoMetadataDtoValidate(
+  Map<String, dynamic> json,
+) => $TodoMetadataDtoSchema.validateSchema(
+  json,
+  fromJson: TodoMetadataDto.fromJson,
+);
+
+extension TodoMetadataDtoValidationExtension on TodoMetadataDto {
+  SchemaValidationResult<TodoMetadataDto> validateSelf() =>
+      $TodoMetadataDtoValidate(toJson());
+}
+
+// ignore: constant_identifier_names
+const TodoMetadataDtoErrorKeys = (priority: "priority", tags: "tags");
+
+// ignore: constant_identifier_names
 const TodoResponseDtoSchemaKeys = (
   id: "id",
   title: "title",
   completed: "completed",
   createdAt: "createdAt",
+  metadata: "metadata",
 );
 
 Validator $TodoResponseDtoSchema = l.withName('TodoResponseDto').schema({
@@ -186,6 +231,7 @@ Validator $TodoResponseDtoSchema = l.withName('TodoResponseDto').schema({
   TodoResponseDtoSchemaKeys.title: l.string().min(1).required(),
   TodoResponseDtoSchemaKeys.completed: l.boolean().required(),
   TodoResponseDtoSchemaKeys.createdAt: l.string().dateTime().required(),
+  TodoResponseDtoSchemaKeys.metadata: $TodoMetadataDtoSchema,
 });
 
 SchemaValidationResult<TodoResponseDto> $TodoResponseDtoValidate(
@@ -206,6 +252,7 @@ const TodoResponseDtoErrorKeys = (
   title: "title",
   completed: "completed",
   createdAt: "createdAt",
+  metadata: (priority: "metadata.priority", tags: "metadata.tags"),
 );
 
 // ignore: constant_identifier_names

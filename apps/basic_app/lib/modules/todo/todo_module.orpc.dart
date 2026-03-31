@@ -494,6 +494,10 @@ OpenApiSchemaRegistry _$createTodoModuleLocalOpenApiSchemaRegistry() {
       validator: $TodoListResponseDtoSchema,
     ),
     OpenApiSchemaComponent(
+      name: 'TodoMetadataDto',
+      validator: $TodoMetadataDtoSchema,
+    ),
+    OpenApiSchemaComponent(
       name: 'TodoResponseDto',
       validator: $TodoResponseDtoSchema,
     ),
@@ -531,10 +535,12 @@ JsonObject dartOrpcCreateTodoModuleOpenApiDocument({
   OpenApiDocumentOptions? options,
 }) => _$createTodoModuleOpenApiDocument(options: options);
 
-// ignore: unused_element
 RpcHttpApp _$buildTodoModuleRpcApp({
   OpenApiDocumentOptions? openApi,
   RpcHttpDocsOptions? docs,
+  RpcHttpStaticOptions? staticAssets,
+  RpcHttpHealthOptions? health,
+  RpcHttpMetricsOptions? metrics,
   Iterable<RpcHttpMiddleware> middleware = const [],
 }) {
   final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();
@@ -556,6 +562,9 @@ RpcHttpApp _$buildTodoModuleRpcApp({
         ),
     docsPath: effectiveDocs.docsPath,
     docsBasicAuth: effectiveDocs.basicAuth,
+    staticAssets: staticAssets,
+    health: health,
+    metrics: metrics,
     middleware: middleware,
   );
 }
@@ -563,10 +572,16 @@ RpcHttpApp _$buildTodoModuleRpcApp({
 RpcHttpApp dartOrpcBuildTodoModuleRpcApp({
   OpenApiDocumentOptions? openApi,
   RpcHttpDocsOptions? docs,
+  RpcHttpStaticOptions? staticAssets,
+  RpcHttpHealthOptions? health,
+  RpcHttpMetricsOptions? metrics,
   Iterable<RpcHttpMiddleware> middleware = const [],
 }) => _$buildTodoModuleRpcApp(
   openApi: openApi,
   docs: docs,
+  staticAssets: staticAssets,
+  health: health,
+  metrics: metrics,
   middleware: middleware,
 );
 
@@ -658,10 +673,16 @@ extension DartOrpcTodoModuleGenerated on TodoModule {
   RpcHttpApp buildRpcApp({
     OpenApiDocumentOptions? openApi,
     RpcHttpDocsOptions? docs,
+    RpcHttpStaticOptions? staticAssets,
+    RpcHttpHealthOptions? health,
+    RpcHttpMetricsOptions? metrics,
     Iterable<RpcHttpMiddleware> middleware = const [],
   }) => dartOrpcBuildTodoModuleRpcApp(
     openApi: openApi,
     docs: docs,
+    staticAssets: staticAssets,
+    health: health,
+    metrics: metrics,
     middleware: middleware,
   );
   TodoClientRoot createClient({required RpcTransport transport}) =>

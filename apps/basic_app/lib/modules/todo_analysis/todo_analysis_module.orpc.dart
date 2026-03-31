@@ -194,10 +194,12 @@ JsonObject dartOrpcCreateTodoAnalysisModuleOpenApiDocument({
   OpenApiDocumentOptions? options,
 }) => _$createTodoAnalysisModuleOpenApiDocument(options: options);
 
-// ignore: unused_element
 RpcHttpApp _$buildTodoAnalysisModuleRpcApp({
   OpenApiDocumentOptions? openApi,
   RpcHttpDocsOptions? docs,
+  RpcHttpStaticOptions? staticAssets,
+  RpcHttpHealthOptions? health,
+  RpcHttpMetricsOptions? metrics,
   Iterable<RpcHttpMiddleware> middleware = const [],
 }) {
   final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();
@@ -219,6 +221,9 @@ RpcHttpApp _$buildTodoAnalysisModuleRpcApp({
         ),
     docsPath: effectiveDocs.docsPath,
     docsBasicAuth: effectiveDocs.basicAuth,
+    staticAssets: staticAssets,
+    health: health,
+    metrics: metrics,
     middleware: middleware,
   );
 }
@@ -226,10 +231,16 @@ RpcHttpApp _$buildTodoAnalysisModuleRpcApp({
 RpcHttpApp dartOrpcBuildTodoAnalysisModuleRpcApp({
   OpenApiDocumentOptions? openApi,
   RpcHttpDocsOptions? docs,
+  RpcHttpStaticOptions? staticAssets,
+  RpcHttpHealthOptions? health,
+  RpcHttpMetricsOptions? metrics,
   Iterable<RpcHttpMiddleware> middleware = const [],
 }) => _$buildTodoAnalysisModuleRpcApp(
   openApi: openApi,
   docs: docs,
+  staticAssets: staticAssets,
+  health: health,
+  metrics: metrics,
   middleware: middleware,
 );
 
@@ -276,10 +287,16 @@ extension DartOrpcTodoAnalysisModuleGenerated on TodoAnalysisModule {
   RpcHttpApp buildRpcApp({
     OpenApiDocumentOptions? openApi,
     RpcHttpDocsOptions? docs,
+    RpcHttpStaticOptions? staticAssets,
+    RpcHttpHealthOptions? health,
+    RpcHttpMetricsOptions? metrics,
     Iterable<RpcHttpMiddleware> middleware = const [],
   }) => dartOrpcBuildTodoAnalysisModuleRpcApp(
     openApi: openApi,
     docs: docs,
+    staticAssets: staticAssets,
+    health: health,
+    metrics: metrics,
     middleware: middleware,
   );
   TodoAnalysisClientRoot createClient({required RpcTransport transport}) =>

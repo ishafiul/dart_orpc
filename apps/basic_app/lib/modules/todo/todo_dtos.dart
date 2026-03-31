@@ -38,12 +38,25 @@ abstract class UpdateTodoDto with _$UpdateTodoDto {
 
 @luthor
 @freezed
+abstract class TodoMetadataDto with _$TodoMetadataDto {
+  const factory TodoMetadataDto({
+    required String priority,
+    required List<String> tags,
+  }) = _TodoMetadataDto;
+
+  factory TodoMetadataDto.fromJson(Map<String, dynamic> json) =>
+      _$TodoMetadataDtoFromJson(json);
+}
+
+@luthor
+@freezed
 abstract class TodoResponseDto with _$TodoResponseDto {
   const factory TodoResponseDto({
     required int id,
     @HasMin(1) required String title,
     required bool completed,
     required DateTime createdAt,
+    TodoMetadataDto? metadata,
   }) = _TodoResponseDto;
 
   factory TodoResponseDto.fromJson(Map<String, dynamic> json) =>

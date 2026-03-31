@@ -808,9 +808,281 @@ as bool?,
 
 
 /// @nodoc
+mixin _$TodoMetadataDto {
+
+ String get priority; List<String> get tags;
+/// Create a copy of TodoMetadataDto
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$TodoMetadataDtoCopyWith<TodoMetadataDto> get copyWith => _$TodoMetadataDtoCopyWithImpl<TodoMetadataDto>(this as TodoMetadataDto, _$identity);
+
+  /// Serializes this TodoMetadataDto to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TodoMetadataDto&&(identical(other.priority, priority) || other.priority == priority)&&const DeepCollectionEquality().equals(other.tags, tags));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,priority,const DeepCollectionEquality().hash(tags));
+
+@override
+String toString() {
+  return 'TodoMetadataDto(priority: $priority, tags: $tags)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $TodoMetadataDtoCopyWith<$Res>  {
+  factory $TodoMetadataDtoCopyWith(TodoMetadataDto value, $Res Function(TodoMetadataDto) _then) = _$TodoMetadataDtoCopyWithImpl;
+@useResult
+$Res call({
+ String priority, List<String> tags
+});
+
+
+
+
+}
+/// @nodoc
+class _$TodoMetadataDtoCopyWithImpl<$Res>
+    implements $TodoMetadataDtoCopyWith<$Res> {
+  _$TodoMetadataDtoCopyWithImpl(this._self, this._then);
+
+  final TodoMetadataDto _self;
+  final $Res Function(TodoMetadataDto) _then;
+
+/// Create a copy of TodoMetadataDto
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? priority = null,Object? tags = null,}) {
+  return _then(_self.copyWith(
+priority: null == priority ? _self.priority : priority // ignore: cast_nullable_to_non_nullable
+as String,tags: null == tags ? _self.tags : tags // ignore: cast_nullable_to_non_nullable
+as List<String>,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [TodoMetadataDto].
+extension TodoMetadataDtoPatterns on TodoMetadataDto {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _TodoMetadataDto value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _TodoMetadataDto() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _TodoMetadataDto value)  $default,){
+final _that = this;
+switch (_that) {
+case _TodoMetadataDto():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _TodoMetadataDto value)?  $default,){
+final _that = this;
+switch (_that) {
+case _TodoMetadataDto() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String priority,  List<String> tags)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _TodoMetadataDto() when $default != null:
+return $default(_that.priority,_that.tags);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String priority,  List<String> tags)  $default,) {final _that = this;
+switch (_that) {
+case _TodoMetadataDto():
+return $default(_that.priority,_that.tags);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String priority,  List<String> tags)?  $default,) {final _that = this;
+switch (_that) {
+case _TodoMetadataDto() when $default != null:
+return $default(_that.priority,_that.tags);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _TodoMetadataDto implements TodoMetadataDto {
+  const _TodoMetadataDto({required this.priority, required final  List<String> tags}): _tags = tags;
+  factory _TodoMetadataDto.fromJson(Map<String, dynamic> json) => _$TodoMetadataDtoFromJson(json);
+
+@override final  String priority;
+ final  List<String> _tags;
+@override List<String> get tags {
+  if (_tags is EqualUnmodifiableListView) return _tags;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_tags);
+}
+
+
+/// Create a copy of TodoMetadataDto
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$TodoMetadataDtoCopyWith<_TodoMetadataDto> get copyWith => __$TodoMetadataDtoCopyWithImpl<_TodoMetadataDto>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$TodoMetadataDtoToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TodoMetadataDto&&(identical(other.priority, priority) || other.priority == priority)&&const DeepCollectionEquality().equals(other._tags, _tags));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,priority,const DeepCollectionEquality().hash(_tags));
+
+@override
+String toString() {
+  return 'TodoMetadataDto(priority: $priority, tags: $tags)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$TodoMetadataDtoCopyWith<$Res> implements $TodoMetadataDtoCopyWith<$Res> {
+  factory _$TodoMetadataDtoCopyWith(_TodoMetadataDto value, $Res Function(_TodoMetadataDto) _then) = __$TodoMetadataDtoCopyWithImpl;
+@override @useResult
+$Res call({
+ String priority, List<String> tags
+});
+
+
+
+
+}
+/// @nodoc
+class __$TodoMetadataDtoCopyWithImpl<$Res>
+    implements _$TodoMetadataDtoCopyWith<$Res> {
+  __$TodoMetadataDtoCopyWithImpl(this._self, this._then);
+
+  final _TodoMetadataDto _self;
+  final $Res Function(_TodoMetadataDto) _then;
+
+/// Create a copy of TodoMetadataDto
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? priority = null,Object? tags = null,}) {
+  return _then(_TodoMetadataDto(
+priority: null == priority ? _self.priority : priority // ignore: cast_nullable_to_non_nullable
+as String,tags: null == tags ? _self._tags : tags // ignore: cast_nullable_to_non_nullable
+as List<String>,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
 mixin _$TodoResponseDto {
 
- int get id;@HasMin(1) String get title; bool get completed; DateTime get createdAt;
+ int get id;@HasMin(1) String get title; bool get completed; DateTime get createdAt; TodoMetadataDto? get metadata;
 /// Create a copy of TodoResponseDto
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -823,16 +1095,16 @@ $TodoResponseDtoCopyWith<TodoResponseDto> get copyWith => _$TodoResponseDtoCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TodoResponseDto&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TodoResponseDto&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.metadata, metadata) || other.metadata == metadata));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,title,completed,createdAt);
+int get hashCode => Object.hash(runtimeType,id,title,completed,createdAt,metadata);
 
 @override
 String toString() {
-  return 'TodoResponseDto(id: $id, title: $title, completed: $completed, createdAt: $createdAt)';
+  return 'TodoResponseDto(id: $id, title: $title, completed: $completed, createdAt: $createdAt, metadata: $metadata)';
 }
 
 
@@ -843,11 +1115,11 @@ abstract mixin class $TodoResponseDtoCopyWith<$Res>  {
   factory $TodoResponseDtoCopyWith(TodoResponseDto value, $Res Function(TodoResponseDto) _then) = _$TodoResponseDtoCopyWithImpl;
 @useResult
 $Res call({
- int id,@HasMin(1) String title, bool completed, DateTime createdAt
+ int id,@HasMin(1) String title, bool completed, DateTime createdAt, TodoMetadataDto? metadata
 });
 
 
-
+$TodoMetadataDtoCopyWith<$Res>? get metadata;
 
 }
 /// @nodoc
@@ -860,16 +1132,29 @@ class _$TodoResponseDtoCopyWithImpl<$Res>
 
 /// Create a copy of TodoResponseDto
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? completed = null,Object? createdAt = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? completed = null,Object? createdAt = null,Object? metadata = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
 as String,completed: null == completed ? _self.completed : completed // ignore: cast_nullable_to_non_nullable
 as bool,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,
+as DateTime,metadata: freezed == metadata ? _self.metadata : metadata // ignore: cast_nullable_to_non_nullable
+as TodoMetadataDto?,
   ));
 }
+/// Create a copy of TodoResponseDto
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$TodoMetadataDtoCopyWith<$Res>? get metadata {
+    if (_self.metadata == null) {
+    return null;
+  }
 
+  return $TodoMetadataDtoCopyWith<$Res>(_self.metadata!, (value) {
+    return _then(_self.copyWith(metadata: value));
+  });
+}
 }
 
 
@@ -951,10 +1236,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id, @HasMin(1)  String title,  bool completed,  DateTime createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id, @HasMin(1)  String title,  bool completed,  DateTime createdAt,  TodoMetadataDto? metadata)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _TodoResponseDto() when $default != null:
-return $default(_that.id,_that.title,_that.completed,_that.createdAt);case _:
+return $default(_that.id,_that.title,_that.completed,_that.createdAt,_that.metadata);case _:
   return orElse();
 
 }
@@ -972,10 +1257,10 @@ return $default(_that.id,_that.title,_that.completed,_that.createdAt);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id, @HasMin(1)  String title,  bool completed,  DateTime createdAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id, @HasMin(1)  String title,  bool completed,  DateTime createdAt,  TodoMetadataDto? metadata)  $default,) {final _that = this;
 switch (_that) {
 case _TodoResponseDto():
-return $default(_that.id,_that.title,_that.completed,_that.createdAt);case _:
+return $default(_that.id,_that.title,_that.completed,_that.createdAt,_that.metadata);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -992,10 +1277,10 @@ return $default(_that.id,_that.title,_that.completed,_that.createdAt);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id, @HasMin(1)  String title,  bool completed,  DateTime createdAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id, @HasMin(1)  String title,  bool completed,  DateTime createdAt,  TodoMetadataDto? metadata)?  $default,) {final _that = this;
 switch (_that) {
 case _TodoResponseDto() when $default != null:
-return $default(_that.id,_that.title,_that.completed,_that.createdAt);case _:
+return $default(_that.id,_that.title,_that.completed,_that.createdAt,_that.metadata);case _:
   return null;
 
 }
@@ -1007,13 +1292,14 @@ return $default(_that.id,_that.title,_that.completed,_that.createdAt);case _:
 @JsonSerializable()
 
 class _TodoResponseDto implements TodoResponseDto {
-  const _TodoResponseDto({required this.id, @HasMin(1) required this.title, required this.completed, required this.createdAt});
+  const _TodoResponseDto({required this.id, @HasMin(1) required this.title, required this.completed, required this.createdAt, this.metadata});
   factory _TodoResponseDto.fromJson(Map<String, dynamic> json) => _$TodoResponseDtoFromJson(json);
 
 @override final  int id;
 @override@HasMin(1) final  String title;
 @override final  bool completed;
 @override final  DateTime createdAt;
+@override final  TodoMetadataDto? metadata;
 
 /// Create a copy of TodoResponseDto
 /// with the given fields replaced by the non-null parameter values.
@@ -1028,16 +1314,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TodoResponseDto&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TodoResponseDto&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.metadata, metadata) || other.metadata == metadata));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,title,completed,createdAt);
+int get hashCode => Object.hash(runtimeType,id,title,completed,createdAt,metadata);
 
 @override
 String toString() {
-  return 'TodoResponseDto(id: $id, title: $title, completed: $completed, createdAt: $createdAt)';
+  return 'TodoResponseDto(id: $id, title: $title, completed: $completed, createdAt: $createdAt, metadata: $metadata)';
 }
 
 
@@ -1048,11 +1334,11 @@ abstract mixin class _$TodoResponseDtoCopyWith<$Res> implements $TodoResponseDto
   factory _$TodoResponseDtoCopyWith(_TodoResponseDto value, $Res Function(_TodoResponseDto) _then) = __$TodoResponseDtoCopyWithImpl;
 @override @useResult
 $Res call({
- int id,@HasMin(1) String title, bool completed, DateTime createdAt
+ int id,@HasMin(1) String title, bool completed, DateTime createdAt, TodoMetadataDto? metadata
 });
 
 
-
+@override $TodoMetadataDtoCopyWith<$Res>? get metadata;
 
 }
 /// @nodoc
@@ -1065,17 +1351,30 @@ class __$TodoResponseDtoCopyWithImpl<$Res>
 
 /// Create a copy of TodoResponseDto
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? completed = null,Object? createdAt = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? completed = null,Object? createdAt = null,Object? metadata = freezed,}) {
   return _then(_TodoResponseDto(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
 as String,completed: null == completed ? _self.completed : completed // ignore: cast_nullable_to_non_nullable
 as bool,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,
+as DateTime,metadata: freezed == metadata ? _self.metadata : metadata // ignore: cast_nullable_to_non_nullable
+as TodoMetadataDto?,
   ));
 }
 
+/// Create a copy of TodoResponseDto
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$TodoMetadataDtoCopyWith<$Res>? get metadata {
+    if (_self.metadata == null) {
+    return null;
+  }
 
+  return $TodoMetadataDtoCopyWith<$Res>(_self.metadata!, (value) {
+    return _then(_self.copyWith(metadata: value));
+  });
+}
 }
 
 
