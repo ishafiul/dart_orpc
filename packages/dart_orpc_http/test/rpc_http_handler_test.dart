@@ -15,6 +15,12 @@ void main() {
       registry = RpcProcedureRegistry([
         RpcProcedure<JsonObject, JsonObject>(
           method: 'user.getById',
+          metadata: const ProcedureMetadata(
+            rpcMethod: 'user.getById',
+            controllerNamespace: 'user',
+            methodName: 'getById',
+            outputTypeCode: 'dynamic',
+          ),
           decodeInput: (rawInput) =>
               expectJsonObject(rawInput, context: 'get user input'),
           encodeOutput: (output) => output,

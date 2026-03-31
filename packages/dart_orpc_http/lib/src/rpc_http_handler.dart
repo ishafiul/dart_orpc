@@ -75,11 +75,15 @@ final class RestRoute {
     required this.method,
     required this.path,
     required this.handler,
+    this.metadata,
+    this.guards = const [],
   });
 
   final String method;
   final String path;
   final RestRouteHandler handler;
+  final ProcedureMetadata? metadata;
+  final List<RpcGuard> guards;
 }
 
 final class RestRouteMatch {
@@ -335,6 +339,16 @@ Future<RpcHttpResponse> _handleRestRequest(
 }) async {
   try {
     final context = _buildContext(request, path: path);
+
+    final metadata = match.route.metadata;
+    if (metadata != null) {
+      await runRpcGuards(
+        match.route.guards,
+        rpcContext: context,
+        procedure: metadata,
+      );
+    }
+
     final data = await match.route.handler(
       context,
       request,

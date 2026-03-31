@@ -241,6 +241,7 @@ void main() {
       () async {
         final procedure = RpcProcedure<JsonObject, String>(
           method: 'user.echo',
+          metadata: procedureMetadata,
           decodeInput: (rawInput) =>
               expectJsonObject(rawInput, context: 'user.echo input'),
           encodeOutput: (output) => {'value': output},
@@ -262,6 +263,7 @@ void main() {
         final callOrder = <String>[];
         final procedure = RpcProcedure<JsonObject, JsonObject>(
           method: 'user.guarded',
+          metadata: procedureMetadata,
           decodeInput: (rawInput) =>
               expectJsonObject(rawInput, context: 'user.guarded input'),
           encodeOutput: (output) => output,
@@ -307,6 +309,7 @@ void main() {
       () async {
         final procedure = RpcProcedure<Object?, Object?>(
           method: 'user.decode',
+          metadata: procedureMetadata,
           decodeInput: (_) => throw StateError('bad input'),
           encodeOutput: (output) => output,
           handler: (_, input) async => input,
@@ -332,6 +335,7 @@ void main() {
       () async {
         final procedure = RpcProcedure<Object?, Object?>(
           method: 'user.encode',
+          metadata: procedureMetadata,
           decodeInput: (rawInput) => rawInput,
           encodeOutput: (_) => throw StateError('bad output'),
           handler: (_, input) async => input,

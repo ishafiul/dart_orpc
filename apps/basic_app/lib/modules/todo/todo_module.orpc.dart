@@ -75,12 +75,9 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
         toJson: (output) => output.toJson(),
         validate: $TodoListResponseDtoValidate,
       ),
-      beforeInvoke: (context, input) => runRpcGuards(
-        [container.todoRouteLoggerGuard, container.todoPermissionGuard],
-        rpcContext: context,
-        procedure: metadataRegistry['todo.list']!,
-        input: input,
-      ),
+      metadata: metadataRegistry['todo.list']!,
+      guards: [container.todoRouteLoggerGuard, container.todoPermissionGuard],
+
       handler: (context, input) => container.todoController.list(context),
     ),
     RpcProcedure<GetTodoDto, TodoResponseDto>(
@@ -96,12 +93,9 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
         toJson: (output) => output.toJson(),
         validate: $TodoResponseDtoValidate,
       ),
-      beforeInvoke: (context, input) => runRpcGuards(
-        [container.todoRouteLoggerGuard, container.todoPermissionGuard],
-        rpcContext: context,
-        procedure: metadataRegistry['todo.getById']!,
-        input: input,
-      ),
+      metadata: metadataRegistry['todo.getById']!,
+      guards: [container.todoRouteLoggerGuard, container.todoPermissionGuard],
+
       handler: (context, input) =>
           container.todoController.getById(context, input),
     ),
@@ -118,12 +112,9 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
         toJson: (output) => output.toJson(),
         validate: $TodoResponseDtoValidate,
       ),
-      beforeInvoke: (context, input) => runRpcGuards(
-        [container.todoRouteLoggerGuard, container.todoPermissionGuard],
-        rpcContext: context,
-        procedure: metadataRegistry['todo.create']!,
-        input: input,
-      ),
+      metadata: metadataRegistry['todo.create']!,
+      guards: [container.todoRouteLoggerGuard, container.todoPermissionGuard],
+
       handler: (context, input) =>
           container.todoController.create(context, input),
     ),
@@ -140,12 +131,9 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
         toJson: (output) => output.toJson(),
         validate: $TodoResponseDtoValidate,
       ),
-      beforeInvoke: (context, input) => runRpcGuards(
-        [container.todoRouteLoggerGuard, container.todoPermissionGuard],
-        rpcContext: context,
-        procedure: metadataRegistry['todo.update']!,
-        input: input,
-      ),
+      metadata: metadataRegistry['todo.update']!,
+      guards: [container.todoRouteLoggerGuard, container.todoPermissionGuard],
+
       handler: (context, input) =>
           container.todoController.update(context, input),
     ),
@@ -163,12 +151,9 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
             toJson: (output) => output.toJson(),
             validate: $DeleteTodoResponseDtoValidate,
           ),
-      beforeInvoke: (context, input) => runRpcGuards(
-        [container.todoRouteLoggerGuard, container.todoPermissionGuard],
-        rpcContext: context,
-        procedure: metadataRegistry['todo.delete']!,
-        input: input,
-      ),
+      metadata: metadataRegistry['todo.delete']!,
+      guards: [container.todoRouteLoggerGuard, container.todoPermissionGuard],
+
       handler: (context, input) =>
           container.todoController.delete(context, input),
     ),
@@ -199,12 +184,6 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
       method: 'GET',
       path: '/todos',
       handler: (context, request, pathParameters) async {
-        await runRpcGuards(
-          [container.todoRouteLoggerGuard, container.todoPermissionGuard],
-          rpcContext: context,
-          procedure: metadataRegistry['todo.list']!,
-          input: null,
-        );
         final output = await container.todoController.list(context);
         return ((output) => encodeRpcOutputWithLuthor<TodoListResponseDto>(
           output: output,
@@ -213,6 +192,8 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           validate: $TodoListResponseDtoValidate,
         ))(output);
       },
+      metadata: metadataRegistry['todo.list']!,
+      guards: [container.todoRouteLoggerGuard, container.todoPermissionGuard],
     ),
     RestRoute(
       method: 'GET',
@@ -230,12 +211,6 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           method: 'todo.getById',
           validate: $GetTodoDtoValidate,
         ))(rawInput);
-        await runRpcGuards(
-          [container.todoRouteLoggerGuard, container.todoPermissionGuard],
-          rpcContext: context,
-          procedure: metadataRegistry['todo.getById']!,
-          input: input,
-        );
         final output = await container.todoController.getById(context, input);
         return ((output) => encodeRpcOutputWithLuthor<TodoResponseDto>(
           output: output,
@@ -244,6 +219,8 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           validate: $TodoResponseDtoValidate,
         ))(output);
       },
+      metadata: metadataRegistry['todo.getById']!,
+      guards: [container.todoRouteLoggerGuard, container.todoPermissionGuard],
     ),
     RestRoute(
       method: 'POST',
@@ -265,12 +242,6 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           method: 'todo.create',
           validate: $CreateTodoDtoValidate,
         ))(rawInput);
-        await runRpcGuards(
-          [container.todoRouteLoggerGuard, container.todoPermissionGuard],
-          rpcContext: context,
-          procedure: metadataRegistry['todo.create']!,
-          input: input,
-        );
         final output = await container.todoController.create(context, input);
         return ((output) => encodeRpcOutputWithLuthor<TodoResponseDto>(
           output: output,
@@ -279,6 +250,8 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           validate: $TodoResponseDtoValidate,
         ))(output);
       },
+      metadata: metadataRegistry['todo.create']!,
+      guards: [container.todoRouteLoggerGuard, container.todoPermissionGuard],
     ),
     RestRoute(
       method: 'PATCH',
@@ -308,12 +281,6 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           method: 'todo.update',
           validate: $UpdateTodoDtoValidate,
         ))(rawInput);
-        await runRpcGuards(
-          [container.todoRouteLoggerGuard, container.todoPermissionGuard],
-          rpcContext: context,
-          procedure: metadataRegistry['todo.update']!,
-          input: input,
-        );
         final output = await container.todoController.update(context, input);
         return ((output) => encodeRpcOutputWithLuthor<TodoResponseDto>(
           output: output,
@@ -322,6 +289,8 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           validate: $TodoResponseDtoValidate,
         ))(output);
       },
+      metadata: metadataRegistry['todo.update']!,
+      guards: [container.todoRouteLoggerGuard, container.todoPermissionGuard],
     ),
     RestRoute(
       method: 'DELETE',
@@ -339,12 +308,6 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           method: 'todo.delete',
           validate: $GetTodoDtoValidate,
         ))(rawInput);
-        await runRpcGuards(
-          [container.todoRouteLoggerGuard, container.todoPermissionGuard],
-          rpcContext: context,
-          procedure: metadataRegistry['todo.delete']!,
-          input: input,
-        );
         final output = await container.todoController.delete(context, input);
         return ((output) => encodeRpcOutputWithLuthor<DeleteTodoResponseDto>(
           output: output,
@@ -353,6 +316,8 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           validate: $DeleteTodoResponseDtoValidate,
         ))(output);
       },
+      metadata: metadataRegistry['todo.delete']!,
+      guards: [container.todoRouteLoggerGuard, container.todoPermissionGuard],
     ),
   ]);
 }

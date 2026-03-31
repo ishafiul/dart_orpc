@@ -102,7 +102,7 @@ void _writeLocalProcedureRegistry(
       'RpcProcedureRegistry ${names.createRegistryFromContainerName}(${names.containerClassName} container) {',
     )
     ..writeln(
-      _hasLocalGuardedRpcProcedures(context)
+      _hasLocalRpcProcedures(context)
           ? '  final metadataRegistry = ${names.createLocalMetadataRegistryName}();'
           : '',
     )

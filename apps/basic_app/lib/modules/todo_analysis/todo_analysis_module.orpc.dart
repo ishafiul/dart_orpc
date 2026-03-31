@@ -57,6 +57,8 @@ RpcProcedureRegistry _$createTodoAnalysisModuleLocalProcedureRegistry() {
 RpcProcedureRegistry _$createTodoAnalysisModuleProcedureRegistryFromContainer(
   _$TodoAnalysisModuleContainer container,
 ) {
+  final metadataRegistry =
+      _$createTodoAnalysisModuleLocalProcedureMetadataRegistry();
   return RpcProcedureRegistry([
     RpcProcedure<Null, TodoAnalysisSummaryDto>(
       method: 'todoAnalysis.summary',
@@ -71,6 +73,7 @@ RpcProcedureRegistry _$createTodoAnalysisModuleProcedureRegistryFromContainer(
             toJson: (output) => output.toJson(),
             validate: $TodoAnalysisSummaryDtoValidate,
           ),
+      metadata: metadataRegistry['todoAnalysis.summary']!,
 
       handler: (context, input) =>
           container.todoAnalysisController.summary(context),
@@ -96,6 +99,8 @@ RestRouteRegistry _$createTodoAnalysisModuleLocalRestRouteRegistry() {
 RestRouteRegistry _$createTodoAnalysisModuleRestRouteRegistryFromContainer(
   _$TodoAnalysisModuleContainer container,
 ) {
+  final metadataRegistry =
+      _$createTodoAnalysisModuleLocalProcedureMetadataRegistry();
   return RestRouteRegistry([
     RestRoute(
       method: 'GET',
@@ -109,6 +114,7 @@ RestRouteRegistry _$createTodoAnalysisModuleRestRouteRegistryFromContainer(
           validate: $TodoAnalysisSummaryDtoValidate,
         ))(output);
       },
+      metadata: metadataRegistry['todoAnalysis.summary']!,
     ),
   ]);
 }

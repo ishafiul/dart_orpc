@@ -27,7 +27,7 @@ void _writeRestRouteRegistries(
       'RestRouteRegistry ${names.createRestRouteRegistryFromContainerName}(${names.containerClassName} container) {',
     )
     ..writeln(
-      _hasLocalGuardedRestProcedures(context)
+      _hasLocalRestRoutes(context)
           ? '  final metadataRegistry = ${names.createLocalMetadataRegistryName}();'
           : '',
     )
@@ -62,7 +62,6 @@ void _writeRestRouteRegistries(
           .map(_restInvocationArgumentExpression)
           .join(', ');
       buffer
-        ..writeln(_restGuardInvocationBlock(procedure))
         ..writeln(
           '        final output = await container.${controller.instanceName}.${procedure.methodName}($invocationArguments);',
         )
@@ -70,6 +69,7 @@ void _writeRestRouteRegistries(
           '        return (${_encodeOutputExpression(procedure)})(output);',
         )
         ..writeln('      },')
+        ..writeln(_restConstructorGuardBlock(procedure))
         ..writeln('    ),');
     }
   }
@@ -199,66 +199,43 @@ void _writeProcedureMetadata(
   buffer.writeln('    ),');
 }
 
-bool _hasLocalGuardedRpcProcedures(_ModuleGenerationContext context) {
+bool _hasLocalRpcProcedures(_ModuleGenerationContext context) {
   return context.rootModule.controllerBindings.any(
-    (controller) => controller.rpcCompatibleProcedures.any(
-      (procedure) => procedure.guardBindings.isNotEmpty,
-    ),
+    (controller) => controller.rpcCompatibleProcedures.isNotEmpty,
   );
 }
 
-bool _hasLocalGuardedRestProcedures(_ModuleGenerationContext context) {
+bool _hasLocalRestRoutes(_ModuleGenerationContext context) {
   return context.rootModule.controllerBindings.any(
     (controller) => controller.procedures.any(
-      (procedure) =>
-          procedure.path != null && procedure.guardBindings.isNotEmpty,
+      (procedure) => procedure.path != null,
     ),
   );
-}
-
-String _guardInputExpression(_ResolvedProcedure procedure) {
-  return procedure.inputParameterName ?? 'null';
 }
 
 String _rpcGuardInvocationBlock(_ResolvedProcedure procedure) {
-  if (procedure.guardBindings.isEmpty) {
-    return '';
+  final buffer = StringBuffer();
+  buffer.writeln("      metadata: metadataRegistry['${procedure.rpcMethod}']!,");
+  if (procedure.guardBindings.isNotEmpty) {
+    buffer.writeln('      guards: [');
+    for (final guardBinding in procedure.guardBindings) {
+      buffer.writeln('        container.${guardBinding.variableName},');
+    }
+    buffer.writeln('      ],');
   }
-
-  final buffer = StringBuffer()
-    ..writeln('      beforeInvoke: (context, input) => runRpcGuards(')
-    ..writeln('        [');
-  for (final guardBinding in procedure.guardBindings) {
-    buffer.writeln('          container.${guardBinding.variableName},');
-  }
-  buffer
-    ..writeln('        ],')
-    ..writeln('        rpcContext: context,')
-    ..writeln("        procedure: metadataRegistry['${procedure.rpcMethod}']!,")
-    ..writeln('        input: input,')
-    ..write('      ),');
   return buffer.toString();
 }
 
-String _restGuardInvocationBlock(_ResolvedProcedure procedure) {
-  if (procedure.guardBindings.isEmpty) {
-    return '';
+String _restConstructorGuardBlock(_ResolvedProcedure procedure) {
+  final buffer = StringBuffer();
+  buffer.writeln("      metadata: metadataRegistry['${procedure.rpcMethod}']!,");
+  if (procedure.guardBindings.isNotEmpty) {
+    buffer.writeln('      guards: [');
+    for (final guardBinding in procedure.guardBindings) {
+      buffer.writeln('        container.${guardBinding.variableName},');
+    }
+    buffer.writeln('      ],');
   }
-
-  final buffer = StringBuffer()
-    ..writeln('        await runRpcGuards(')
-    ..writeln('          [');
-  for (final guardBinding in procedure.guardBindings) {
-    buffer.writeln('            container.${guardBinding.variableName},');
-  }
-  buffer
-    ..writeln('          ],')
-    ..writeln('          rpcContext: context,')
-    ..writeln(
-      "          procedure: metadataRegistry['${procedure.rpcMethod}']!,",
-    )
-    ..writeln('          input: ${_guardInputExpression(procedure)},')
-    ..write('        );');
   return buffer.toString();
 }
 

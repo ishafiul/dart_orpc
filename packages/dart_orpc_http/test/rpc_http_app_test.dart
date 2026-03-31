@@ -15,6 +15,12 @@ void main() {
         procedures: RpcProcedureRegistry([
           RpcProcedure<JsonObject, JsonObject>(
             method: 'meta.echo',
+            metadata: const ProcedureMetadata(
+              rpcMethod: 'meta.echo',
+              controllerNamespace: 'meta',
+              methodName: 'echo',
+              outputTypeCode: 'dynamic',
+            ),
             decodeInput: (rawInput) =>
                 expectJsonObject(rawInput, context: 'meta.echo input'),
             encodeOutput: (output) => output,
@@ -305,6 +311,12 @@ void main() {
         procedures: RpcProcedureRegistry([
           RpcProcedure<JsonObject, JsonObject>(
             method: 'meta.echo',
+            metadata: const ProcedureMetadata(
+              rpcMethod: 'meta.echo',
+              controllerNamespace: 'meta',
+              methodName: 'echo',
+              outputTypeCode: 'dynamic',
+            ),
             decodeInput: (rawInput) =>
                 expectJsonObject(rawInput, context: 'meta.echo input'),
             encodeOutput: (output) => output,
