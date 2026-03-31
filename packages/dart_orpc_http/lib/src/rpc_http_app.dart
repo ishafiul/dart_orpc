@@ -15,6 +15,9 @@ final class RpcHttpApp {
     this.docsHtml,
     this.docsPath = '/docs',
     this.docsBasicAuth,
+    this.staticAssets,
+    this.health,
+    this.metrics,
     Iterable<RpcHttpMiddleware> middleware = const [],
   }) : procedures = procedures,
        restRoutes = restRoutes ?? RestRouteRegistry(const []),
@@ -27,6 +30,9 @@ final class RpcHttpApp {
          docsHtml: docsHtml,
          docsPath: docsPath,
          docsBasicAuth: docsBasicAuth,
+         staticAssets: staticAssets,
+         health: health,
+         metrics: metrics,
          middleware: middleware,
        );
 
@@ -37,6 +43,9 @@ final class RpcHttpApp {
   final String? docsHtml;
   final String docsPath;
   final RpcHttpBasicAuth? docsBasicAuth;
+  final RpcHttpStaticOptions? staticAssets;
+  final RpcHttpHealthOptions? health;
+  final RpcHttpMetricsOptions? metrics;
   final List<RpcHttpMiddleware> middleware;
   final RpcHttpHandler handler;
 
@@ -66,7 +75,12 @@ final class RpcHttpApp {
 
       request.response.statusCode = response.statusCode;
       response.headers.forEach(request.response.headers.set);
-      request.response.write(response.body);
+      final body = response.body;
+      if (body is List<int>) {
+        request.response.add(body);
+      } else if (body != null) {
+        request.response.write(body);
+      }
       await request.response.close();
     } catch (_) {
       request.response.statusCode = HttpStatus.internalServerError;

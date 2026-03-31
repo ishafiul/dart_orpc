@@ -42,6 +42,31 @@ final class RpcHttpDocsOptions {
   final RpcHttpBasicAuth? basicAuth;
 }
 
+final class RpcHttpStaticOptions {
+  const RpcHttpStaticOptions({
+    this.path = '/',
+    required this.directory,
+    this.defaultDocument = 'index.html',
+  });
+
+  final String path;
+  final String directory;
+  final String defaultDocument;
+}
+
+final class RpcHttpHealthOptions {
+  const RpcHttpHealthOptions({this.path = '/health', this.check});
+
+  final String path;
+  final FutureOr<bool> Function()? check;
+}
+
+final class RpcHttpMetricsOptions {
+  const RpcHttpMetricsOptions({this.path = '/metrics'});
+
+  final String path;
+}
+
 final class RpcHttpRequest {
   const RpcHttpRequest({
     required this.method,
@@ -62,12 +87,12 @@ final class RpcHttpResponse {
   const RpcHttpResponse({
     required this.statusCode,
     this.headers = const {},
-    this.body = '',
+    this.body,
   });
 
   final int statusCode;
   final Map<String, String> headers;
-  final String body;
+  final Object? body;
 }
 
 final class RestRoute {
@@ -156,23 +181,39 @@ RpcHttpHandler createRpcHttpHandler({
   String? docsHtml,
   String docsPath = '/docs',
   RpcHttpBasicAuth? docsBasicAuth,
+  RpcHttpStaticOptions? staticAssets,
+  RpcHttpHealthOptions? health,
+  RpcHttpMetricsOptions? metrics,
   Iterable<RpcHttpMiddleware> middleware = const [],
 }) {
   final effectiveRestRoutes = restRoutes ?? RestRouteRegistry(const []);
   final normalizedOpenApiPath = _normalizePath(openApiPath);
   final normalizedDocsPath = _normalizePath(docsPath);
+  final normalizedStaticPath =
+      staticAssets != null ? _normalizePath(staticAssets.path) : null;
+  final normalizedHealthPath =
+      health != null ? _normalizePath(health.path) : null;
+  final normalizedMetricsPath =
+      metrics != null ? _normalizePath(metrics.path) : null;
+
   final baseHandler = (RpcHttpRequest request) async {
     final path = _normalizePath(request.path);
     if (docsBasicAuth != null &&
         (path == normalizedOpenApiPath || path == normalizedDocsPath)) {
-      final unauthorizedResponse = _requireDocsBasicAuth(
-        request,
-        docsBasicAuth,
-      );
+      final unauthorizedResponse = _requireDocsBasicAuth(request, docsBasicAuth);
       if (unauthorizedResponse != null) {
         return unauthorizedResponse;
       }
     }
+
+    if (normalizedHealthPath != null && path == normalizedHealthPath) {
+      return _handleHealthRequest(request, options: health!);
+    }
+
+    if (normalizedMetricsPath != null && path == normalizedMetricsPath) {
+      return _handleMetricsRequest(request, options: metrics!);
+    }
+
     if (path == normalizedOpenApiPath) {
       return _handleOpenApiRequest(request, openApiDocument: openApiDocument);
     }
@@ -183,6 +224,24 @@ RpcHttpHandler createRpcHttpHandler({
 
     if (path == '/rpc') {
       return _handleRpcRequest(request, path: path, procedures: procedures);
+    }
+
+    if (normalizedStaticPath != null) {
+      final isAtStaticPath = path == normalizedStaticPath;
+      final isSubPath =
+          normalizedStaticPath == '/'
+              ? true
+              : path.startsWith('$normalizedStaticPath/');
+
+      if (isAtStaticPath || isSubPath) {
+        final staticResponse = await _handleStaticRequest(
+          request,
+          options: staticAssets!,
+        );
+        if (staticResponse.statusCode != HttpStatus.notFound) {
+          return staticResponse;
+        }
+      }
     }
 
     final restMatch = effectiveRestRoutes.match(
@@ -419,6 +478,121 @@ Future<RpcHttpResponse> _handleDocsRequest(
     body: docsHtml,
   );
 }
+
+Future<RpcHttpResponse> _handleStaticRequest(
+  RpcHttpRequest request, {
+  required RpcHttpStaticOptions options,
+}) async {
+  if (request.method != 'GET' && request.method != 'HEAD') {
+    return _jsonResponse(
+      HttpStatus.methodNotAllowed,
+      const RpcErrorResponse(
+        error: RpcErrorBody(
+          code: 'BAD_REQUEST',
+          message: 'Static assets only accept GET or HEAD requests.',
+        ),
+      ).toJson(),
+      extraHeaders: const {'allow': 'GET, HEAD'},
+    );
+  }
+
+  final normalizedPath = _normalizePath(request.path);
+  final normalizedStaticPath = _normalizePath(options.path);
+  var relativePath = normalizedPath.substring(normalizedStaticPath.length);
+  if (relativePath.startsWith('/')) {
+    relativePath = relativePath.substring(1);
+  }
+  if (relativePath.isEmpty) {
+    relativePath = options.defaultDocument;
+  }
+
+  final file = File('${options.directory}/$relativePath');
+  if (!await file.exists()) {
+    // If it's a directory, try index.html
+    if (await FileSystemEntity.isDirectory(file.path)) {
+      final indexFile = File('${file.path}/${options.defaultDocument}');
+      if (await indexFile.exists()) {
+        return _serveFile(indexFile, request.method == 'HEAD');
+      }
+    }
+
+    return const RpcHttpResponse(statusCode: HttpStatus.notFound);
+  }
+
+  return _serveFile(file, request.method == 'HEAD');
+}
+
+Future<RpcHttpResponse> _serveFile(File file, bool isHead) async {
+  final contentType = _getContentType(file.path);
+  final headers = {'content-type': contentType};
+
+  if (isHead) {
+    return RpcHttpResponse(statusCode: HttpStatus.ok, headers: headers);
+  }
+
+  final body = await file.readAsBytes();
+  return RpcHttpResponse(
+    statusCode: HttpStatus.ok,
+    headers: headers,
+    body: body,
+  );
+}
+
+String _getContentType(String path) {
+  final extension = path.split('.').lastOrNull?.toLowerCase();
+  switch (extension) {
+    case 'html':
+      return 'text/html; charset=utf-8';
+    case 'js':
+      return 'application/javascript; charset=utf-8';
+    case 'css':
+      return 'text/css; charset=utf-8';
+    case 'json':
+      return 'application/json; charset=utf-8';
+    case 'png':
+      return 'image/png';
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'gif':
+      return 'image/gif';
+    case 'svg':
+      return 'image/svg+xml';
+    case 'ico':
+      return 'image/x-icon';
+    case 'txt':
+      return 'text/plain; charset=utf-8';
+    default:
+      return 'application/octet-stream';
+  }
+}
+
+Future<RpcHttpResponse> _handleHealthRequest(
+  RpcHttpRequest request, {
+  required RpcHttpHealthOptions options,
+}) async {
+  final isHealthy = options.check == null || await options.check!();
+
+  return _jsonResponse(
+    isHealthy ? HttpStatus.ok : HttpStatus.serviceUnavailable,
+    {'status': isHealthy ? 'up' : 'down', 'timestamp': DateTime.now().toIso8601String()},
+  );
+}
+
+Future<RpcHttpResponse> _handleMetricsRequest(
+  RpcHttpRequest request, {
+  required RpcHttpMetricsOptions options,
+}) async {
+  // TODO: Implement actual metrics collection. 
+  // For now, return basic info.
+  return _jsonResponse(HttpStatus.ok, {
+    'pid': pid,
+    'memory_usage': ProcessInfo.currentRss,
+    'uptime_seconds': (DateTime.now().millisecondsSinceEpoch - _startTime) ~/ 1000,
+  });
+}
+
+final _startTime = DateTime.now().millisecondsSinceEpoch;
 
 RpcContext _buildContext(RpcHttpRequest request, {required String path}) {
   return RpcContext(

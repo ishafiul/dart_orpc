@@ -103,7 +103,7 @@ void main() {
       );
 
       expect(response.statusCode, HttpStatus.ok);
-      expect(jsonDecode(response.body), {
+      expect(jsonDecode(response.body as String), {
         'data': {'id': '123', 'name': 'Ada Lovelace'},
       });
     });
@@ -121,7 +121,7 @@ void main() {
       );
 
       expect(response.statusCode, HttpStatus.notFound);
-      expect(jsonDecode(response.body), {
+      expect(jsonDecode(response.body as String), {
         'error': {
           'code': 'NOT_FOUND',
           'message': 'No RPC procedure registered for "user.missing".',
@@ -135,7 +135,7 @@ void main() {
       );
 
       expect(response.statusCode, HttpStatus.badRequest);
-      expect(jsonDecode(response.body), {
+      expect(jsonDecode(response.body as String), {
         'error': {
           'code': 'BAD_REQUEST',
           'message': 'RPC request body must be valid JSON.',
@@ -162,7 +162,7 @@ void main() {
       );
 
       expect(response.statusCode, HttpStatus.ok);
-      expect(jsonDecode(response.body), {
+      expect(jsonDecode(response.body as String), {
         'id': '123',
         'name': 'Ada',
         'method': 'GET',
@@ -179,7 +179,7 @@ void main() {
       );
 
       expect(response.statusCode, HttpStatus.ok);
-      expect(jsonDecode(response.body), {
+      expect(jsonDecode(response.body as String), {
         'id': '123',
         'name': 'Ada Lovelace',
         'method': 'GET',
@@ -196,7 +196,7 @@ void main() {
 
         expect(response.statusCode, HttpStatus.methodNotAllowed);
         expect(response.headers['allow'], 'GET');
-        expect(jsonDecode(response.body), {
+        expect(jsonDecode(response.body as String), {
           'error': {
             'code': 'BAD_REQUEST',
             'message': 'REST endpoint only accepts GET requests.',
@@ -211,7 +211,7 @@ void main() {
       );
 
       expect(response.statusCode, HttpStatus.badRequest);
-      expect(jsonDecode(response.body), {
+      expect(jsonDecode(response.body as String), {
         'error': {
           'code': 'BAD_REQUEST',
           'message': 'REST request body for "POST /users" must be valid JSON.',
@@ -225,7 +225,7 @@ void main() {
       );
 
       expect(response.statusCode, HttpStatus.ok);
-      expect(jsonDecode(response.body), {
+      expect(jsonDecode(response.body as String), {
         'openapi': '3.0.3',
         'info': {'title': 'Test API', 'version': '1.0.0'},
         'paths': {},
@@ -287,7 +287,7 @@ void main() {
 
         expect(response.statusCode, HttpStatus.ok);
         expect(response.headers['x-middleware'], 'wrapped');
-        expect(jsonDecode(response.body), {
+        expect(jsonDecode(response.body as String), {
           'id': '123',
           'name': 'Ada Lovelace',
           'method': 'GET',
@@ -334,6 +334,72 @@ void main() {
 
       expect(response.statusCode, HttpStatus.forbidden);
       expect(response.body, 'Blocked by middleware');
+    });
+    test('serves static assets from the root path', () async {
+      final tempDir = Directory.systemTemp.createTempSync('orpc_static_test');
+      try {
+        final indexFile = File('${tempDir.path}/index.html');
+        indexFile.writeAsStringSync('<h1>Hello Root</h1>');
+
+        final staticHandler = createRpcHttpHandler(
+          procedures: registry,
+          staticAssets: RpcHttpStaticOptions(
+            directory: tempDir.path,
+            path: '/',
+          ),
+        );
+
+        final response = await staticHandler(
+          const RpcHttpRequest(method: 'GET', path: '/index.html'),
+        );
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(
+          utf8.decode(response.body as List<int>),
+          '<h1>Hello Root</h1>',
+        );
+        expect(response.headers['content-type'], contains('text/html'));
+
+        // Test fallback to index.html
+        final rootResponse = await staticHandler(
+          const RpcHttpRequest(method: 'GET', path: '/'),
+        );
+        expect(rootResponse.statusCode, HttpStatus.ok);
+        expect(
+          utf8.decode(rootResponse.body as List<int>),
+          '<h1>Hello Root</h1>',
+        );
+      } finally {
+        tempDir.deleteSync(recursive: true);
+      }
+    });
+
+    test('falls through to REST routes when static asset is not found', () async {
+      final tempDir = Directory.systemTemp.createTempSync('orpc_static_fallthrough_test');
+      try {
+        final staticHandler = createRpcHttpHandler(
+          procedures: registry,
+          restRoutes: restRoutes,
+          staticAssets: RpcHttpStaticOptions(
+            directory: tempDir.path,
+            path: '/',
+          ),
+        );
+
+        // Path that doesn't exist in static but exists in REST
+        final response = await staticHandler(
+          const RpcHttpRequest(method: 'GET', path: '/users/123'),
+        );
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(jsonDecode(response.body as String), {
+          'id': '123',
+          'name': 'Ada Lovelace',
+          'method': 'GET',
+        });
+      } finally {
+        tempDir.deleteSync(recursive: true);
+      }
     });
   });
 }
