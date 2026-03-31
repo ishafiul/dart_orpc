@@ -35,15 +35,63 @@ List<_ResolvedOpenApiSchemaComponent> _collectOpenApiSchemaComponents(
   List<_ControllerBinding> controllerBindings,
 ) {
   final components = <String, _ResolvedOpenApiSchemaComponent>{};
-  void addComponent(String? typeName) {
-    if (typeName == null || components.containsKey(typeName)) {
+
+  late final void Function(Element? element) addComponent;
+  late final void Function(DartType type) collectRecursive;
+
+  addComponent = (Element? element) {
+    if (element == null) return;
+    final name = element.displayName;
+    if (components.containsKey(name)) {
       return;
     }
-    components[typeName] = _ResolvedOpenApiSchemaComponent(
-      name: typeName,
-      validatorExpression: '\$${typeName}Schema',
+    if (!_luthorChecker.hasAnnotationOfExact(element)) {
+      return;
+    }
+
+    components[name] = _ResolvedOpenApiSchemaComponent(
+      name: name,
+      validatorExpression: '\$${name}Schema',
     );
-  }
+
+    if (element is InterfaceElement) {
+      for (final field in element.fields) {
+        if (!field.isStatic && !field.displayName.startsWith('_')) {
+          collectRecursive(field.type);
+        }
+      }
+      for (final getter in element.getters) {
+        if (!getter.isStatic &&
+            !getter.displayName.startsWith('_') &&
+            getter.displayName != 'hashCode' &&
+            getter.displayName != 'runtimeType') {
+          collectRecursive(getter.returnType);
+        }
+      }
+      for (final constructor in element.constructors) {
+        for (final parameter in constructor.formalParameters) {
+          if (!parameter.displayName.startsWith('_')) {
+            collectRecursive(parameter.type);
+          }
+        }
+      }
+    }
+  };
+
+  collectRecursive = (DartType type) {
+    final element = type.element;
+    if (element == null) {
+      return;
+    }
+
+    if (type is InterfaceType) {
+      for (final typeArgument in type.typeArguments) {
+        collectRecursive(typeArgument);
+      }
+    }
+
+    addComponent(element);
+  };
 
   for (final controller in controllerBindings) {
     for (final procedure in controller.procedures) {
@@ -51,15 +99,27 @@ List<_ResolvedOpenApiSchemaComponent> _collectOpenApiSchemaComponents(
         continue;
       }
       if (procedure.outputUsesLuthor) {
-        addComponent(procedure.outputTypeName);
+        if (procedure.outputTypeElement != null) {
+          collectRecursive(
+            (procedure.outputTypeElement as InterfaceElement).thisType,
+          );
+        }
       }
       if (procedure.inputUsesLuthor) {
-        addComponent(procedure.inputTypeName);
+        if (procedure.inputTypeElement != null) {
+          collectRecursive(
+            (procedure.inputTypeElement as InterfaceElement).thisType,
+          );
+        }
       }
       for (final parameter in procedure.restInvocationParameters) {
         if (parameter.source == _InvocationParameterSourceKind.body &&
             parameter.usesLuthor) {
-          addComponent(parameter.typeName);
+          if (parameter.typeElement != null) {
+            collectRecursive(
+              (parameter.typeElement as InterfaceElement).thisType,
+            );
+          }
         }
       }
     }

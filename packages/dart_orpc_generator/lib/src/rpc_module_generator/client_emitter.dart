@@ -138,7 +138,7 @@ void _writeGeneratedExtension(
       '  JsonObject openApiDocument({OpenApiDocumentOptions? options}) => ${names.composeOpenApiDocumentName}(options: options);',
     )
     ..writeln(
-      '  RpcHttpApp buildRpcApp({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, Iterable<RpcHttpMiddleware> middleware = const []}) => ${names.composeBuildAppName}(openApi: openApi, docs: docs, middleware: middleware);',
+      '  RpcHttpApp buildRpcApp({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, RpcHttpStaticOptions? staticAssets, RpcHttpHealthOptions? health, RpcHttpMetricsOptions? metrics, Iterable<RpcHttpMiddleware> middleware = const []}) => ${names.composeBuildAppName}(openApi: openApi, docs: docs, staticAssets: staticAssets, health: health, metrics: metrics, middleware: middleware);',
     )
     ..writeln(
       '  ${names.rootClientName} createClient({required RpcTransport transport}) => ${names.rootClientName}(transport: transport);',

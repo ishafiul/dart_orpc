@@ -64,9 +64,8 @@ void _writeOpenApiSections(
       'JsonObject ${names.composeOpenApiDocumentName}({OpenApiDocumentOptions? options}) => ${names.createOpenApiDocumentName}(options: options);',
     )
     ..writeln()
-    ..writeln('// ignore: unused_element')
     ..writeln(
-      'RpcHttpApp ${names.buildAppName}({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, Iterable<RpcHttpMiddleware> middleware = const []}) {',
+      'RpcHttpApp ${names.buildAppName}({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, RpcHttpStaticOptions? staticAssets, RpcHttpHealthOptions? health, RpcHttpMetricsOptions? metrics, Iterable<RpcHttpMiddleware> middleware = const []}) {',
     )
     ..writeln(
       '  final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();',
@@ -88,11 +87,14 @@ void _writeOpenApiSections(
     )
     ..writeln('    docsPath: effectiveDocs.docsPath,')
     ..writeln('    docsBasicAuth: effectiveDocs.basicAuth,')
+    ..writeln('    staticAssets: staticAssets,')
+    ..writeln('    health: health,')
+    ..writeln('    metrics: metrics,')
     ..writeln('    middleware: middleware,')
     ..writeln('  );')
     ..writeln('}')
     ..writeln()
     ..writeln(
-      'RpcHttpApp ${names.composeBuildAppName}({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, Iterable<RpcHttpMiddleware> middleware = const []}) => ${names.buildAppName}(openApi: openApi, docs: docs, middleware: middleware);',
+      'RpcHttpApp ${names.composeBuildAppName}({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, RpcHttpStaticOptions? staticAssets, RpcHttpHealthOptions? health, RpcHttpMetricsOptions? metrics, Iterable<RpcHttpMiddleware> middleware = const []}) => ${names.buildAppName}(openApi: openApi, docs: docs, staticAssets: staticAssets, health: health, metrics: metrics, middleware: middleware);',
     );
 }
