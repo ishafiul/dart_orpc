@@ -1,78 +1,116 @@
 # dart_orpc
 
-`dart_orpc` is a contract-first Dart framework for defining an API once and deriving:
+Contract-first Dart: define your API once, get **RPC**, **REST**, **OpenAPI**, and a **typed Dart client** from the same annotations and DTOs. RPC is the source of truth; REST and docs are generated views of that contract.
 
-- RPC endpoints
-- optional REST endpoints
-- OpenAPI output
-- typed Dart clients
+## Why use it
 
-The framework is RPC-first. REST and OpenAPI are generated views of the same contract model, not separate sources of truth.
+- One module graph drives procedures, REST routes, OpenAPI schemas, and client stubs.
+- Strongly typed inputs/outputs end-to-end (with Luthor-backed validation where configured).
+- **Scalar** API reference UI out of the box (`/docs`), wired to live OpenAPI (`/openapi.json`).
+- Pure Dart `dart:io` HTTP server adapter—no framework lock-in for the transport shape.
 
-## What This Repo Contains
+## What this repo contains
 
-This repository is a Melos-managed Dart workspace with:
+Melos workspace packages include:
 
-- `packages/dart_orpc`
-  Public runtime facade package.
-- `packages/dart_orpc_annotations`
-  Public annotations such as `@Module`, `@Controller`, `@RpcMethod`, and `@RpcInput`.
-- `packages/dart_orpc_core`
-  Core RPC contracts, request/response envelopes, errors, and procedure registry types.
-- `packages/dart_orpc_http`
-  Pure-Dart `dart:io` HTTP adapter for exposing `POST /rpc`.
-- `packages/dart_orpc_client`
-  Client transport and calling primitives.
-- `packages/dart_orpc_cli`
-  CLI tooling for local `serve` and `watch` workflows.
-- `packages/dart_orpc_generator`
-  `build_runner` / `source_gen` code generation for server wiring and typed Dart clients.
-- `apps/basic_app`
-  Example server app and current acceptance target.
-- `apps/client_app`
-  Example client app for exercising the generated client.
+- `packages/dart_orpc` — public runtime facade
+- `packages/dart_orpc_annotations` — `@Module`, `@Controller`, `@RpcMethod`, `@RpcInput`, REST `RestMapping`, etc.
+- `packages/dart_orpc_core` — envelopes, errors, registries
+- `packages/dart_orpc_http` — `POST /rpc`, REST dispatch, static files, health/metrics hooks
+- `packages/dart_orpc_openapi` — OpenAPI document + Scalar HTML helper
+- `packages/dart_orpc_client` — `RpcTransport`, `HttpRpcTransport`
+- `packages/dart_orpc_generator` — `build_runner` / `source_gen` codegen
+- `packages/dart_orpc_cli` — `serve` and `watch` for apps
+- `apps/basic_app` — todo + analysis example server (acceptance target)
+- `apps/client_app` — tiny CLI that calls the generated `AppClient` against a running server
 
-## Current Direction
-
-The current vertical slice focuses on:
-
-- modules
-- controllers
-- providers/services
-- DTO-based contracts
-- `POST /rpc`
-- generated server registry wiring
-- generated Dart client output
-
-Planned next steps include REST route generation and OpenAPI output from the same metadata model.
-
-## Example Shape
+## Quick taste: controller + REST + RPC
 
 ```dart
-@Controller('user')
-final class UserController {
-  UserController(this.userService);
+@Controller('todo')
+final class TodoController {
+  TodoController(this.todoService);
+  final TodoService todoService;
 
-  final UserService userService;
-
-  @RpcMethod(name: 'getById')
-  Future<UserResponseDto> getById(
-    RpcContext context,
-    @RpcInput() GetUserDto input,
-  ) {
-    return userService.getById(input.id);
+  @RpcMethod(
+    name: 'getById',
+    path: RestMapping.get('/todos/:id'),
+    description: 'Get a single todo by id.',
+    tags: ['todo'],
+  )
+  Future<TodoResponseDto> getById(RpcContext _, @RpcInput() GetTodoDto input) {
+    return todoService.getById(input.id);
   }
 }
 ```
 
-From that contract model, the framework aims to support:
+Same procedure is reachable as **`todo.getById`** over `POST /rpc` and as **`GET /todos/:id`** over REST.
 
-- `POST /rpc` with method `user.getById`
-- generated REST routes
-- generated OpenAPI output
-- generated Dart client calls such as `client.user.getById(...)`
+## Module and HTTP app
 
-## Workspace Commands
+```dart
+@Module(imports: [TodoModule, TodoAnalysisModule])
+final class AppModule {
+  const AppModule();
+}
+```
+
+```dart
+final app = const AppModule().buildRpcApp(
+  openApi: const OpenApiDocumentOptions(
+    title: 'Basic App API',
+    description: 'Example todo API built with dart_orpc.',
+  ),
+  docs: const RpcHttpDocsOptions(
+    title: 'Basic App Docs',
+    basicAuth: RpcHttpBasicAuth(
+      username: 'admin',
+      password: 'secret',
+      realm: 'Basic App Docs',
+    ),
+  ),
+);
+final server = await app.listen(3000);
+```
+
+See `apps/basic_app/bin/server.dart` for CORS, static assets, health, and metrics.
+
+## Generated client
+
+After codegen, your root module exposes `createClient`:
+
+```dart
+import 'package:basic_app/basic_app.dart';
+import 'package:dart_orpc/dart_orpc.dart';
+
+Future<void> main() async {
+  final transport = HttpRpcTransport(baseUrl: 'http://127.0.0.1:3000');
+  final client = const AppModule().createClient(transport: transport);
+
+  final list = await client.todo.list();
+  final one = await client.todo.getById(GetTodoDto(id: 1));
+
+  transport.close();
+}
+```
+
+Full flow (RPC + analysis call + error handling) lives in `apps/client_app/bin/client.dart`.
+
+## Scalar docs and OpenAPI JSON
+
+With `basic_app` running (default port **3000**):
+
+| What | URL |
+|------|-----|
+| **Scalar** (interactive API reference) | [http://127.0.0.1:3000/docs](http://127.0.0.1:3000/docs) |
+| **OpenAPI document** (JSON) | [http://127.0.0.1:3000/openapi.json](http://127.0.0.1:3000/openapi.json) |
+| **RPC endpoint** | `POST http://127.0.0.1:3000/rpc` |
+
+The sample server protects **`/docs`** (and the OpenAPI URL the UI loads) with HTTP Basic Auth: username **`admin`**, password **`secret`**. Your browser will prompt once; `curl` needs `-u admin:secret`.
+
+**There is no checked-in `openapi.json` file** in the repo. The spec is **built in memory** from generated procedure metadata and served at **`/openapi.json`** while the server runs. Defaults for paths come from `RpcHttpDocsOptions` (`openApiPath`: `/openapi.json`, `docsPath`: `/docs`).
+
+## Workspace commands
 
 ```sh
 dart pub get
@@ -81,17 +119,15 @@ melos test
 melos run format
 melos run dev:basic-app
 melos run serve:basic-app
+melos run run:client-app
 ```
 
-Direct CLI usage:
+CLI:
 
 ```sh
 dart run dart_orpc_cli:dart_orpc serve --project apps/basic_app
 dart run dart_orpc_cli:dart_orpc watch --project apps/basic_app
 ```
-
-`watch` watches the app plus workspace packages, reruns `build_runner` for the
-app, and restarts the server after relevant changes.
 
 Global install from this repo:
 
@@ -102,13 +138,11 @@ dart_orpc serve
 dart_orpc watch
 ```
 
-`serve` and `watch` refuse to run unless the target directory is a valid
-`dart_orpc` app. `watch` also requires `build_runner` and
-`dart_orpc_generator` in the target app so code generation can run.
+`serve` and `watch` require a valid `dart_orpc` app. `watch` needs `build_runner` and `dart_orpc_generator` in the target app.
 
-## Source of Truth
+## Source of truth
 
-For product direction and architecture rules, see:
+For product direction and architecture rules:
 
 - `AGENTS.md`
 - `dart_rpc_framework_prd.md`
