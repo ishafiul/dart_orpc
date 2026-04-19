@@ -506,12 +506,46 @@ Future<RpcHttpResponse> _handleStaticRequest(
     relativePath = options.defaultDocument;
   }
 
-  final file = File('${options.directory}/$relativePath');
+  final baseDirectory = Directory(options.directory);
+  if (!await baseDirectory.exists()) {
+    return const RpcHttpResponse(statusCode: HttpStatus.notFound);
+  }
+
+  final basePath = await _resolveExistingEntityPath(baseDirectory);
+  if (basePath == null) {
+    return const RpcHttpResponse(statusCode: HttpStatus.notFound);
+  }
+
+  final candidatePath = File.fromUri(baseDirectory.uri.resolve(relativePath)).path;
+  if (!_isPathWithinBase(basePath, candidatePath)) {
+    return const RpcHttpResponse(statusCode: HttpStatus.notFound);
+  }
+
+  final file = File(candidatePath);
   if (!await file.exists()) {
     // If it's a directory, try index.html
-    if (await FileSystemEntity.isDirectory(file.path)) {
-      final indexFile = File('${file.path}/${options.defaultDocument}');
+    final directory = Directory(file.path);
+    if (await directory.exists()) {
+      final resolvedDirectoryPath = await _resolveExistingEntityPath(directory);
+      if (resolvedDirectoryPath == null ||
+          !_isPathWithinBase(basePath, resolvedDirectoryPath)) {
+        return const RpcHttpResponse(statusCode: HttpStatus.notFound);
+      }
+
+      final indexPath =
+          File.fromUri(directory.uri.resolve(options.defaultDocument)).path;
+      if (!_isPathWithinBase(basePath, indexPath)) {
+        return const RpcHttpResponse(statusCode: HttpStatus.notFound);
+      }
+
+      final indexFile = File(indexPath);
       if (await indexFile.exists()) {
+        final resolvedIndexPath = await _resolveExistingEntityPath(indexFile);
+        if (resolvedIndexPath == null ||
+            !_isPathWithinBase(basePath, resolvedIndexPath)) {
+          return const RpcHttpResponse(statusCode: HttpStatus.notFound);
+        }
+
         return _serveFile(indexFile, request.method == 'HEAD');
       }
     }
@@ -519,7 +553,43 @@ Future<RpcHttpResponse> _handleStaticRequest(
     return const RpcHttpResponse(statusCode: HttpStatus.notFound);
   }
 
+  final resolvedFilePath = await _resolveExistingEntityPath(file);
+  if (resolvedFilePath == null || !_isPathWithinBase(basePath, resolvedFilePath)) {
+    return const RpcHttpResponse(statusCode: HttpStatus.notFound);
+  }
+
   return _serveFile(file, request.method == 'HEAD');
+}
+
+Future<String?> _resolveExistingEntityPath(FileSystemEntity entity) async {
+  try {
+    return await entity.resolveSymbolicLinks();
+  } catch (_) {
+    return null;
+  }
+}
+
+bool _isPathWithinBase(String basePath, String targetPath) {
+  final separator = Platform.pathSeparator;
+  final normalizedBase = _trimTrailingSeparator(basePath, separator: separator);
+  final normalizedTarget = _trimTrailingSeparator(
+    targetPath,
+    separator: separator,
+  );
+
+  if (normalizedBase == normalizedTarget) {
+    return true;
+  }
+
+  return normalizedTarget.startsWith('$normalizedBase$separator');
+}
+
+String _trimTrailingSeparator(String path, {required String separator}) {
+  if (path.length > separator.length && path.endsWith(separator)) {
+    return path.substring(0, path.length - separator.length);
+  }
+
+  return path;
 }
 
 Future<RpcHttpResponse> _serveFile(File file, bool isHead) async {

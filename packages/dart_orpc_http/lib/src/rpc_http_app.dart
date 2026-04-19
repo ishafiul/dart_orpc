@@ -6,6 +6,8 @@ import 'package:dart_orpc_core/dart_orpc_core.dart';
 
 import 'rpc_http_handler.dart';
 
+const int _defaultMaxRequestBodyBytes = 1024 * 1024;
+
 final class RpcHttpApp {
   RpcHttpApp({
     required RpcProcedureRegistry procedures,
@@ -18,11 +20,16 @@ final class RpcHttpApp {
     this.staticAssets,
     this.health,
     this.metrics,
+    this.maxRequestBodyBytes = _defaultMaxRequestBodyBytes,
     Iterable<RpcHttpMiddleware> middleware = const [],
-  }) : procedures = procedures,
-       restRoutes = restRoutes ?? RestRouteRegistry(const []),
-       middleware = List<RpcHttpMiddleware>.unmodifiable(middleware),
-       handler = createRpcHttpHandler(
+  }) : assert(
+         maxRequestBodyBytes == null || maxRequestBodyBytes > 0,
+         'maxRequestBodyBytes must be greater than zero when set.',
+       ),
+       procedures = procedures,
+        restRoutes = restRoutes ?? RestRouteRegistry(const []),
+        middleware = List<RpcHttpMiddleware>.unmodifiable(middleware),
+        handler = createRpcHttpHandler(
          procedures: procedures,
          restRoutes: restRoutes,
          openApiDocument: openApiDocument,
@@ -46,6 +53,7 @@ final class RpcHttpApp {
   final RpcHttpStaticOptions? staticAssets;
   final RpcHttpHealthOptions? health;
   final RpcHttpMetricsOptions? metrics;
+  final int? maxRequestBodyBytes;
   final List<RpcHttpMiddleware> middleware;
   final RpcHttpHandler handler;
 
@@ -63,13 +71,14 @@ final class RpcHttpApp {
 
   Future<void> _handle(HttpRequest request) async {
     try {
+      final requestBody = await _readRequestBody(request);
       final response = await handler(
         RpcHttpRequest(
           method: request.method,
           path: request.uri.path.isEmpty ? '/' : request.uri.path,
           headers: _flattenHeaders(request.headers),
           queryParameters: request.uri.queryParameters,
-          body: await utf8.decoder.bind(request).join(),
+          body: requestBody,
         ),
       );
 
@@ -81,6 +90,23 @@ final class RpcHttpApp {
       } else if (body != null) {
         request.response.write(body);
       }
+      await request.response.close();
+    } on _PayloadTooLargeException {
+      request.response.statusCode = HttpStatus.requestEntityTooLarge;
+      request.response.headers.set(
+        'content-type',
+        'application/json; charset=utf-8',
+      );
+      request.response.write(
+        jsonEncode({
+          'error': {
+            'code': 'PAYLOAD_TOO_LARGE',
+            'message':
+                'Request body exceeds the maximum allowed size of '
+                '$maxRequestBodyBytes bytes.',
+          },
+        }),
+      );
       await request.response.close();
     } catch (_) {
       request.response.statusCode = HttpStatus.internalServerError;
@@ -95,6 +121,28 @@ final class RpcHttpApp {
     }
   }
 
+  Future<String> _readRequestBody(HttpRequest request) async {
+    final limit = maxRequestBodyBytes;
+
+    final announcedLength = request.contentLength;
+    if (limit != null && announcedLength > limit) {
+      throw const _PayloadTooLargeException();
+    }
+
+    final bytes = <int>[];
+    var receivedBytes = 0;
+
+    await for (final chunk in request) {
+      receivedBytes += chunk.length;
+      if (limit != null && receivedBytes > limit) {
+        throw const _PayloadTooLargeException();
+      }
+      bytes.addAll(chunk);
+    }
+
+    return utf8.decode(bytes);
+  }
+
   Map<String, String> _flattenHeaders(HttpHeaders headers) {
     final flattened = <String, String>{};
     headers.forEach((name, values) {
@@ -105,4 +153,8 @@ final class RpcHttpApp {
 
     return Map<String, String>.unmodifiable(flattened);
   }
+}
+
+final class _PayloadTooLargeException implements Exception {
+  const _PayloadTooLargeException();
 }

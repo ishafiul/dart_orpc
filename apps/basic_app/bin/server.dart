@@ -15,13 +15,8 @@ Future<void> main() async {
         realm: 'Basic App Docs',
       ),
     ),
-    middleware: [
-      createCorsMiddleware(),
-      _requestLoggingMiddleware,
-    ],
-    staticAssets: const RpcHttpStaticOptions(
-      directory: 'public',
-    ),
+    middleware: [createCorsMiddleware(), _requestLoggingMiddleware],
+    staticAssets: const RpcHttpStaticOptions(directory: 'public'),
     health: const RpcHttpHealthOptions(),
     metrics: const RpcHttpMetricsOptions(),
   );
