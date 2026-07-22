@@ -189,18 +189,24 @@ RpcHttpHandler createRpcHttpHandler({
   final effectiveRestRoutes = restRoutes ?? RestRouteRegistry(const []);
   final normalizedOpenApiPath = _normalizePath(openApiPath);
   final normalizedDocsPath = _normalizePath(docsPath);
-  final normalizedStaticPath =
-      staticAssets != null ? _normalizePath(staticAssets.path) : null;
-  final normalizedHealthPath =
-      health != null ? _normalizePath(health.path) : null;
-  final normalizedMetricsPath =
-      metrics != null ? _normalizePath(metrics.path) : null;
+  final normalizedStaticPath = staticAssets != null
+      ? _normalizePath(staticAssets.path)
+      : null;
+  final normalizedHealthPath = health != null
+      ? _normalizePath(health.path)
+      : null;
+  final normalizedMetricsPath = metrics != null
+      ? _normalizePath(metrics.path)
+      : null;
 
   final baseHandler = (RpcHttpRequest request) async {
     final path = _normalizePath(request.path);
     if (docsBasicAuth != null &&
         (path == normalizedOpenApiPath || path == normalizedDocsPath)) {
-      final unauthorizedResponse = _requireDocsBasicAuth(request, docsBasicAuth);
+      final unauthorizedResponse = _requireDocsBasicAuth(
+        request,
+        docsBasicAuth,
+      );
       if (unauthorizedResponse != null) {
         return unauthorizedResponse;
       }
@@ -228,10 +234,9 @@ RpcHttpHandler createRpcHttpHandler({
 
     if (normalizedStaticPath != null) {
       final isAtStaticPath = path == normalizedStaticPath;
-      final isSubPath =
-          normalizedStaticPath == '/'
-              ? true
-              : path.startsWith('$normalizedStaticPath/');
+      final isSubPath = normalizedStaticPath == '/'
+          ? true
+          : path.startsWith('$normalizedStaticPath/');
 
       if (isAtStaticPath || isSubPath) {
         final staticResponse = await _handleStaticRequest(
@@ -516,11 +521,9 @@ Future<RpcHttpResponse> _handleStaticRequest(
     return const RpcHttpResponse(statusCode: HttpStatus.notFound);
   }
 
-  final candidatePath = File.fromUri(baseDirectory.uri.resolve(relativePath)).path;
-  if (!_isPathWithinBase(basePath, candidatePath)) {
-    return const RpcHttpResponse(statusCode: HttpStatus.notFound);
-  }
-
+  final candidatePath = File.fromUri(
+    baseDirectory.uri.resolve(relativePath),
+  ).path;
   final file = File(candidatePath);
   if (!await file.exists()) {
     // If it's a directory, try index.html
@@ -532,12 +535,9 @@ Future<RpcHttpResponse> _handleStaticRequest(
         return const RpcHttpResponse(statusCode: HttpStatus.notFound);
       }
 
-      final indexPath =
-          File.fromUri(directory.uri.resolve(options.defaultDocument)).path;
-      if (!_isPathWithinBase(basePath, indexPath)) {
-        return const RpcHttpResponse(statusCode: HttpStatus.notFound);
-      }
-
+      final indexPath = File.fromUri(
+        directory.uri.resolve(options.defaultDocument),
+      ).path;
       final indexFile = File(indexPath);
       if (await indexFile.exists()) {
         final resolvedIndexPath = await _resolveExistingEntityPath(indexFile);
@@ -554,7 +554,8 @@ Future<RpcHttpResponse> _handleStaticRequest(
   }
 
   final resolvedFilePath = await _resolveExistingEntityPath(file);
-  if (resolvedFilePath == null || !_isPathWithinBase(basePath, resolvedFilePath)) {
+  if (resolvedFilePath == null ||
+      !_isPathWithinBase(basePath, resolvedFilePath)) {
     return const RpcHttpResponse(statusCode: HttpStatus.notFound);
   }
 
@@ -645,7 +646,10 @@ Future<RpcHttpResponse> _handleHealthRequest(
 
   return _jsonResponse(
     isHealthy ? HttpStatus.ok : HttpStatus.serviceUnavailable,
-    {'status': isHealthy ? 'up' : 'down', 'timestamp': DateTime.now().toIso8601String()},
+    {
+      'status': isHealthy ? 'up' : 'down',
+      'timestamp': DateTime.now().toIso8601String(),
+    },
   );
 }
 
@@ -653,12 +657,13 @@ Future<RpcHttpResponse> _handleMetricsRequest(
   RpcHttpRequest request, {
   required RpcHttpMetricsOptions options,
 }) async {
-  // TODO: Implement actual metrics collection. 
+  // TODO: Implement actual metrics collection.
   // For now, return basic info.
   return _jsonResponse(HttpStatus.ok, {
     'pid': pid,
     'memory_usage': ProcessInfo.currentRss,
-    'uptime_seconds': (DateTime.now().millisecondsSinceEpoch - _startTime) ~/ 1000,
+    'uptime_seconds':
+        (DateTime.now().millisecondsSinceEpoch - _startTime) ~/ 1000,
   });
 }
 

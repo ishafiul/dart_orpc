@@ -42,7 +42,7 @@ void main() {
         response.headers['access-control-allow-methods'],
         contains('OPTIONS'),
       );
-      expect(response.body, isEmpty);
+      expect(response.body, isNull);
     });
 
     test('supports custom allowOrigin', () async {
