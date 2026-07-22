@@ -96,6 +96,95 @@ Future<void> main() async {
 
 Full flow (RPC + analysis call + error handling) lives in `apps/client_app/bin/client.dart`.
 
+### RPC HTTP interceptors
+
+`HttpRpcTransport` accepts transport-independent interceptors for authentication,
+logging, retries, caching, and request or response transformation. Interceptors
+run in list order for requests and reverse order for responses.
+
+```dart
+final class AuthInterceptor implements RpcInterceptorCore {
+  const AuthInterceptor(this.token);
+
+  final String token;
+
+  @override
+  Future<HttpRpcResponse> intercept(
+    HttpRpcRequest request,
+    HttpRpcHandler next,
+  ) {
+    return next.next(
+      request.copyWith(
+        headers: {
+          ...request.headers,
+          'authorization': 'Bearer $token',
+        },
+      ),
+    );
+  }
+}
+
+final transport = HttpRpcTransport(
+  baseUrl: 'https://api.example.com',
+  interceptors: [AuthInterceptor(token)],
+);
+```
+
+An interceptor can inspect or replace the response after `next.next`, recover
+from errors with `try`/`catch`, return a response without sending a request, or
+implement a bounded retry by calling the same downstream handler again.
+
+```dart
+final class LoggingInterceptor extends RpcInterceptor {
+  @override
+  Future<HttpRpcRequest> onRequest(HttpRpcRequest request) async {
+    print('RPC ${request.rpcRequest.method} started');
+    return request;
+  }
+
+  @override
+  Future<HttpRpcResponse> onResponse(HttpRpcResponse response) async {
+    print('RPC completed with HTTP ${response.statusCode}');
+    return response;
+  }
+
+  @override
+  Future<HttpRpcResponse> onError(
+    Object error,
+    StackTrace stackTrace,
+    HttpRpcRequest request,
+  ) async {
+    print('RPC ${request.rpcRequest.method} failed: $error');
+    Error.throwWithStackTrace(error, stackTrace);
+  }
+}
+
+final class RetryInterceptor implements RpcInterceptorCore {
+  const RetryInterceptor({this.maxAttempts = 3});
+
+  final int maxAttempts;
+
+  @override
+  Future<HttpRpcResponse> intercept(
+    HttpRpcRequest request,
+    HttpRpcHandler next,
+  ) async {
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await next.next(request);
+      } catch (_) {
+        if (attempt == maxAttempts) rethrow;
+      }
+    }
+    throw StateError('Retry attempts exhausted');
+  }
+}
+```
+
+The same `try`/`catch` pattern can return a synthetic `HttpRpcResponse` to
+recover from a failure, while returning one before `next.next` implements a
+cache or other short-circuit behavior.
+
 ## Scalar docs and OpenAPI JSON
 
 With `basic_app` running (default port **3000**):
