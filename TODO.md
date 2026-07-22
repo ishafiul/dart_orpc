@@ -60,10 +60,10 @@ No blocked items.
 
 | Item | Branch | Pull request | Status |
 | --- | --- | --- | --- |
-| GEN-001 | `refactor/generator-architecture` | — | In progress |
-| BUG-001 | `refactor/generator-architecture` | — | Implemented |
-| BUG-002 | `refactor/generator-architecture` | — | Implemented |
-| BUG-003 | `refactor/generator-architecture` | — | Implemented |
-| BUG-004 | `refactor/generator-architecture` | — | Implemented |
-| BUG-005 | `refactor/generator-architecture` | — | Implemented |
-| QA-002 | `refactor/generator-architecture` | — | Implemented |
+| GEN-001 | `refactor/generator-architecture` | [#1](https://github.com/ishafiul/dart_orpc/pull/1) | In review |
+| BUG-001 | `refactor/generator-architecture` | [#1](https://github.com/ishafiul/dart_orpc/pull/1) | In review |
+| BUG-002 | `refactor/generator-architecture` | [#1](https://github.com/ishafiul/dart_orpc/pull/1) | In review |
+| BUG-003 | `refactor/generator-architecture` | [#1](https://github.com/ishafiul/dart_orpc/pull/1) | In review |
+| BUG-004 | `refactor/generator-architecture` | [#1](https://github.com/ishafiul/dart_orpc/pull/1) | In review |
+| BUG-005 | `refactor/generator-architecture` | [#1](https://github.com/ishafiul/dart_orpc/pull/1) | In review |
+| QA-002 | `refactor/generator-architecture` | [#1](https://github.com/ishafiul/dart_orpc/pull/1) | In review |
