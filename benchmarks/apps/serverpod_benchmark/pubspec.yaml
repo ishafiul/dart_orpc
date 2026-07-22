@@ -1,0 +1,12 @@
+name: _
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+
+workspace:
+  - serverpod_benchmark_client
+  - serverpod_benchmark_server
+
+dev_dependencies:
+  serverpod_cli: 3.4.11

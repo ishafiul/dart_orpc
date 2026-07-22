@@ -1,0 +1,4 @@
+benchmark:
+  - plaintext:
+  - json:
+  - echo:

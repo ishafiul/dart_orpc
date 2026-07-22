@@ -1,0 +1,12 @@
+name: serverpod_benchmark_client
+description: Generated client for the Serverpod benchmark fixture.
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+
+resolution: workspace
+
+dependencies:
+  serverpod_client: 3.4.11
+

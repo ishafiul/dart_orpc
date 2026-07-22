@@ -1,0 +1,5 @@
+include: package:dart_frog_lint/recommended.yaml
+
+analyzer:
+  exclude:
+    - build/**

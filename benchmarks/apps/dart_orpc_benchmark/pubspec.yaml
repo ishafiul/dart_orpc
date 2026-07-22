@@ -1,0 +1,17 @@
+name: dart_orpc_benchmark
+description: Runtime benchmark fixture for dart_orpc.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  dart_orpc_core:
+    path: ../../../packages/dart_orpc_core
+  dart_orpc_http:
+    path: ../../../packages/dart_orpc_http
+
+dependency_overrides:
+  dart_orpc_core:
+    path: ../../../packages/dart_orpc_core

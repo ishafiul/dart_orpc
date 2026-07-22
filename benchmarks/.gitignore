@@ -1,0 +1,4 @@
+build/
+results/*.json
+apps/**/.dart_tool/
+apps/**/build/

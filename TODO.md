@@ -32,13 +32,13 @@ No ready items.
 - [ ] **CLIENTGEN-001 · P1 · Feature:** Add non-Dart client generation.
 - [ ] **QA-001 · P1 · Test:** Add an end-to-end generated server and client acceptance
   test.
-- [ ] **PERF-001 · P2 · Performance:** Establish performance baselines and regression
-  tracking.
 
 ## In progress
 
 - [ ] **GEN-001 · P1 · Maintenance:** Refactor the generator into a maintainable,
   well-structured, and approachable architecture.
+- [ ] **PERF-001 · P2 · Performance:** Establish performance baselines and regression
+  tracking.
 
 ## Blocked
 
