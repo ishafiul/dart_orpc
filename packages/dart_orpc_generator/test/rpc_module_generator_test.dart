@@ -1,20 +1,17 @@
 import 'package:build/build.dart';
-import 'package:build_test/build_test.dart';
-import 'package:dart_orpc_generator/dart_orpc_generator.dart';
 import 'package:test/test.dart';
+
+import 'support/generator_test_harness.dart';
 
 void main() {
   group('Given RpcModuleGenerator', () {
     test(
       'When the builder runs for a valid module then it emits registry, metadata, app, and client code',
       () async {
-        final run = await _runBuilder(_validRpcModuleSource);
+        final run = await runModuleBuilder(_validRpcModuleSource);
 
-        expect(run.result.succeeded, isTrue);
-        expect(
-          run.result.outputs,
-          contains(AssetId('a', 'lib/example.orpc.dart')),
-        );
+        expect(run.succeeded, isTrue);
+        expect(run.outputs, contains(AssetId('a', 'lib/example.orpc.dart')));
 
         final generatedOutput = run.generatedOutput;
         expect(
@@ -117,11 +114,11 @@ void main() {
         );
         expect(generatedOutput, contains('middleware: middleware,'));
         expect(
-          _countMatches(generatedOutput, 'final userService = UserService();'),
+          countMatches(generatedOutput, 'final userService = UserService();'),
           1,
         );
         expect(
-          _countMatches(
+          countMatches(
             generatedOutput,
             'final userController = UserController(userService);',
           ),
@@ -139,12 +136,12 @@ void main() {
     test(
       'When client DTOs live in a separate contract library then the generated module library re-exports that contract library',
       () async {
-        final run = await _runBuilder(
+        final run = await runModuleBuilder(
           _splitContractModuleSource,
           additionalSources: {'lib/contracts.dart': _splitContractDtoSource},
         );
 
-        expect(run.result.succeeded, isTrue);
+        expect(run.succeeded, isTrue);
         expect(
           run.generatedOutput,
           contains("export 'package:a/contracts.dart';"),
@@ -155,9 +152,9 @@ void main() {
     test(
       'When controller and method guards are declared then the generated module resolves guard providers and runs them for both RPC and REST',
       () async {
-        final run = await _runBuilder(_guardedRpcModuleSource);
+        final run = await runModuleBuilder(_guardedRpcModuleSource);
 
-        expect(run.result.succeeded, isTrue);
+        expect(run.succeeded, isTrue);
 
         final generatedOutput = run.generatedOutput;
         expect(generatedOutput, contains('final authGuard = AuthGuard();'));
@@ -167,17 +164,15 @@ void main() {
         );
         expect(
           generatedOutput,
-          contains('beforeInvoke: (context, input) => runRpcGuards('),
+          contains("metadata: metadataRegistry['user.getById']!,"),
         );
         expect(
-          generatedOutput,
-          contains("procedure: metadataRegistry['user.getById']!,"),
+          countMatches(
+            generatedOutput,
+            'guards: [container.authGuard, container.userReadGuard],',
+          ),
+          2,
         );
-        expect(
-          generatedOutput,
-          contains('[container.authGuard, container.userReadGuard],'),
-        );
-        expect(generatedOutput, contains('await runRpcGuards('));
         expect(
           generatedOutput,
           contains("guardTypes: ['AuthGuard', 'UserReadGuard'],"),
@@ -194,9 +189,9 @@ void main() {
     test(
       'When a module includes a REST-enabled method then it emits procedure metadata for explicit REST parameters',
       () async {
-        final run = await _runBuilder(_validRestMetadataSource);
+        final run = await runModuleBuilder(_validRestMetadataSource);
 
-        expect(run.result.succeeded, isTrue);
+        expect(run.succeeded, isTrue);
 
         final generatedOutput = run.generatedOutput;
         expect(
@@ -277,9 +272,9 @@ void main() {
     test(
       'When a REST-enabled method uses DTO field source annotations then it emits shared path, query, and header bindings from the same procedure',
       () async {
-        final run = await _runBuilder(_sharedRpcAndRestGetSource);
+        final run = await runModuleBuilder(_sharedRpcAndRestGetSource);
 
-        expect(run.result.succeeded, isTrue);
+        expect(run.succeeded, isTrue);
 
         final generatedOutput = run.generatedOutput;
         expect(generatedOutput, contains("method: 'user.getById',"));
@@ -351,9 +346,9 @@ void main() {
     test(
       'When a REST-enabled method uses @RpcInput(binding: ...) field refs for a POST route then it emits path, header, and body merging code',
       () async {
-        final run = await _runBuilder(_sharedRpcAndRestBodySource);
+        final run = await runModuleBuilder(_sharedRpcAndRestBodySource);
 
-        expect(run.result.succeeded, isTrue);
+        expect(run.succeeded, isTrue);
 
         final generatedOutput = run.generatedOutput;
         expect(
@@ -396,9 +391,9 @@ void main() {
     test(
       'When a module imports another module and consumes its exported provider then the builder emits a flattened app graph',
       () async {
-        final run = await _runBuilder(_nestedModuleSource);
+        final run = await runModuleBuilder(_nestedModuleSource);
 
-        expect(run.result.succeeded, isTrue);
+        expect(run.succeeded, isTrue);
 
         final generatedOutput = run.generatedOutput;
         expect(
@@ -433,9 +428,9 @@ void main() {
     test(
       'When a module re-exports an imported module then downstream modules can resolve its providers',
       () async {
-        final run = await _runBuilder(_reExportedModuleSource);
+        final run = await runModuleBuilder(_reExportedModuleSource);
 
-        expect(run.result.succeeded, isTrue);
+        expect(run.succeeded, isTrue);
 
         final generatedOutput = run.generatedOutput;
         expect(
@@ -449,9 +444,9 @@ void main() {
     test(
       'When a module imports another module through an intermediate module then composed client getters avoid transitive type references',
       () async {
-        final run = await _runBuilder(_transitiveClientCompositionSource);
+        final run = await runModuleBuilder(_transitiveClientCompositionSource);
 
-        expect(run.result.succeeded, isTrue);
+        expect(run.succeeded, isTrue);
 
         final generatedOutput = run.generatedOutput;
         expect(
@@ -476,12 +471,12 @@ void main() {
     test(
       'When a module imports another module from a separate library then the generated module library re-exports the child generated library',
       () async {
-        final run = await _runBuilder(
+        final run = await runModuleBuilder(
           _importingModuleSource,
           additionalSources: {'lib/api_module.dart': _importedApiModuleSource},
         );
 
-        expect(run.result.succeeded, isTrue);
+        expect(run.succeeded, isTrue);
         expect(
           run.generatedOutput,
           contains("export 'package:a/api_module.orpc.dart';"),
@@ -492,11 +487,11 @@ void main() {
     test(
       'When provider dependencies cannot be resolved then the builder reports a generation error',
       () async {
-        final run = await _runBuilder(_missingProviderDependencySource);
+        final run = await runModuleBuilder(_missingProviderDependencySource);
 
-        expect(run.result.succeeded, isFalse);
+        expect(run.succeeded, isFalse);
         expect(
-          run.result.errors.join('\n'),
+          run.errors.join('\n'),
           contains(
             'Unable to resolve provider constructor dependencies for: UserService.',
           ),
@@ -507,12 +502,12 @@ void main() {
     test(
       'When a guard is declared but not registered as a provider then generation fails',
       () async {
-        final run = await _runBuilder(_missingGuardProviderSource);
+        final run = await runModuleBuilder(_missingGuardProviderSource);
 
-        expect(run.result.succeeded, isFalse);
-        expect(run.result.errors.join('\n'), contains('guard "AuthGuard"'));
+        expect(run.succeeded, isFalse);
+        expect(run.errors.join('\n'), contains('guard "AuthGuard"'));
         expect(
-          run.result.errors.join('\n'),
+          run.errors.join('\n'),
           contains('not available as a module provider'),
         );
       },
@@ -521,11 +516,11 @@ void main() {
     test(
       'When a module import entry is not annotated with Module then generation fails',
       () async {
-        final run = await _runBuilder(_invalidImportedModuleSource);
+        final run = await runModuleBuilder(_invalidImportedModuleSource);
 
-        expect(run.result.succeeded, isFalse);
+        expect(run.succeeded, isFalse);
         expect(
-          run.result.errors.join('\n'),
+          run.errors.join('\n'),
           contains(
             '@Module.imports entries must be classes annotated with @Module.',
           ),
@@ -536,11 +531,11 @@ void main() {
     test(
       'When a module exports a provider that is not local or imported then generation fails',
       () async {
-        final run = await _runBuilder(_unknownExportSource);
+        final run = await runModuleBuilder(_unknownExportSource);
 
-        expect(run.result.succeeded, isFalse);
+        expect(run.succeeded, isFalse);
         expect(
-          run.result.errors.join('\n'),
+          run.errors.join('\n'),
           contains(
             'Module "AppModule" may only export its own providers or providers/modules from @Module.imports. Unknown export "UserService".',
           ),
@@ -549,11 +544,11 @@ void main() {
     );
 
     test('When module imports are circular then generation fails', () async {
-      final run = await _runBuilder(_circularModuleImportsSource);
+      final run = await runModuleBuilder(_circularModuleImportsSource);
 
-      expect(run.result.succeeded, isFalse);
+      expect(run.succeeded, isFalse);
       expect(
-        run.result.errors.join('\n'),
+        run.errors.join('\n'),
         contains(
           'Detected circular @Module.imports chain: AppModule -> UserModule -> AppModule.',
         ),
@@ -563,11 +558,11 @@ void main() {
     test(
       'When a REST-enabled method mixes @RpcInput with explicit REST source parameters then generation fails',
       () async {
-        final run = await _runBuilder(_mixedRpcInputAndRestParamsSource);
+        final run = await runModuleBuilder(_mixedRpcInputAndRestParamsSource);
 
-        expect(run.result.succeeded, isFalse);
+        expect(run.succeeded, isFalse);
         expect(
-          run.result.errors.join('\n'),
+          run.errors.join('\n'),
           contains(
             'RPC method "getById" may not mix @RpcInput with @PathParam, @QueryParam, or @Body.',
           ),
@@ -578,11 +573,11 @@ void main() {
     test(
       'When a REST-enabled method declares more than one body parameter then generation fails',
       () async {
-        final run = await _runBuilder(_multipleBodyParametersSource);
+        final run = await runModuleBuilder(_multipleBodyParametersSource);
 
-        expect(run.result.succeeded, isFalse);
+        expect(run.succeeded, isFalse);
         expect(
-          run.result.errors.join('\n'),
+          run.errors.join('\n'),
           contains(
             'RPC method "updateUser" may declare at most one @Body parameter.',
           ),
@@ -593,11 +588,11 @@ void main() {
     test(
       'When a REST-enabled method is missing a path placeholder binding then generation fails',
       () async {
-        final run = await _runBuilder(_missingPathBindingSource);
+        final run = await runModuleBuilder(_missingPathBindingSource);
 
-        expect(run.result.succeeded, isFalse);
+        expect(run.succeeded, isFalse);
         expect(
-          run.result.errors.join('\n'),
+          run.errors.join('\n'),
           contains(
             'RPC method "getById" must declare @PathParam bindings for route "/users/:id": id.',
           ),
@@ -608,11 +603,11 @@ void main() {
     test(
       'When a REST-enabled method binds a path parameter not present in the route then generation fails',
       () async {
-        final run = await _runBuilder(_unknownPathBindingSource);
+        final run = await runModuleBuilder(_unknownPathBindingSource);
 
-        expect(run.result.succeeded, isFalse);
+        expect(run.succeeded, isFalse);
         expect(
-          run.result.errors.join('\n'),
+          run.errors.join('\n'),
           contains(
             'RPC method "getById" declares @PathParam bindings not present in route "/users/:id": slug.',
           ),
@@ -623,11 +618,11 @@ void main() {
     test(
       'When a method uses REST source annotations without a REST mapping then generation fails',
       () async {
-        final run = await _runBuilder(_restSourceWithoutRestMappingSource);
+        final run = await runModuleBuilder(_restSourceWithoutRestMappingSource);
 
-        expect(run.result.succeeded, isFalse);
+        expect(run.succeeded, isFalse);
         expect(
-          run.result.errors.join('\n'),
+          run.errors.join('\n'),
           contains(
             'RPC method "getById" may only use @PathParam, @QueryParam, or @Body when RpcMethod(path: ...) is declared.',
           ),
@@ -638,11 +633,11 @@ void main() {
     test(
       'When a method declares duplicate query parameter wire names then generation fails',
       () async {
-        final run = await _runBuilder(_duplicateQueryWireNamesSource);
+        final run = await runModuleBuilder(_duplicateQueryWireNamesSource);
 
-        expect(run.result.succeeded, isFalse);
+        expect(run.succeeded, isFalse);
         expect(
-          run.result.errors.join('\n'),
+          run.errors.join('\n'),
           contains(
             'RPC method "search" declares duplicate @QueryParam wire name "include".',
           ),
@@ -650,92 +645,6 @@ void main() {
       },
     );
   });
-}
-
-Future<_BuilderRun> _runBuilder(
-  String source, {
-  Map<String, String> additionalSources = const {},
-}) async {
-  final readerWriter = TestReaderWriter(rootPackage: 'a');
-  await readerWriter.testing.loadIsolateSources();
-
-  final sources = <String, String>{
-    'a|lib/example.dart': source,
-    for (final entry in additionalSources.entries)
-      'a|${entry.key}': entry.value,
-  };
-
-  final partResult = await testBuilder(
-    dartOrpcBuilder(BuilderOptions(const {})),
-    sources,
-    rootPackage: 'a',
-    readerWriter: readerWriter,
-    generateFor: {'a|lib/example.dart'},
-  );
-
-  final generatedPartAsset = AssetId(
-    'a',
-    '.dart_tool/build/generated/a/lib/example.dart_orpc.g.part',
-  );
-  if (readerWriter.testing.exists(generatedPartAsset)) {
-    readerWriter.testing.writeString(AssetId('a', 'lib/example.g.dart'), '''
-// GENERATED CODE - DO NOT MODIFY BY HAND
-
-part of 'example.dart';
-
-${readerWriter.testing.readString(generatedPartAsset)}
-''');
-  }
-
-  final moduleResult = await testBuilder(
-    dartOrpcModuleBuilder(BuilderOptions(const {})),
-    sources,
-    rootPackage: 'a',
-    readerWriter: readerWriter,
-    generateFor: {'a|lib/example.dart'},
-  );
-
-  return _BuilderRun(
-    readerWriter: readerWriter,
-    result: _CombinedBuilderResult(
-      partResult: partResult,
-      moduleResult: moduleResult,
-    ),
-  );
-}
-
-final class _BuilderRun {
-  const _BuilderRun({required this.readerWriter, required this.result});
-
-  final TestReaderWriter readerWriter;
-  final _CombinedBuilderResult result;
-
-  String get generatedOutput {
-    final outputAsset = readerWriter.testing.assets.firstWhere(
-      (asset) => asset.path.endsWith('example.orpc.dart'),
-    );
-    return readerWriter.testing.readString(outputAsset);
-  }
-}
-
-final class _CombinedBuilderResult {
-  const _CombinedBuilderResult({
-    required this.partResult,
-    required this.moduleResult,
-  });
-
-  final dynamic partResult;
-  final dynamic moduleResult;
-
-  bool get succeeded => partResult.succeeded && moduleResult.succeeded;
-
-  List<dynamic> get outputs => [...partResult.outputs, ...moduleResult.outputs];
-
-  List<dynamic> get errors => [...partResult.errors, ...moduleResult.errors];
-}
-
-int _countMatches(String value, String pattern) {
-  return RegExp(RegExp.escape(pattern)).allMatches(value).length;
 }
 
 const _validRpcModuleSource = r'''

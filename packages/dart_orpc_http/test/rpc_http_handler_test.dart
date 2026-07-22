@@ -354,10 +354,7 @@ void main() {
         );
 
         expect(response.statusCode, HttpStatus.ok);
-        expect(
-          utf8.decode(response.body as List<int>),
-          '<h1>Hello Root</h1>',
-        );
+        expect(utf8.decode(response.body as List<int>), '<h1>Hello Root</h1>');
         expect(response.headers['content-type'], contains('text/html'));
 
         // Test fallback to index.html
@@ -374,31 +371,64 @@ void main() {
       }
     });
 
-    test('falls through to REST routes when static asset is not found', () async {
-      final tempDir = Directory.systemTemp.createTempSync('orpc_static_fallthrough_test');
+    test(
+      'falls through to REST routes when static asset is not found',
+      () async {
+        final tempDir = Directory.systemTemp.createTempSync(
+          'orpc_static_fallthrough_test',
+        );
+        try {
+          final staticHandler = createRpcHttpHandler(
+            procedures: registry,
+            restRoutes: restRoutes,
+            staticAssets: RpcHttpStaticOptions(
+              directory: tempDir.path,
+              path: '/',
+            ),
+          );
+
+          // Path that doesn't exist in static but exists in REST
+          final response = await staticHandler(
+            const RpcHttpRequest(method: 'GET', path: '/users/123'),
+          );
+
+          expect(response.statusCode, HttpStatus.ok);
+          expect(jsonDecode(response.body as String), {
+            'id': '123',
+            'name': 'Ada Lovelace',
+            'method': 'GET',
+          });
+        } finally {
+          tempDir.deleteSync(recursive: true);
+        }
+      },
+    );
+
+    test('does not serve static assets outside the configured root', () async {
+      final parentDir = Directory.systemTemp.createTempSync(
+        'orpc_static_traversal_test',
+      );
+      final staticDir = Directory('${parentDir.path}/public')..createSync();
+      final secretFile = File('${parentDir.path}/secret.txt')
+        ..writeAsStringSync('secret');
+
       try {
         final staticHandler = createRpcHttpHandler(
           procedures: registry,
-          restRoutes: restRoutes,
           staticAssets: RpcHttpStaticOptions(
-            directory: tempDir.path,
+            directory: staticDir.path,
             path: '/',
           ),
         );
 
-        // Path that doesn't exist in static but exists in REST
         final response = await staticHandler(
-          const RpcHttpRequest(method: 'GET', path: '/users/123'),
+          const RpcHttpRequest(method: 'GET', path: '/../secret.txt'),
         );
 
-        expect(response.statusCode, HttpStatus.ok);
-        expect(jsonDecode(response.body as String), {
-          'id': '123',
-          'name': 'Ada Lovelace',
-          'method': 'GET',
-        });
+        expect(response.statusCode, HttpStatus.notFound);
+        expect(secretFile.existsSync(), isTrue);
       } finally {
-        tempDir.deleteSync(recursive: true);
+        parentDir.deleteSync(recursive: true);
       }
     });
   });
