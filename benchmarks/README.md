@@ -82,6 +82,44 @@ The runner starts one AOT executable for each framework and writes the raw
 latency correction only applies to `oha` rate-limited (`-q`) runs, so it is not
 enabled here. The runner does not parse away any of the source data.
 
+## Result directory convention
+
+Every new benchmark session must use a separate directory containing the local
+date and tested Git commit:
+
+```text
+benchmarks/results/YYYY-MM-DD-<short-commit>/
+```
+
+If the worktree has uncommitted changes, use the current `HEAD` short hash and
+record `worktree: dirty` plus the relevant diff or change description in the
+session metadata. Never overwrite raw results from an earlier duration,
+scenario, configuration, or session.
+
+A complete session directory should contain:
+
+```text
+YYYY-MM-DD-<short-commit>/
+├── README.md                 # configuration, tables, interpretation, caveats
+├── metadata.json             # commit, worktree state, OS, CPU, RAM, Dart, oha
+├── load/                     # raw oha JSON, separated by scenario and duration
+├── resources/                # CPU and RSS samples
+└── gc/                       # verbose-GC logs and parsed summaries
+```
+
+Raw filenames must include enough configuration to remain unique, for example:
+
+```text
+load/dart_orpc-json-30s-c64.json
+resources/dart_orpc-json-60s-c64-q20000.tsv
+gc/dart_orpc-json-60s-c64-q20000.log
+```
+
+Keep the human-readable summary beside the raw evidence. A benchmark result is
+not complete until its commit, dirty-worktree status, scenario, duration,
+connections, requested rate, fixture order, success/error counts, and machine
+metadata are recorded.
+
 Run each scenario at connections `1`, `16`, `64`, and `256`, repeat each
 combination at least five times, and use the median. Randomize framework order
 when producing public results; the bundled runner uses a stable order for
