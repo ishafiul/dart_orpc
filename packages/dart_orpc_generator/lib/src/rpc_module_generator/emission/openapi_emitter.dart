@@ -72,9 +72,10 @@ void _writeOpenApiSections(StringBuffer buffer, _ModuleGenerationPlan context) {
       "  final effectiveOpenApiTitle = effectiveOpenApi.title ?? '${_escapeDartString(context.openApiTitle)}';",
     )
     ..writeln('  final effectiveOpenApiPath = effectiveDocs.openApiPath;')
+    ..writeln('  final runtime = ${names.createRuntimeName}();')
     ..writeln('  return RpcHttpApp(')
-    ..writeln('    procedures: ${names.createRegistryName}(),')
-    ..writeln('    restRoutes: ${names.createRestRouteRegistryName}(),')
+    ..writeln('    procedures: runtime.procedures,')
+    ..writeln('    restRoutes: runtime.restRoutes,')
     ..writeln(
       '    openApiDocument: ${names.createOpenApiDocumentName}(options: effectiveOpenApi),',
     )
