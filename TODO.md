@@ -46,6 +46,8 @@ No blocked items.
 
 ## Done
 
+- [x] **BUG-006 · P1 · Fix:** Make workspace tests run without a globally installed
+  Melos executable.
 - [x] **QA-002 · P1 · Test:** Establish comprehensive generator regression coverage
   and enforce a minimum coverage threshold.
 - [x] **BUG-004 · P1 · Fix:** Reject duplicate RPC methods and REST routes during
@@ -67,3 +69,4 @@ No blocked items.
 | BUG-004 | `refactor/generator-architecture` | [#1](https://github.com/ishafiul/dart_orpc/pull/1) | In review |
 | BUG-005 | `refactor/generator-architecture` | [#1](https://github.com/ishafiul/dart_orpc/pull/1) | In review |
 | QA-002 | `refactor/generator-architecture` | [#1](https://github.com/ishafiul/dart_orpc/pull/1) | In review |
+| BUG-006 | `refactor/generator-architecture` | [#1](https://github.com/ishafiul/dart_orpc/pull/1) | In review |

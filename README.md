@@ -114,12 +114,12 @@ The sample server protects **`/docs`** (and the OpenAPI URL the UI loads) with H
 
 ```sh
 dart pub get
-melos run analyze
-melos test
-melos run format
-melos run dev:basic-app
-melos run serve:basic-app
-melos run run:client-app
+dart run melos run analyze
+dart run melos test
+dart run melos run format
+dart run melos run dev:basic-app
+dart run melos run serve:basic-app
+dart run melos run run:client-app
 ```
 
 CLI:
