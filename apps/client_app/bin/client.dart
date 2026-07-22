@@ -6,7 +6,10 @@ import 'package:dart_orpc/dart_orpc.dart';
 Future<void> main(List<String> args) async {
   final baseUrl = args.isNotEmpty ? args.first : 'http://127.0.0.1:3000';
   final title = args.length > 1 ? args[1] : 'Client app RPC smoke test';
-  final transport = HttpRpcTransport(baseUrl: baseUrl);
+  final transport = HttpRpcTransport(
+    baseUrl: baseUrl,
+    interceptors: const [BasicLoggerInterceptor()],
+  );
   final client = const AppModule().createClient(transport: transport);
 
   try {
@@ -38,6 +41,37 @@ Future<void> main(List<String> args) async {
     });
   } finally {
     transport.close();
+  }
+}
+
+final class BasicLoggerInterceptor extends RpcInterceptor {
+  const BasicLoggerInterceptor();
+
+  @override
+  Future<HttpRpcRequest> onRequest(HttpRpcRequest request) async {
+    print(
+      '[RPC] ${request.rpcRequest.method} -> ${request.method} ${request.uri}',
+    );
+    return request;
+  }
+
+  @override
+  Future<HttpRpcResponse> onResponse(HttpRpcResponse response) async {
+    print(
+      '[RPC] ${response.request.rpcRequest.method} '
+      '<- HTTP ${response.statusCode}',
+    );
+    return response;
+  }
+
+  @override
+  Future<HttpRpcResponse> onError(
+    Object error,
+    StackTrace stackTrace,
+    HttpRpcRequest request,
+  ) async {
+    print('[RPC] ${request.rpcRequest.method} <- ERROR: $error');
+    Error.throwWithStackTrace(error, stackTrace);
   }
 }
 
