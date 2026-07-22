@@ -171,6 +171,8 @@ String _publicProcedureRegistryFactoryNameFor(String moduleName) =>
     'dartOrpcCreate${moduleName}ProcedureRegistry';
 String _publicRestRouteRegistryFactoryNameFor(String moduleName) =>
     'dartOrpcCreate${moduleName}RestRouteRegistry';
+String _publicModuleRuntimeFactoryNameFor(String moduleName) =>
+    'dartOrpcCreate${moduleName}Runtime';
 String _publicProcedureMetadataRegistryFactoryNameFor(String moduleName) =>
     'dartOrpcCreate${moduleName}ProcedureMetadataRegistry';
 String _publicOpenApiSchemaRegistryFactoryNameFor(String moduleName) =>

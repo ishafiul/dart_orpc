@@ -90,11 +90,21 @@ void main() {
         );
         expect(
           generatedOutput,
-          contains('procedures: _\$createAppModuleProcedureRegistry()'),
+          contains('final runtime = _\$createAppModuleRuntime();'),
+        );
+        expect(generatedOutput, contains('procedures: runtime.procedures'));
+        expect(generatedOutput, contains('restRoutes: runtime.restRoutes'));
+        expect(
+          generatedOutput,
+          contains(
+            '_\$createAppModuleProcedureRegistryFromContainer(container);',
+          ),
         );
         expect(
           generatedOutput,
-          contains('restRoutes: _\$createAppModuleRestRouteRegistry()'),
+          contains(
+            '_\$createAppModuleRestRouteRegistryFromContainer(container);',
+          ),
         );
         expect(
           generatedOutput,
@@ -403,6 +413,20 @@ void main() {
         expect(
           generatedOutput,
           contains('final adminController = AdminController(userService);'),
+        );
+        expect(
+          generatedOutput,
+          contains(
+            'final userModuleRuntime = dartOrpcCreateUserModuleRuntime();',
+          ),
+        );
+        expect(
+          generatedOutput,
+          contains('...userModuleRuntime.procedures.procedures,'),
+        );
+        expect(
+          generatedOutput,
+          contains('...userModuleRuntime.restRoutes.routes,'),
         );
         expect(
           generatedOutput,

@@ -8,6 +8,7 @@ void _writeContainerAndProcedureSections(
   _writeContainerFactory(buffer, context);
   _writeLocalProcedureRegistry(buffer, context);
   _writeProcedureRegistry(buffer, context);
+  _writeModuleRuntime(buffer, context);
 }
 
 void _writeContainerClass(StringBuffer buffer, _ModuleGenerationPlan context) {
@@ -149,5 +150,59 @@ void _writeProcedureRegistry(
     ..writeln()
     ..writeln(
       'RpcProcedureRegistry ${names.composeProcedureRegistryName}() => ${names.createRegistryName}();',
+    );
+}
+
+void _writeModuleRuntime(StringBuffer buffer, _ModuleGenerationPlan context) {
+  final names = context.generatedNames;
+  final importedModules = context.rootModule.importedModules;
+  final runtimeType =
+      '({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})';
+
+  buffer
+    ..writeln()
+    ..writeln('$runtimeType ${names.createRuntimeName}() {');
+
+  for (final importedModule in importedModules) {
+    final variableName = '${_camelCase(importedModule.displayName)}Runtime';
+    buffer.writeln(
+      '  final $variableName = ${_publicModuleRuntimeFactoryNameFor(importedModule.displayName)}();',
+    );
+  }
+  if (importedModules.isNotEmpty) {
+    buffer.writeln();
+  }
+
+  buffer
+    ..writeln('  final container = ${names.createContainerName}();')
+    ..writeln('  final localProcedures =')
+    ..writeln('      ${names.createRegistryFromContainerName}(container);')
+    ..writeln('  final localRestRoutes =')
+    ..writeln(
+      '      ${names.createRestRouteRegistryFromContainerName}(container);',
+    )
+    ..writeln()
+    ..writeln('  return (')
+    ..writeln('    procedures: RpcProcedureRegistry([');
+  for (final importedModule in importedModules) {
+    final variableName = '${_camelCase(importedModule.displayName)}Runtime';
+    buffer.writeln('      ...$variableName.procedures.procedures,');
+  }
+  buffer
+    ..writeln('      ...localProcedures.procedures,')
+    ..writeln('    ]),')
+    ..writeln('    restRoutes: RestRouteRegistry([');
+  for (final importedModule in importedModules) {
+    final variableName = '${_camelCase(importedModule.displayName)}Runtime';
+    buffer.writeln('      ...$variableName.restRoutes.routes,');
+  }
+  buffer
+    ..writeln('      ...localRestRoutes.routes,')
+    ..writeln('    ]),')
+    ..writeln('  );')
+    ..writeln('}')
+    ..writeln()
+    ..writeln(
+      '$runtimeType ${names.composeRuntimeName}() => ${names.createRuntimeName}();',
     );
 }

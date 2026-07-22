@@ -33,6 +33,8 @@ final class _GeneratedModuleNames {
     required this.createContainerName,
     required this.createRegistryFromContainerName,
     required this.createRestRouteRegistryFromContainerName,
+    required this.createRuntimeName,
+    required this.composeRuntimeName,
     required this.buildAppName,
     required this.composeBuildAppName,
   });
@@ -79,6 +81,8 @@ final class _GeneratedModuleNames {
           '_\$create${moduleName}ProcedureRegistryFromContainer',
       createRestRouteRegistryFromContainerName:
           '_\$create${moduleName}RestRouteRegistryFromContainer',
+      createRuntimeName: '_\$create${moduleName}Runtime',
+      composeRuntimeName: _publicModuleRuntimeFactoryNameFor(moduleName),
       buildAppName: '_\$build${moduleName}RpcApp',
       composeBuildAppName: _publicBuildAppFactoryNameFor(moduleName),
     );
@@ -103,6 +107,8 @@ final class _GeneratedModuleNames {
   final String createContainerName;
   final String createRegistryFromContainerName;
   final String createRestRouteRegistryFromContainerName;
+  final String createRuntimeName;
+  final String composeRuntimeName;
   final String buildAppName;
   final String composeBuildAppName;
 }

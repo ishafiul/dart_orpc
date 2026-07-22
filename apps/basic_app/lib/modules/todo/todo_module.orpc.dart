@@ -169,6 +169,25 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistry() {
 RpcProcedureRegistry dartOrpcCreateTodoModuleProcedureRegistry() =>
     _$createTodoModuleProcedureRegistry();
 
+({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
+_$createTodoModuleRuntime() {
+  final container = _$createTodoModuleContainer();
+  final localProcedures = _$createTodoModuleProcedureRegistryFromContainer(
+    container,
+  );
+  final localRestRoutes = _$createTodoModuleRestRouteRegistryFromContainer(
+    container,
+  );
+
+  return (
+    procedures: RpcProcedureRegistry([...localProcedures.procedures]),
+    restRoutes: RestRouteRegistry([...localRestRoutes.routes]),
+  );
+}
+
+({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
+dartOrpcCreateTodoModuleRuntime() => _$createTodoModuleRuntime();
+
 // ignore: unused_element
 RestRouteRegistry _$createTodoModuleLocalRestRouteRegistry() {
   final container = _$createTodoModuleContainer();
@@ -547,9 +566,10 @@ RpcHttpApp _$buildTodoModuleRpcApp({
   final effectiveDocs = docs ?? const RpcHttpDocsOptions();
   final effectiveOpenApiTitle = effectiveOpenApi.title ?? 'Todo API';
   final effectiveOpenApiPath = effectiveDocs.openApiPath;
+  final runtime = _$createTodoModuleRuntime();
   return RpcHttpApp(
-    procedures: _$createTodoModuleProcedureRegistry(),
-    restRoutes: _$createTodoModuleRestRouteRegistry(),
+    procedures: runtime.procedures,
+    restRoutes: runtime.restRoutes,
     openApiDocument: _$createTodoModuleOpenApiDocument(
       options: effectiveOpenApi,
     ),
