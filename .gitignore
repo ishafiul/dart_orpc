@@ -1,6 +1,7 @@
 .dart_tool/
 .packages
 build/
+coverage/
 pubspec.lock
 .melos_tool/
 .agent-memory/  

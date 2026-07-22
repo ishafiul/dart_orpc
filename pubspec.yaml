@@ -18,6 +18,7 @@ workspace:
   - apps/client_app
 
 dev_dependencies:
+  coverage: ^1.15.0
   melos: ^7.0.0
 
 melos:
@@ -31,6 +32,17 @@ melos:
     test:
       description: Run tests in workspace packages that define them.
       run: melos exec --fail-fast --dir-exists=test -- dart test
+    test:generator:coverage:
+      description: Verify generator tests and enforce at least 90% line coverage.
+      run: >-
+        dart test packages/dart_orpc_generator --coverage=coverage/generator &&
+        dart run coverage:format_coverage
+        --packages=.dart_tool/package_config.json
+        --report-on=packages/dart_orpc_generator/lib
+        --in=coverage/generator
+        --out=coverage/generator.lcov
+        --lcov &&
+        dart run tool/check_generator_coverage.dart coverage/generator.lcov 90
     format:
       description: Format the repository.
       run: dart format .
