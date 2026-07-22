@@ -45,6 +45,36 @@ RpcProcedureRegistry _$createAppModuleProcedureRegistry() {
 RpcProcedureRegistry dartOrpcCreateAppModuleProcedureRegistry() =>
     _$createAppModuleProcedureRegistry();
 
+({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
+_$createAppModuleRuntime() {
+  final todoModuleRuntime = dartOrpcCreateTodoModuleRuntime();
+  final todoAnalysisModuleRuntime = dartOrpcCreateTodoAnalysisModuleRuntime();
+
+  final container = _$createAppModuleContainer();
+  final localProcedures = _$createAppModuleProcedureRegistryFromContainer(
+    container,
+  );
+  final localRestRoutes = _$createAppModuleRestRouteRegistryFromContainer(
+    container,
+  );
+
+  return (
+    procedures: RpcProcedureRegistry([
+      ...todoModuleRuntime.procedures.procedures,
+      ...todoAnalysisModuleRuntime.procedures.procedures,
+      ...localProcedures.procedures,
+    ]),
+    restRoutes: RestRouteRegistry([
+      ...todoModuleRuntime.restRoutes.routes,
+      ...todoAnalysisModuleRuntime.restRoutes.routes,
+      ...localRestRoutes.routes,
+    ]),
+  );
+}
+
+({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
+dartOrpcCreateAppModuleRuntime() => _$createAppModuleRuntime();
+
 // ignore: unused_element
 RestRouteRegistry _$createAppModuleLocalRestRouteRegistry() {
   final container = _$createAppModuleContainer();
@@ -127,9 +157,10 @@ RpcHttpApp _$buildAppModuleRpcApp({
   final effectiveDocs = docs ?? const RpcHttpDocsOptions();
   final effectiveOpenApiTitle = effectiveOpenApi.title ?? 'App API';
   final effectiveOpenApiPath = effectiveDocs.openApiPath;
+  final runtime = _$createAppModuleRuntime();
   return RpcHttpApp(
-    procedures: _$createAppModuleProcedureRegistry(),
-    restRoutes: _$createAppModuleRestRouteRegistry(),
+    procedures: runtime.procedures,
+    restRoutes: runtime.restRoutes,
     openApiDocument: _$createAppModuleOpenApiDocument(
       options: effectiveOpenApi,
     ),

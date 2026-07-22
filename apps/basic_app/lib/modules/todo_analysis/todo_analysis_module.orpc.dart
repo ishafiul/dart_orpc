@@ -90,6 +90,24 @@ RpcProcedureRegistry _$createTodoAnalysisModuleProcedureRegistry() {
 RpcProcedureRegistry dartOrpcCreateTodoAnalysisModuleProcedureRegistry() =>
     _$createTodoAnalysisModuleProcedureRegistry();
 
+({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
+_$createTodoAnalysisModuleRuntime() {
+  final container = _$createTodoAnalysisModuleContainer();
+  final localProcedures =
+      _$createTodoAnalysisModuleProcedureRegistryFromContainer(container);
+  final localRestRoutes =
+      _$createTodoAnalysisModuleRestRouteRegistryFromContainer(container);
+
+  return (
+    procedures: RpcProcedureRegistry([...localProcedures.procedures]),
+    restRoutes: RestRouteRegistry([...localRestRoutes.routes]),
+  );
+}
+
+({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
+dartOrpcCreateTodoAnalysisModuleRuntime() =>
+    _$createTodoAnalysisModuleRuntime();
+
 // ignore: unused_element
 RestRouteRegistry _$createTodoAnalysisModuleLocalRestRouteRegistry() {
   final container = _$createTodoAnalysisModuleContainer();
@@ -206,9 +224,10 @@ RpcHttpApp _$buildTodoAnalysisModuleRpcApp({
   final effectiveDocs = docs ?? const RpcHttpDocsOptions();
   final effectiveOpenApiTitle = effectiveOpenApi.title ?? 'TodoAnalysis API';
   final effectiveOpenApiPath = effectiveDocs.openApiPath;
+  final runtime = _$createTodoAnalysisModuleRuntime();
   return RpcHttpApp(
-    procedures: _$createTodoAnalysisModuleProcedureRegistry(),
-    restRoutes: _$createTodoAnalysisModuleRestRouteRegistry(),
+    procedures: runtime.procedures,
+    restRoutes: runtime.restRoutes,
     openApiDocument: _$createTodoAnalysisModuleOpenApiDocument(
       options: effectiveOpenApi,
     ),
