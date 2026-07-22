@@ -46,6 +46,8 @@ No blocked items.
 
 ## Done
 
+- [x] **DI-001 · P1 · Architecture:** Share each generated module container
+  between its RPC and REST registries during application construction.
 - [x] **BUG-006 · P1 · Fix:** Make workspace tests run without a globally installed
   Melos executable.
 - [x] **QA-002 · P1 · Test:** Establish comprehensive generator regression coverage
