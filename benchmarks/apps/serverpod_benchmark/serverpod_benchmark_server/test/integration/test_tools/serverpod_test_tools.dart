@@ -115,18 +115,12 @@ class _InternalTestEndpoints extends TestEndpoints
     _i2.SerializationManager serializationManager,
     _i2.EndpointDispatch endpoints,
   ) {
-    benchmark = _BenchmarkEndpoint(
-      endpoints,
-      serializationManager,
-    );
+    benchmark = _BenchmarkEndpoint(endpoints, serializationManager);
   }
 }
 
 class _BenchmarkEndpoint {
-  _BenchmarkEndpoint(
-    this._endpointDispatch,
-    this._serializationManager,
-  );
+  _BenchmarkEndpoint(this._endpointDispatch, this._serializationManager);
 
   final _i2.EndpointDispatch _endpointDispatch;
 
