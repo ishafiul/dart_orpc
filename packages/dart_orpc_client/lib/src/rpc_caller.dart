@@ -8,7 +8,7 @@ typedef RpcResultDecoder<T> = T Function(Object? json);
 final class RpcCaller {
   const RpcCaller(this._transport);
 
-  final RpcTransport _transport;
+  final RpcUnaryTransport _transport;
 
   Future<T> call<T>({
     required String method,

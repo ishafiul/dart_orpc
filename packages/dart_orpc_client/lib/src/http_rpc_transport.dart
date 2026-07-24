@@ -7,7 +7,7 @@ import 'http_rpc_interceptor.dart';
 import 'rpc_client_exception.dart';
 import 'rpc_transport.dart';
 
-final class HttpRpcTransport implements RpcTransport {
+final class HttpRpcTransport implements RpcUnaryTransport {
   HttpRpcTransport({
     required String baseUrl,
     String endpointPath = '/rpc',
