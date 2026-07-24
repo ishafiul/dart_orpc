@@ -14,6 +14,7 @@ workspace:
   - packages/dart_orpc_http
   - packages/dart_orpc_luthor
   - packages/dart_orpc_openapi
+  - packages/dart_orpc_websocket
   - apps/basic_app
   - apps/client_app
 
