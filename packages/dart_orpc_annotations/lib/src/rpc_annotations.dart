@@ -19,18 +19,39 @@ final class Controller {
 }
 
 final class RestMapping {
-  const RestMapping.get(String path) : method = 'GET', rawPath = path;
+  const RestMapping.get(String path)
+    : method = 'GET',
+      rawPath = path,
+      isSse = false;
 
-  const RestMapping.post(String path) : method = 'POST', rawPath = path;
+  const RestMapping.post(String path)
+    : method = 'POST',
+      rawPath = path,
+      isSse = false;
 
-  const RestMapping.put(String path) : method = 'PUT', rawPath = path;
+  const RestMapping.put(String path)
+    : method = 'PUT',
+      rawPath = path,
+      isSse = false;
 
-  const RestMapping.patch(String path) : method = 'PATCH', rawPath = path;
+  const RestMapping.patch(String path)
+    : method = 'PATCH',
+      rawPath = path,
+      isSse = false;
 
-  const RestMapping.delete(String path) : method = 'DELETE', rawPath = path;
+  const RestMapping.delete(String path)
+    : method = 'DELETE',
+      rawPath = path,
+      isSse = false;
+
+  const RestMapping.sse(String path)
+    : method = 'GET',
+      rawPath = path,
+      isSse = true;
 
   final String method;
   final String rawPath;
+  final bool isSse;
 
   String get path {
     if (rawPath.isEmpty) {

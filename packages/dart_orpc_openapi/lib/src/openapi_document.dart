@@ -175,6 +175,7 @@ JsonObject _buildOperation(
   ProcedureMetadata procedure,
   OpenApiSchemaRegistry schemas,
 ) {
+  final isSse = procedure.path?.responseKind == RestResponseKind.sse;
   final parameters = procedure.parameters
       .where(
         (parameter) =>
@@ -194,9 +195,14 @@ JsonObject _buildOperation(
       '200': {
         'description': 'Successful response.',
         'content': {
-          'application/json': {
-            'schema': _schemaForTypeCode(procedure.outputTypeCode, schemas),
-          },
+          if (isSse)
+            'text/event-stream': {
+              'schema': {'type': 'string'},
+            }
+          else
+            'application/json': {
+              'schema': _schemaForTypeCode(procedure.outputTypeCode, schemas),
+            },
         },
       },
       'default': {
@@ -207,6 +213,17 @@ JsonObject _buildOperation(
       },
     },
   };
+
+  if (isSse) {
+    operation['x-dart-orpc-stream'] = {
+      'kind': 'server-stream',
+      'eventSchema': _schemaForTypeCode(procedure.outputTypeCode, schemas),
+      'terminalEvents': {
+        'complete': 'dart-orpc-complete',
+        'error': 'dart-orpc-error',
+      },
+    };
+  }
 
   if (procedure.description != null && procedure.description!.isNotEmpty) {
     operation['description'] = procedure.description;

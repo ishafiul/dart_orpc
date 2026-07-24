@@ -404,6 +404,37 @@ void main() {
       },
     );
 
+    test(
+      'Given root static assets when a POST REST route matches then REST takes precedence',
+      () async {
+        final tempDir = Directory.systemTemp.createTempSync(
+          'orpc_static_rest_precedence_test',
+        );
+        addTearDown(() => tempDir.deleteSync(recursive: true));
+        final staticHandler = createRpcHttpHandler(
+          procedures: registry,
+          restRoutes: restRoutes,
+          staticAssets: RpcHttpStaticOptions(
+            directory: tempDir.path,
+            path: '/',
+          ),
+        );
+
+        final response = await staticHandler(
+          RpcHttpRequest(
+            method: 'POST',
+            path: '/users',
+            body: jsonEncode({'title': 'Live WebSocket test'}),
+          ),
+        );
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(jsonDecode(response.body as String), {
+          'created': {'title': 'Live WebSocket test'},
+        });
+      },
+    );
+
     test('does not serve static assets outside the configured root', () async {
       final parentDir = Directory.systemTemp.createTempSync(
         'orpc_static_traversal_test',
