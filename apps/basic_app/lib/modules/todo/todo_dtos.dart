@@ -65,6 +65,18 @@ abstract class TodoResponseDto with _$TodoResponseDto {
 
 @luthor
 @freezed
+abstract class TodoChangeResponseDto with _$TodoChangeResponseDto {
+  const factory TodoChangeResponseDto({
+    required String type,
+    required TodoResponseDto todo,
+  }) = _TodoChangeResponseDto;
+
+  factory TodoChangeResponseDto.fromJson(Map<String, dynamic> json) =>
+      _$TodoChangeResponseDtoFromJson(json);
+}
+
+@luthor
+@freezed
 abstract class TodoListResponseDto with _$TodoListResponseDto {
   const factory TodoListResponseDto({required List<TodoResponseDto> items}) =
       _TodoListResponseDto;

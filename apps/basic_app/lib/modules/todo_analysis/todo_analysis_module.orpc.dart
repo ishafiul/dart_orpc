@@ -60,7 +60,7 @@ RpcProcedureRegistry _$createTodoAnalysisModuleProcedureRegistryFromContainer(
   final metadataRegistry =
       _$createTodoAnalysisModuleLocalProcedureMetadataRegistry();
   return RpcProcedureRegistry([
-    RpcProcedure<Null, TodoAnalysisSummaryDto>(
+    RpcUnaryProcedure<Null, TodoAnalysisSummaryDto>(
       method: 'todoAnalysis.summary',
       decodeInput: (rawInput) => expectNoRpcInput(
         rawInput,
@@ -120,7 +120,7 @@ RestRouteRegistry _$createTodoAnalysisModuleRestRouteRegistryFromContainer(
   final metadataRegistry =
       _$createTodoAnalysisModuleLocalProcedureMetadataRegistry();
   return RestRouteRegistry([
-    RestRoute(
+    RestUnaryRoute(
       method: 'GET',
       path: '/todos/analysis/summary',
       handler: (context, request, pathParameters) async {
@@ -218,6 +218,9 @@ RpcHttpApp _$buildTodoAnalysisModuleRpcApp({
   RpcHttpStaticOptions? staticAssets,
   RpcHttpHealthOptions? health,
   RpcHttpMetricsOptions? metrics,
+  RpcWebSocketServerOptions? webSocket,
+  RpcContextFactory? contextFactory,
+  Duration sseHeartbeatInterval = const Duration(seconds: 15),
   Iterable<RpcHttpMiddleware> middleware = const [],
 }) {
   final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();
@@ -243,6 +246,15 @@ RpcHttpApp _$buildTodoAnalysisModuleRpcApp({
     staticAssets: staticAssets,
     health: health,
     metrics: metrics,
+    contextFactory: contextFactory,
+    sseHeartbeatInterval: sseHeartbeatInterval,
+    upgradeHandlers: [
+      if (webSocket != null)
+        RpcWebSocketUpgradeHandler(
+          procedures: runtime.procedures,
+          options: webSocket,
+        ),
+    ],
     middleware: middleware,
   );
 }
@@ -253,6 +265,9 @@ RpcHttpApp dartOrpcBuildTodoAnalysisModuleRpcApp({
   RpcHttpStaticOptions? staticAssets,
   RpcHttpHealthOptions? health,
   RpcHttpMetricsOptions? metrics,
+  RpcWebSocketServerOptions? webSocket,
+  RpcContextFactory? contextFactory,
+  Duration sseHeartbeatInterval = const Duration(seconds: 15),
   Iterable<RpcHttpMiddleware> middleware = const [],
 }) => _$buildTodoAnalysisModuleRpcApp(
   openApi: openApi,
@@ -260,25 +275,30 @@ RpcHttpApp dartOrpcBuildTodoAnalysisModuleRpcApp({
   staticAssets: staticAssets,
   health: health,
   metrics: metrics,
+  webSocket: webSocket,
+  contextFactory: contextFactory,
+  sseHeartbeatInterval: sseHeartbeatInterval,
   middleware: middleware,
 );
 
 class TodoAnalysisClientRoot {
-  TodoAnalysisClientRoot({required RpcTransport transport})
-    : _caller = RpcCaller(transport);
+  TodoAnalysisClientRoot({required RpcClientTransports transports})
+    : _transports = transports;
 
-  final RpcCaller _caller;
+  final RpcClientTransports _transports;
 
-  late final todoAnalysis = TodoAnalysisClient(_caller);
+  late final todoAnalysis = TodoAnalysisClient(_transports);
 }
 
 class TodoAnalysisClient {
-  TodoAnalysisClient(this._caller);
+  TodoAnalysisClient(this._transports);
 
-  final RpcCaller _caller;
+  final RpcClientTransports _transports;
 
   Future<TodoAnalysisSummaryDto> summary() {
-    return _caller.call<TodoAnalysisSummaryDto>(
+    return RpcCaller(
+      _transports.requireUnary('todoAnalysis.summary'),
+    ).call<TodoAnalysisSummaryDto>(
       method: 'todoAnalysis.summary',
       decode: (json) => TodoAnalysisSummaryDto.fromJson(
         Map<String, dynamic>.from(
@@ -309,6 +329,9 @@ extension DartOrpcTodoAnalysisModuleGenerated on TodoAnalysisModule {
     RpcHttpStaticOptions? staticAssets,
     RpcHttpHealthOptions? health,
     RpcHttpMetricsOptions? metrics,
+    RpcWebSocketServerOptions? webSocket,
+    RpcContextFactory? contextFactory,
+    Duration sseHeartbeatInterval = const Duration(seconds: 15),
     Iterable<RpcHttpMiddleware> middleware = const [],
   }) => dartOrpcBuildTodoAnalysisModuleRpcApp(
     openApi: openApi,
@@ -316,8 +339,12 @@ extension DartOrpcTodoAnalysisModuleGenerated on TodoAnalysisModule {
     staticAssets: staticAssets,
     health: health,
     metrics: metrics,
+    webSocket: webSocket,
+    contextFactory: contextFactory,
+    sseHeartbeatInterval: sseHeartbeatInterval,
     middleware: middleware,
   );
-  TodoAnalysisClientRoot createClient({required RpcTransport transport}) =>
-      TodoAnalysisClientRoot(transport: transport);
+  TodoAnalysisClientRoot createClient({
+    required RpcClientTransports transports,
+  }) => TodoAnalysisClientRoot(transports: transports);
 }

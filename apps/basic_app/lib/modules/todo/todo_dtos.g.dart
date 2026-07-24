@@ -33,6 +33,11 @@ abstract final class TodoResponseDtoFields {
   static const title = RpcInputField<TodoResponseDto>('title');
 }
 
+abstract final class TodoChangeResponseDtoFields {
+  static const todo = RpcInputField<TodoChangeResponseDto>('todo');
+  static const type = RpcInputField<TodoChangeResponseDto>('type');
+}
+
 abstract final class TodoListResponseDtoFields {
   static const items = RpcInputField<TodoListResponseDto>('items');
 }
@@ -99,6 +104,17 @@ Map<String, dynamic> _$TodoResponseDtoToJson(_TodoResponseDto instance) =>
       'createdAt': instance.createdAt.toIso8601String(),
       'metadata': instance.metadata,
     };
+
+_TodoChangeResponseDto _$TodoChangeResponseDtoFromJson(
+  Map<String, dynamic> json,
+) => _TodoChangeResponseDto(
+  type: json['type'] as String,
+  todo: TodoResponseDto.fromJson(json['todo'] as Map<String, dynamic>),
+);
+
+Map<String, dynamic> _$TodoChangeResponseDtoToJson(
+  _TodoChangeResponseDto instance,
+) => <String, dynamic>{'type': instance.type, 'todo': instance.todo};
 
 _TodoListResponseDto _$TodoListResponseDtoFromJson(Map<String, dynamic> json) =>
     _TodoListResponseDto(
@@ -253,6 +269,40 @@ const TodoResponseDtoErrorKeys = (
   completed: "completed",
   createdAt: "createdAt",
   metadata: (priority: "metadata.priority", tags: "metadata.tags"),
+);
+
+// ignore: constant_identifier_names
+const TodoChangeResponseDtoSchemaKeys = (type: "type", todo: "todo");
+
+Validator $TodoChangeResponseDtoSchema = l
+    .withName('TodoChangeResponseDto')
+    .schema({
+      TodoChangeResponseDtoSchemaKeys.type: l.string().required(),
+      TodoChangeResponseDtoSchemaKeys.todo: $TodoResponseDtoSchema.required(),
+    });
+
+SchemaValidationResult<TodoChangeResponseDto> $TodoChangeResponseDtoValidate(
+  Map<String, dynamic> json,
+) => $TodoChangeResponseDtoSchema.validateSchema(
+  json,
+  fromJson: TodoChangeResponseDto.fromJson,
+);
+
+extension TodoChangeResponseDtoValidationExtension on TodoChangeResponseDto {
+  SchemaValidationResult<TodoChangeResponseDto> validateSelf() =>
+      $TodoChangeResponseDtoValidate(toJson());
+}
+
+// ignore: constant_identifier_names
+const TodoChangeResponseDtoErrorKeys = (
+  type: "type",
+  todo: (
+    id: "todo.id",
+    title: "todo.title",
+    completed: "todo.completed",
+    createdAt: "todo.createdAt",
+    metadata: (priority: "todo.metadata.priority", tags: "todo.metadata.tags"),
+  ),
 );
 
 // ignore: constant_identifier_names

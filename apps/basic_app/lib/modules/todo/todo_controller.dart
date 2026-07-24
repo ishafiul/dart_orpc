@@ -26,6 +26,33 @@ final class TodoController {
 
   @RequirePermissions(anyOf: ['todo.read', 'todo.admin'])
   @RpcMethod(
+    name: 'watch',
+    path: RestMapping.sse('/todos/events'),
+    description: 'Stream the current todo snapshot as validated events.',
+    tags: ['todo'],
+  )
+  Stream<TodoResponseDto> watch(RpcContext context) async* {
+    final snapshot = await todoService.list();
+    for (final todo in snapshot.items) {
+      context.cancellation.throwIfCancelled();
+      yield todo;
+    }
+  }
+
+  @RequirePermissions(anyOf: ['todo.read', 'todo.admin'])
+  @RpcMethod(
+    name: 'watchLive',
+    path: RestMapping.sse('/todos/live-events'),
+    description:
+        'Stream todo create, update, and delete events as they happen.',
+    tags: ['todo'],
+  )
+  Stream<TodoChangeResponseDto> watchLive(RpcContext _) {
+    return todoService.watchChanges();
+  }
+
+  @RequirePermissions(anyOf: ['todo.read', 'todo.admin'])
+  @RpcMethod(
     name: 'getById',
     path: RestMapping.get('/todos/:id'),
     description: 'Get a single todo by id.',

@@ -151,6 +151,9 @@ RpcHttpApp _$buildAppModuleRpcApp({
   RpcHttpStaticOptions? staticAssets,
   RpcHttpHealthOptions? health,
   RpcHttpMetricsOptions? metrics,
+  RpcWebSocketServerOptions? webSocket,
+  RpcContextFactory? contextFactory,
+  Duration sseHeartbeatInterval = const Duration(seconds: 15),
   Iterable<RpcHttpMiddleware> middleware = const [],
 }) {
   final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();
@@ -176,6 +179,15 @@ RpcHttpApp _$buildAppModuleRpcApp({
     staticAssets: staticAssets,
     health: health,
     metrics: metrics,
+    contextFactory: contextFactory,
+    sseHeartbeatInterval: sseHeartbeatInterval,
+    upgradeHandlers: [
+      if (webSocket != null)
+        RpcWebSocketUpgradeHandler(
+          procedures: runtime.procedures,
+          options: webSocket,
+        ),
+    ],
     middleware: middleware,
   );
 }
@@ -186,6 +198,9 @@ RpcHttpApp dartOrpcBuildAppModuleRpcApp({
   RpcHttpStaticOptions? staticAssets,
   RpcHttpHealthOptions? health,
   RpcHttpMetricsOptions? metrics,
+  RpcWebSocketServerOptions? webSocket,
+  RpcContextFactory? contextFactory,
+  Duration sseHeartbeatInterval = const Duration(seconds: 15),
   Iterable<RpcHttpMiddleware> middleware = const [],
 }) => _$buildAppModuleRpcApp(
   openApi: openApi,
@@ -193,19 +208,23 @@ RpcHttpApp dartOrpcBuildAppModuleRpcApp({
   staticAssets: staticAssets,
   health: health,
   metrics: metrics,
+  webSocket: webSocket,
+  contextFactory: contextFactory,
+  sseHeartbeatInterval: sseHeartbeatInterval,
   middleware: middleware,
 );
 
 class AppClient {
-  AppClient({required RpcTransport transport}) : _transport = transport;
+  AppClient({required RpcClientTransports transports})
+    : _transports = transports;
 
-  final RpcTransport _transport;
+  final RpcClientTransports _transports;
 
   late final TodoClientRoot _todoModuleClient = TodoClientRoot(
-    transport: _transport,
+    transports: _transports,
   );
   late final TodoAnalysisClientRoot _todoAnalysisModuleClient =
-      TodoAnalysisClientRoot(transport: _transport);
+      TodoAnalysisClientRoot(transports: _transports);
   late final todo = _todoModuleClient.todo;
   late final todoAnalysis = _todoAnalysisModuleClient.todoAnalysis;
 }
@@ -227,6 +246,9 @@ extension DartOrpcAppModuleGenerated on AppModule {
     RpcHttpStaticOptions? staticAssets,
     RpcHttpHealthOptions? health,
     RpcHttpMetricsOptions? metrics,
+    RpcWebSocketServerOptions? webSocket,
+    RpcContextFactory? contextFactory,
+    Duration sseHeartbeatInterval = const Duration(seconds: 15),
     Iterable<RpcHttpMiddleware> middleware = const [],
   }) => dartOrpcBuildAppModuleRpcApp(
     openApi: openApi,
@@ -234,8 +256,11 @@ extension DartOrpcAppModuleGenerated on AppModule {
     staticAssets: staticAssets,
     health: health,
     metrics: metrics,
+    webSocket: webSocket,
+    contextFactory: contextFactory,
+    sseHeartbeatInterval: sseHeartbeatInterval,
     middleware: middleware,
   );
-  AppClient createClient({required RpcTransport transport}) =>
-      AppClient(transport: transport);
+  AppClient createClient({required RpcClientTransports transports}) =>
+      AppClient(transports: transports);
 }

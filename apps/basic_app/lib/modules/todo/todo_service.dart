@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dart_orpc/dart_orpc.dart';
 import 'package:drift/drift.dart';
 
@@ -8,12 +10,14 @@ final class TodoService {
   TodoService(this.db);
 
   final AppDatabase db;
+  final StreamController<TodoChangeResponseDto> _changes =
+      StreamController<TodoChangeResponseDto>.broadcast(sync: true);
+
+  Stream<TodoChangeResponseDto> watchChanges() => _changes.stream;
 
   Future<TodoListResponseDto> list() async {
     final rows = await db.select(db.todos).get();
-    return TodoListResponseDto(
-      items: [for (final row in rows) _toDto(row)],
-    );
+    return TodoListResponseDto(items: [for (final row in rows) _toDto(row)]);
   }
 
   Future<TodoResponseDto> getById(int id) async {
@@ -27,10 +31,12 @@ final class TodoService {
   }
 
   Future<TodoResponseDto> create(String title) async {
-    final id = await db.into(db.todos).insert(
-      TodosCompanion.insert(title: title),
-    );
-    return getById(id);
+    final id = await db
+        .into(db.todos)
+        .insert(TodosCompanion.insert(title: title));
+    final todo = await getById(id);
+    _changes.add(TodoChangeResponseDto(type: 'created', todo: todo));
+    return todo;
   }
 
   Future<TodoResponseDto> update({
@@ -51,16 +57,20 @@ final class TodoService {
         completed: completed == null ? const Value.absent() : Value(completed),
       ),
     );
-    return getById(id);
+    final todo = await getById(id);
+    _changes.add(TodoChangeResponseDto(type: 'updated', todo: todo));
+    return todo;
   }
 
   Future<DeleteTodoResponseDto> deleteById(int id) async {
+    final todo = await getById(id);
     final deleted = await (db.delete(
       db.todos,
     )..where((t) => t.id.equals(id))).go();
     if (deleted == 0) {
       throw RpcException.notFound('Todo $id was not found.');
     }
+    _changes.add(TodoChangeResponseDto(type: 'deleted', todo: todo));
     return const DeleteTodoResponseDto();
   }
 

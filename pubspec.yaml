@@ -43,7 +43,11 @@ melos:
         --in=coverage/generator
         --out=coverage/generator.lcov
         --lcov &&
-        dart run tool/check_generator_coverage.dart coverage/generator.lcov 90
+        dart run tool/check_coverage.dart
+        coverage/generator.lcov 90 dart_orpc_generator
+    test:runtime:coverage:
+      description: Verify runtime packages and enforce at least 90% line coverage.
+      run: dart run tool/verify_runtime_coverage.dart
     format:
       description: Format the repository.
       run: dart format .

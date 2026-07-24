@@ -18,7 +18,24 @@ final class TodoPermissionGuard implements RpcGuard {
     if (rules.isEmpty) {
       return;
     }
-    print(rules.map((rule) => rule.anyOf?.join(', ')));
-    print(rules.map((rule) => rule.allOf?.join(', ')));
+    final configuredPermissions = context.rpcContext.attributes['permissions'];
+    if (configuredPermissions == null) {
+      return;
+    }
+    if (configuredPermissions is! Iterable ||
+        configuredPermissions.any((permission) => permission is! String)) {
+      throw RpcException.forbidden('Invalid permission context.');
+    }
+    final granted = configuredPermissions.cast<String>().toSet();
+    for (final rule in rules) {
+      final anyOf = rule.anyOf;
+      if (anyOf != null && anyOf.isNotEmpty && !anyOf.any(granted.contains)) {
+        throw RpcException.forbidden('Missing required permission.');
+      }
+      final allOf = rule.allOf;
+      if (allOf != null && !granted.containsAll(allOf)) {
+        throw RpcException.forbidden('Missing required permission.');
+      }
+    }
   }
 }

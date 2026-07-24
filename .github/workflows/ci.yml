@@ -29,3 +29,6 @@ jobs:
 
       - name: Enforce generator coverage
         run: dart run melos run test:generator:coverage
+
+      - name: Enforce runtime coverage
+        run: dart run melos run test:runtime:coverage

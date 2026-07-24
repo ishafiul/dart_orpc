@@ -19,10 +19,14 @@ Future<void> main() async {
     staticAssets: const RpcHttpStaticOptions(directory: 'public'),
     health: const RpcHttpHealthOptions(),
     metrics: const RpcHttpMetricsOptions(),
+    webSocket: const RpcWebSocketServerOptions(),
   );
   final server = await app.listen(3000);
   final baseUrl = 'http://127.0.0.1:${server.port}';
   print('RPC server listening on $baseUrl/rpc');
+  print('WebSocket RPC listening on ws://127.0.0.1:${server.port}/rpc/ws');
+  print('Todo SSE stream available at $baseUrl/todos/events');
+  print('Todo live SSE stream available at $baseUrl/todos/live-events');
 }
 
 RpcHttpHandler _requestLoggingMiddleware(RpcHttpHandler next) {
