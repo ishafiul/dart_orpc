@@ -23,11 +23,13 @@ void main() {
       ]);
 
       final response = await registry.dispatch(
-        const RpcContext(headers: {}),
+        RpcContext(headers: const {}),
         const RpcRequest(method: 'user.getById', input: {'id': '123'}),
       );
 
       expect(response, {'id': '123', 'name': 'Ada Lovelace'});
+      expect(registry.methods, ['user.getById']);
+      expect(registry.procedures.single.kind, RpcProcedureKind.unary);
     });
 
     test('throws not found for an unknown procedure', () async {
@@ -35,7 +37,7 @@ void main() {
 
       await expectLater(
         () => registry.dispatch(
-          const RpcContext(headers: {}),
+          RpcContext(headers: const {}),
           const RpcRequest(method: 'user.missing'),
         ),
         throwsA(
@@ -46,6 +48,24 @@ void main() {
                 'message',
                 'No RPC procedure registered for "user.missing".',
               ),
+        ),
+      );
+    });
+
+    test('throws not found when an unknown stream is dispatched', () {
+      final registry = RpcProcedureRegistry(const []);
+
+      expect(
+        registry.dispatchStream(
+          RpcContext(headers: const {}),
+          const RpcRequest(method: 'user.missing'),
+        ),
+        emitsError(
+          isA<RpcException>().having(
+            (error) => error.code,
+            'code',
+            RpcErrorCode.notFound,
+          ),
         ),
       );
     });

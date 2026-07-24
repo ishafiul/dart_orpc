@@ -24,6 +24,14 @@ final class RpcException implements Exception {
     return RpcException(code: RpcErrorCode.conflict, message: message);
   }
 
+  factory RpcException.cancelled([String message = 'RPC call was cancelled.']) {
+    return RpcException(code: RpcErrorCode.cancelled, message: message);
+  }
+
+  factory RpcException.resourceExhausted(String message) {
+    return RpcException(code: RpcErrorCode.resourceExhausted, message: message);
+  }
+
   factory RpcException.internalError([
     String message = 'Internal server error.',
   ]) {

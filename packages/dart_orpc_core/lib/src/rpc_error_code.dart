@@ -4,6 +4,8 @@ enum RpcErrorCode {
   forbidden('FORBIDDEN', 403),
   notFound('NOT_FOUND', 404),
   conflict('CONFLICT', 409),
+  cancelled('CANCELLED', 499),
+  resourceExhausted('RESOURCE_EXHAUSTED', 429),
   internalError('INTERNAL_ERROR', 500);
 
   const RpcErrorCode(this.wireName, this.statusCode);

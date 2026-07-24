@@ -170,12 +170,61 @@ void main() {
     test(
       'When constructing RpcContext with only headers then it defaults to POST /rpc',
       () {
-        const context = RpcContext(headers: {'accept': 'application/json'});
+        final headers = {'accept': 'application/json'};
+        final attributes = <String, Object?>{'tenant': 'acme'};
+        final context = RpcContext(headers: headers, attributes: attributes);
+
+        headers['accept'] = 'text/plain';
+        attributes['tenant'] = 'changed';
 
         expect(context.httpMethod, 'POST');
         expect(context.path, '/rpc');
+        expect(context.headers, {'accept': 'application/json'});
+        expect(context.attributes, {'tenant': 'acme'});
+        expect(
+          () => context.attributes['tenant'] = 'changed',
+          throwsUnsupportedError,
+        );
+
+        final copied = context.copyWith(
+          headers: const {'authorization': 'Bearer token'},
+          httpMethod: 'GET',
+          path: '/events',
+          attributes: const {'tenant': 'beta'},
+        );
+        expect(copied.headers, {'authorization': 'Bearer token'});
+        expect(copied.httpMethod, 'GET');
+        expect(copied.path, '/events');
+        expect(copied.attributes, {'tenant': 'beta'});
       },
     );
+
+    test(
+      'When copyWith omits values then it preserves every field and cancellation signal',
+      () {
+        final cancellation = RpcCancellationSource();
+        final context = RpcContext(
+          headers: const {'x-request-id': 'one'},
+          httpMethod: 'PATCH',
+          path: '/items/one',
+          attributes: const {'tenant': 'acme'},
+          cancellation: cancellation.signal,
+        );
+
+        final copied = context.copyWith();
+
+        expect(copied.headers, context.headers);
+        expect(copied.httpMethod, context.httpMethod);
+        expect(copied.path, context.path);
+        expect(copied.attributes, context.attributes);
+        expect(copied.cancellation, same(cancellation.signal));
+      },
+    );
+
+    test('When using the non-cancelling signal then it remains inert', () {
+      expect(RpcCancellationSignal.none.isCancelled, isFalse);
+      expect(RpcCancellationSignal.none.throwIfCancelled, returnsNormally);
+    });
   });
 
   group('Given procedure custom metadata', () {
@@ -216,10 +265,22 @@ void main() {
         ]);
       },
     );
+
+    test('When using every public factory then codes remain aligned', () {
+      expect(RpcException.unauthorized('auth').code, RpcErrorCode.unauthorized);
+      expect(RpcException.forbidden('denied').code, RpcErrorCode.forbidden);
+      expect(RpcException.conflict('duplicate').code, RpcErrorCode.conflict);
+      expect(RpcException.cancelled().code, RpcErrorCode.cancelled);
+      expect(
+        RpcException.resourceExhausted('full').code,
+        RpcErrorCode.resourceExhausted,
+      );
+      expect(RpcException.internalError().code, RpcErrorCode.internalError);
+    });
   });
 
   group('Given RpcProcedure input and output handling', () {
-    const context = RpcContext(headers: {'x-trace-id': 'trace-1'});
+    final context = RpcContext(headers: const {'x-trace-id': 'trace-1'});
     const procedureMetadata = ProcedureMetadata(
       rpcMethod: 'user.echo',
       controllerNamespace: 'user',

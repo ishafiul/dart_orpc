@@ -4,29 +4,57 @@ import 'rpc_procedure.dart';
 import 'rpc_request.dart';
 
 final class RpcProcedureRegistry {
-  RpcProcedureRegistry(Iterable<RpcCallableProcedure> procedures)
+  RpcProcedureRegistry(Iterable<RegisteredRpcProcedure> procedures)
     : _procedures = _indexProcedures(procedures);
 
-  final Map<String, RpcCallableProcedure> _procedures;
+  final Map<String, RegisteredRpcProcedure> _procedures;
 
   Iterable<String> get methods => _procedures.keys;
-  Iterable<RpcCallableProcedure> get procedures => _procedures.values;
+  Iterable<RegisteredRpcProcedure> get procedures => _procedures.values;
 
-  Future<Object?> dispatch(RpcContext context, RpcRequest request) async {
+  Future<Object?> dispatchUnary(RpcContext context, RpcRequest request) async {
     final procedure = _procedures[request.method];
     if (procedure == null) {
-      throw RpcException.notFound(
-        'No RPC procedure registered for "${request.method}".',
+      throw _notFound(request.method);
+    }
+    if (procedure is! RpcCallableProcedure) {
+      throw RpcException.badRequest(
+        'RPC procedure "${request.method}" is a server stream.',
       );
     }
 
     return procedure.invoke(context, request.input);
   }
 
-  static Map<String, RpcCallableProcedure> _indexProcedures(
-    Iterable<RpcCallableProcedure> procedures,
+  Stream<Object?> dispatchStream(
+    RpcContext context,
+    RpcRequest request,
+  ) async* {
+    final procedure = _procedures[request.method];
+    if (procedure == null) {
+      throw _notFound(request.method);
+    }
+    if (procedure is! RpcCallableStreamProcedure) {
+      throw RpcException.badRequest(
+        'RPC procedure "${request.method}" is unary.',
+      );
+    }
+
+    yield* procedure.invokeStream(context, request.input);
+  }
+
+  Future<Object?> dispatch(RpcContext context, RpcRequest request) {
+    return dispatchUnary(context, request);
+  }
+
+  static RpcException _notFound(String method) {
+    return RpcException.notFound('No RPC procedure registered for "$method".');
+  }
+
+  static Map<String, RegisteredRpcProcedure> _indexProcedures(
+    Iterable<RegisteredRpcProcedure> procedures,
   ) {
-    final indexed = <String, RpcCallableProcedure>{};
+    final indexed = <String, RegisteredRpcProcedure>{};
 
     for (final procedure in procedures) {
       if (indexed.containsKey(procedure.method)) {
