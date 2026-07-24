@@ -13,6 +13,14 @@ typedef RestRouteHandler =
       RpcHttpRequest request,
       Map<String, String> pathParameters,
     );
+typedef RestStreamRouteHandler =
+    Stream<Object?> Function(
+      RpcContext context,
+      RpcHttpRequest request,
+      Map<String, String> pathParameters,
+    );
+typedef RpcContextFactory =
+    FutureOr<RpcContext> Function(RpcHttpRequest request);
 
 final class RpcHttpBasicAuth {
   const RpcHttpBasicAuth({
@@ -74,6 +82,7 @@ final class RpcHttpRequest {
     this.headers = const {},
     this.queryParameters = const {},
     this.body = '',
+    this.cancellation = RpcCancellationSignal.none,
   });
 
   final String method;
@@ -81,52 +90,129 @@ final class RpcHttpRequest {
   final Map<String, String> headers;
   final Map<String, String> queryParameters;
   final String body;
+  final RpcCancellationSignal cancellation;
+}
+
+sealed class RpcHttpBody {
+  const RpcHttpBody();
+}
+
+final class RpcBufferedHttpBody extends RpcHttpBody {
+  const RpcBufferedHttpBody(this.value);
+
+  final Object? value;
+}
+
+final class RpcStreamingHttpBody extends RpcHttpBody {
+  const RpcStreamingHttpBody(this.chunks);
+
+  final Stream<List<int>> chunks;
 }
 
 final class RpcHttpResponse {
   const RpcHttpResponse({
     required this.statusCode,
     this.headers = const {},
-    this.body,
-  });
+    Object? body,
+  }) : _body = body,
+       _stream = null;
+
+  RpcHttpResponse.streaming({
+    required this.statusCode,
+    this.headers = const {},
+    required Stream<List<int>> body,
+  }) : _body = null,
+       _stream = body;
 
   final int statusCode;
   final Map<String, String> headers;
-  final Object? body;
+  final Object? _body;
+  final Stream<List<int>>? _stream;
+
+  RpcHttpBody get content => _stream == null
+      ? RpcBufferedHttpBody(_body)
+      : RpcStreamingHttpBody(_stream);
+
+  Object? get body => _stream ?? _body;
+
+  bool get isStreaming => _stream != null;
+
+  RpcHttpResponse copyWith({
+    int? statusCode,
+    Map<String, String>? headers,
+    RpcHttpBody? content,
+  }) {
+    final effectiveContent = content ?? this.content;
+    return switch (effectiveContent) {
+      RpcBufferedHttpBody(:final value) => RpcHttpResponse(
+        statusCode: statusCode ?? this.statusCode,
+        headers: headers ?? this.headers,
+        body: value,
+      ),
+      RpcStreamingHttpBody(:final chunks) => RpcHttpResponse.streaming(
+        statusCode: statusCode ?? this.statusCode,
+        headers: headers ?? this.headers,
+        body: chunks,
+      ),
+    };
+  }
 }
 
-final class RestRoute {
-  const RestRoute({
+sealed class RegisteredRestRoute {
+  const RegisteredRestRoute({
     required this.method,
     required this.path,
-    required this.handler,
     this.metadata,
     this.guards = const [],
   });
 
   final String method;
   final String path;
-  final RestRouteHandler handler;
   final ProcedureMetadata? metadata;
   final List<RpcGuard> guards;
 }
 
+final class RestUnaryRoute extends RegisteredRestRoute {
+  const RestUnaryRoute({
+    required super.method,
+    required super.path,
+    required this.handler,
+    super.metadata,
+    super.guards,
+  });
+
+  final RestRouteHandler handler;
+}
+
+final class RestStreamRoute extends RegisteredRestRoute {
+  const RestStreamRoute({
+    required super.path,
+    required this.handler,
+    super.metadata,
+    super.guards,
+  }) : super(method: 'GET');
+
+  final RestStreamRouteHandler handler;
+}
+
+typedef RestRoute = RestUnaryRoute;
+
 final class RestRouteMatch {
   const RestRouteMatch({required this.route, required this.pathParameters});
 
-  final RestRoute route;
+  final RegisteredRestRoute route;
   final Map<String, String> pathParameters;
 }
 
 final class RestRouteRegistry {
-  RestRouteRegistry(Iterable<RestRoute> routes)
-    : _routes = List<RestRoute>.unmodifiable(routes) {
+  RestRouteRegistry(Iterable<RegisteredRestRoute> routes)
+    : _routes = List<RegisteredRestRoute>.unmodifiable(routes) {
     _ensureUniqueRoutes(_routes);
   }
 
-  final List<RestRoute> _routes;
+  final List<RegisteredRestRoute> _routes;
 
-  Iterable<RestRoute> get routes => _routes;
+  Iterable<RegisteredRestRoute> get routes => _routes;
 
   RestRouteMatch? match({required String method, required String path}) {
     final normalizedMethod = method.toUpperCase();
@@ -160,7 +246,7 @@ final class RestRouteRegistry {
     return sorted;
   }
 
-  static void _ensureUniqueRoutes(List<RestRoute> routes) {
+  static void _ensureUniqueRoutes(List<RegisteredRestRoute> routes) {
     final seenSignatures = <String>{};
 
     for (final route in routes) {
@@ -184,6 +270,8 @@ RpcHttpHandler createRpcHttpHandler({
   RpcHttpStaticOptions? staticAssets,
   RpcHttpHealthOptions? health,
   RpcHttpMetricsOptions? metrics,
+  RpcContextFactory? contextFactory,
+  Duration sseHeartbeatInterval = const Duration(seconds: 15),
   Iterable<RpcHttpMiddleware> middleware = const [],
 }) {
   final effectiveRestRoutes = restRoutes ?? RestRouteRegistry(const []);
@@ -229,7 +317,38 @@ RpcHttpHandler createRpcHttpHandler({
     }
 
     if (path == '/rpc') {
-      return _handleRpcRequest(request, path: path, procedures: procedures);
+      return _handleRpcRequest(
+        request,
+        path: path,
+        procedures: procedures,
+        contextFactory: contextFactory,
+      );
+    }
+
+    final restMatch = effectiveRestRoutes.match(
+      method: request.method,
+      path: path,
+    );
+    if (restMatch != null) {
+      return _handleRestRequest(
+        request,
+        path: path,
+        match: restMatch,
+        contextFactory: contextFactory,
+        sseHeartbeatInterval: sseHeartbeatInterval,
+      );
+    }
+
+    final allowedMethods = effectiveRestRoutes.allowedMethodsFor(path);
+    if (allowedMethods.isNotEmpty) {
+      final allowHeader = allowedMethods.join(', ');
+      return _jsonResponse(
+        HttpStatus.methodNotAllowed,
+        RpcException.badRequest(
+          'REST endpoint only accepts $allowHeader requests.',
+        ).toResponse().toJson(),
+        extraHeaders: {'allow': allowHeader},
+      );
     }
 
     if (normalizedStaticPath != null) {
@@ -247,26 +366,6 @@ RpcHttpHandler createRpcHttpHandler({
           return staticResponse;
         }
       }
-    }
-
-    final restMatch = effectiveRestRoutes.match(
-      method: request.method,
-      path: path,
-    );
-    if (restMatch != null) {
-      return _handleRestRequest(request, path: path, match: restMatch);
-    }
-
-    final allowedMethods = effectiveRestRoutes.allowedMethodsFor(path);
-    if (allowedMethods.isNotEmpty) {
-      final allowHeader = allowedMethods.join(', ');
-      return _jsonResponse(
-        HttpStatus.methodNotAllowed,
-        RpcException.badRequest(
-          'REST endpoint only accepts $allowHeader requests.',
-        ).toResponse().toJson(),
-        extraHeaders: {'allow': allowHeader},
-      );
     }
 
     return const RpcHttpResponse(
@@ -361,6 +460,7 @@ Future<RpcHttpResponse> _handleRpcRequest(
   RpcHttpRequest request, {
   required String path,
   required RpcProcedureRegistry procedures,
+  RpcContextFactory? contextFactory,
 }) async {
   if (request.method != 'POST') {
     return _jsonResponse(
@@ -378,9 +478,13 @@ Future<RpcHttpResponse> _handleRpcRequest(
   try {
     final jsonBody = jsonDecode(request.body);
     final rpcRequest = RpcRequest.fromJson(jsonBody);
-    final context = _buildContext(request, path: path);
+    final context = await _buildContext(
+      request,
+      path: path,
+      contextFactory: contextFactory,
+    );
 
-    final data = await procedures.dispatch(context, rpcRequest);
+    final data = await procedures.dispatchUnary(context, rpcRequest);
     return _jsonResponse(
       HttpStatus.ok,
       RpcSuccessResponse(data: data).toJson(),
@@ -400,9 +504,15 @@ Future<RpcHttpResponse> _handleRestRequest(
   RpcHttpRequest request, {
   required String path,
   required RestRouteMatch match,
+  RpcContextFactory? contextFactory,
+  required Duration sseHeartbeatInterval,
 }) async {
   try {
-    final context = _buildContext(request, path: path);
+    final context = await _buildContext(
+      request,
+      path: path,
+      contextFactory: contextFactory,
+    );
 
     final metadata = match.route.metadata;
     if (metadata != null) {
@@ -413,16 +523,27 @@ Future<RpcHttpResponse> _handleRestRequest(
       );
     }
 
-    final data = await match.route.handler(
-      context,
-      request,
-      match.pathParameters,
-    );
-    return RpcHttpResponse(
-      statusCode: HttpStatus.ok,
-      headers: const {'content-type': 'application/json; charset=utf-8'},
-      body: jsonEncode(data),
-    );
+    return switch (match.route) {
+      RestUnaryRoute(:final handler) => RpcHttpResponse(
+        statusCode: HttpStatus.ok,
+        headers: const {'content-type': 'application/json; charset=utf-8'},
+        body: jsonEncode(await handler(context, request, match.pathParameters)),
+      ),
+      RestStreamRoute(:final handler) => RpcHttpResponse.streaming(
+        statusCode: HttpStatus.ok,
+        headers: const {
+          'content-type': 'text/event-stream; charset=utf-8',
+          'cache-control': 'no-cache',
+          'connection': 'keep-alive',
+          'x-accel-buffering': 'no',
+        },
+        body: encodeSseResponseBody(
+          handler(context, request, match.pathParameters),
+          heartbeatInterval: sseHeartbeatInterval,
+          cancellation: context.cancellation,
+        ),
+      ),
+    };
   } on RpcException catch (error) {
     return _rpcErrorResponse(error);
   } catch (_) {
@@ -642,7 +763,22 @@ Future<RpcHttpResponse> _handleHealthRequest(
   RpcHttpRequest request, {
   required RpcHttpHealthOptions options,
 }) async {
-  final isHealthy = options.check == null || await options.check!();
+  if (request.method != 'GET') {
+    return _jsonResponse(
+      HttpStatus.methodNotAllowed,
+      RpcException.badRequest(
+        'Health endpoint only accepts GET requests.',
+      ).toResponse().toJson(),
+      extraHeaders: const {'allow': 'GET'},
+    );
+  }
+
+  var isHealthy = true;
+  try {
+    isHealthy = options.check == null || await options.check!();
+  } catch (_) {
+    isHealthy = false;
+  }
 
   return _jsonResponse(
     isHealthy ? HttpStatus.ok : HttpStatus.serviceUnavailable,
@@ -657,6 +793,16 @@ Future<RpcHttpResponse> _handleMetricsRequest(
   RpcHttpRequest request, {
   required RpcHttpMetricsOptions options,
 }) async {
+  if (request.method != 'GET') {
+    return _jsonResponse(
+      HttpStatus.methodNotAllowed,
+      RpcException.badRequest(
+        'Metrics endpoint only accepts GET requests.',
+      ).toResponse().toJson(),
+      extraHeaders: const {'allow': 'GET'},
+    );
+  }
+
   // TODO: Implement actual metrics collection.
   // For now, return basic info.
   return _jsonResponse(HttpStatus.ok, {
@@ -669,12 +815,121 @@ Future<RpcHttpResponse> _handleMetricsRequest(
 
 final _startTime = DateTime.now().millisecondsSinceEpoch;
 
-RpcContext _buildContext(RpcHttpRequest request, {required String path}) {
+Future<RpcContext> _buildContext(
+  RpcHttpRequest request, {
+  required String path,
+  RpcContextFactory? contextFactory,
+}) async {
+  if (contextFactory != null) {
+    final context = await contextFactory(request);
+    return context.copyWith(cancellation: request.cancellation);
+  }
+
   return RpcContext(
     headers: Map<String, String>.unmodifiable(request.headers),
     httpMethod: request.method,
     path: path,
+    cancellation: request.cancellation,
   );
+}
+
+Stream<List<int>> encodeSseResponseBody(
+  Stream<Object?> events, {
+  Duration heartbeatInterval = const Duration(seconds: 15),
+  RpcCancellationSignal cancellation = RpcCancellationSignal.none,
+}) {
+  late StreamController<List<int>> controller;
+  StreamSubscription<Object?>? subscription;
+  Timer? heartbeat;
+  var terminated = false;
+
+  void addText(String value) {
+    if (!controller.isClosed) {
+      controller.add(utf8.encode(value));
+    }
+  }
+
+  Future<void> terminateWithError(Object error) async {
+    if (terminated) {
+      return;
+    }
+    terminated = true;
+    final rpcError = error is RpcException
+        ? error
+        : RpcException.internalError();
+    addText(
+      'event: dart-orpc-error\n'
+      'data: ${jsonEncode(rpcError.toResponse().toJson())}\n\n',
+    );
+    heartbeat?.cancel();
+    await subscription?.cancel();
+    await controller.close();
+  }
+
+  Future<void> complete() async {
+    if (terminated) {
+      return;
+    }
+    terminated = true;
+    addText('event: dart-orpc-complete\ndata: {}\n\n');
+    heartbeat?.cancel();
+    await controller.close();
+  }
+
+  Future<void> cancelFromSignal() async {
+    if (terminated) {
+      return;
+    }
+    terminated = true;
+    heartbeat?.cancel();
+    await subscription?.cancel();
+    if (!controller.isClosed) {
+      await controller.close();
+    }
+  }
+
+  controller = StreamController<List<int>>(
+    onListen: () {
+      if (!identical(cancellation, RpcCancellationSignal.none)) {
+        unawaited(cancellation.cancelled.then((_) => cancelFromSignal()));
+      }
+      subscription = events.listen(
+        (event) {
+          if (terminated) {
+            return;
+          }
+          try {
+            addText('data: ${jsonEncode(event)}\n\n');
+          } catch (error) {
+            unawaited(terminateWithError(error));
+          }
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          unawaited(terminateWithError(error));
+        },
+        onDone: () {
+          unawaited(complete());
+        },
+        cancelOnError: false,
+      );
+      if (heartbeatInterval > Duration.zero) {
+        heartbeat = Timer.periodic(heartbeatInterval, (_) {
+          if (!terminated && !controller.isPaused) {
+            addText(': dart-orpc-ping\n\n');
+          }
+        });
+      }
+    },
+    onPause: () => subscription?.pause(),
+    onResume: () => subscription?.resume(),
+    onCancel: () async {
+      terminated = true;
+      heartbeat?.cancel();
+      await subscription?.cancel();
+    },
+  );
+
+  return controller.stream;
 }
 
 Map<String, String>? _matchPathPattern(String pattern, String actualPath) {

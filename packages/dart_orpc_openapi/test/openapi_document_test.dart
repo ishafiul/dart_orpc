@@ -143,6 +143,69 @@ void main() {
     );
 
     test(
+      'When a server stream has an SSE mapping then OpenAPI documents its event schema and terminal events',
+      () {
+        final document = createOpenApiDocument(
+          title: 'Streaming API',
+          procedures: ProcedureMetadataRegistry([
+            const ProcedureMetadata(
+              rpcMethod: 'chat.watchMessages',
+              controllerNamespace: 'chat',
+              methodName: 'watchMessages',
+              kind: RpcProcedureKind.serverStream,
+              path: RestProcedureMetadata(
+                method: 'GET',
+                path: '/channels/:channelId/messages',
+                responseKind: RestResponseKind.sse,
+              ),
+              outputTypeCode: 'MessageDto',
+            ),
+            const ProcedureMetadata(
+              rpcMethod: 'chat.websocketOnly',
+              controllerNamespace: 'chat',
+              methodName: 'websocketOnly',
+              kind: RpcProcedureKind.serverStream,
+              outputTypeCode: 'MessageDto',
+            ),
+          ]),
+          schemas: OpenApiSchemaRegistry([
+            OpenApiSchemaComponent(
+              name: 'MessageDto',
+              validator: l.withName('MessageDto').schema({
+                'id': l.string().required(),
+                'text': l.string().required(),
+              }),
+            ),
+          ]),
+        );
+
+        final paths = document['paths'] as Map<String, Object?>;
+        final operation =
+            (paths['/channels/{channelId}/messages']
+                    as Map<String, Object?>)['get']
+                as Map<String, Object?>;
+        final success =
+            (operation['responses'] as Map<String, Object?>)['200']
+                as Map<String, Object?>;
+        final extension =
+            operation['x-dart-orpc-stream'] as Map<String, Object?>;
+
+        expect((success['content'] as Map<String, Object?>).keys, [
+          'text/event-stream',
+        ]);
+        expect(extension, {
+          'kind': 'server-stream',
+          'eventSchema': {'\$ref': '#/components/schemas/MessageDto'},
+          'terminalEvents': {
+            'complete': 'dart-orpc-complete',
+            'error': 'dart-orpc-error',
+          },
+        });
+        expect(paths.keys, hasLength(1));
+      },
+    );
+
+    test(
       'When a REST operation shares one input DTO between path, header, and body then the request body schema excludes externally-bound fields',
       () {
         final document = createOpenApiDocument(
@@ -223,6 +286,190 @@ void main() {
           isTrue,
         );
         expect((schema['required'] as List<Object?>), ['name']);
+      },
+    );
+
+    test(
+      'When schema components use scalar constraints, lists, and maps then OpenAPI preserves their shapes',
+      () {
+        final registry = OpenApiSchemaRegistry([
+          OpenApiSchemaComponent(
+            name: 'Constraints',
+            validator: l.withName('Constraints').schema({
+              'bounded': l.string().min(2).max(8),
+              'exact': l.string().length(4),
+              'email': l.string().email(),
+              'date': l.string().dateTime(),
+              'uri': l.string().uri(),
+              'uuid': l.string().uuid(),
+              'pattern': l.string().regex(r'^[a-z]+$'),
+              'integer': l.int().min(1).max(9),
+              'number': l.double().min(0.5).max(9.5),
+              'flag': l.boolean(),
+              'emptyList': l.list(),
+              'strings': l.list(validators: [l.string()]),
+              'mixed': l.list(validators: [l.string(), l.int()]),
+              'map': l.map(valueValidator: l.boolean()),
+            }),
+          ),
+        ]);
+        final document = createOpenApiDocument(
+          title: 'Constraints API',
+          description: 'All supported validation shapes.',
+          procedures: ProcedureMetadataRegistry(const []),
+          schemas: registry,
+        );
+        final schemas =
+            (document['components'] as Map<String, Object?>)['schemas']
+                as Map<String, Object?>;
+        final constraints = schemas['Constraints'] as Map<String, Object?>;
+        final properties = constraints['properties'] as Map<String, Object?>;
+
+        expect(registry.names, ['Constraints']);
+        expect(registry['Constraints'], isNotNull);
+        expect(document['info'], {
+          'title': 'Constraints API',
+          'version': '1.0.0',
+          'description': 'All supported validation shapes.',
+        });
+        expect(properties['bounded'], {
+          'type': 'string',
+          'minLength': 2,
+          'maxLength': 8,
+        });
+        expect(properties['exact'], {
+          'type': 'string',
+          'minLength': 4,
+          'maxLength': 4,
+        });
+        expect((properties['email'] as Map)['format'], 'email');
+        expect((properties['date'] as Map)['format'], 'date-time');
+        expect((properties['uri'] as Map)['format'], 'uri');
+        expect((properties['uuid'] as Map)['format'], 'uuid');
+        expect((properties['pattern'] as Map)['pattern'], r'^[a-z]+$');
+        expect(properties['integer'], {
+          'type': 'integer',
+          'minimum': 1,
+          'maximum': 9,
+        });
+        expect(properties['number'], {
+          'type': 'number',
+          'minimum': 0.5,
+          'maximum': 9.5,
+        });
+        expect(properties['flag'], {'type': 'boolean'});
+        expect(properties['emptyList'], {'type': 'array', 'items': {}});
+        expect(properties['strings'], {
+          'type': 'array',
+          'items': {'type': 'string'},
+        });
+        expect(properties['mixed'], {
+          'type': 'array',
+          'items': {
+            'oneOf': [
+              {'type': 'string'},
+              {'type': 'integer'},
+            ],
+          },
+        });
+        expect(properties['map'], {
+          'type': 'object',
+          'additionalProperties': {'type': 'boolean'},
+        });
+      },
+    );
+
+    test(
+      'When contracts use built-in and unknown type codes then OpenAPI emits stable fallback schemas',
+      () {
+        const typeCodes = [
+          'int',
+          'double',
+          'num',
+          'bool',
+          'JsonObject',
+          'Map<String, Object?>',
+          'List<String>',
+          'UnknownDto',
+        ];
+        final document = createOpenApiDocument(
+          title: 'Types API',
+          procedures: ProcedureMetadataRegistry([
+            for (var index = 0; index < typeCodes.length; index++)
+              ProcedureMetadata(
+                rpcMethod: 'types.$index',
+                controllerNamespace: 'types',
+                methodName: 'type$index',
+                path: RestProcedureMetadata(
+                  method: index.isEven ? 'GET' : 'POST',
+                  path: '/types/$index',
+                ),
+                outputTypeCode: typeCodes[index],
+              ),
+          ]),
+        );
+        final paths = document['paths'] as Map<String, Object?>;
+        Map<String, Object?> schemaAt(int index) {
+          final operation =
+              (paths['/types/$index'] as Map<String, Object?>)[index.isEven
+                      ? 'get'
+                      : 'post']
+                  as Map<String, Object?>;
+          final responses = operation['responses'] as Map<String, Object?>;
+          final response = responses['200'] as Map<String, Object?>;
+          final content = response['content'] as Map<String, Object?>;
+          final mediaType = content['application/json'] as Map<String, Object?>;
+          return mediaType['schema'] as Map<String, Object?>;
+        }
+
+        final schemas = [
+          for (var index = 0; index < typeCodes.length; index++)
+            schemaAt(index),
+        ];
+
+        expect(schemas, [
+          {'type': 'integer'},
+          {'type': 'number'},
+          {'type': 'number'},
+          {'type': 'boolean'},
+          {'type': 'object'},
+          {'type': 'object'},
+          {'type': 'array', 'items': {}},
+          {'type': 'object'},
+        ]);
+      },
+    );
+
+    test(
+      'When duplicate schema names are registered then construction fails',
+      () {
+        final component = OpenApiSchemaComponent(
+          name: 'Duplicate',
+          validator: l.withName('Duplicate').schema({}),
+        );
+
+        expect(
+          () => OpenApiSchemaRegistry([component, component]),
+          throwsStateError,
+        );
+      },
+    );
+
+    test(
+      'When Scalar values contain HTML then text and attributes are escaped',
+      () {
+        final html = createScalarHtml(
+          title: 'Docs <unsafe> & useful',
+          openApiPath: '/openapi?label="one"&kind=\'two\'',
+        );
+
+        expect(html, contains('Docs &lt;unsafe&gt; &amp; useful'));
+        expect(
+          html,
+          contains(
+            'data-url="/openapi?label=&quot;one&quot;&amp;kind=&#39;two&#39;"',
+          ),
+        );
       },
     );
   });

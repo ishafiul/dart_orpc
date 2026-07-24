@@ -76,6 +76,7 @@ void main() {
         const put = RestMapping.put('');
         const patch = RestMapping.patch('users/:id');
         const delete = RestMapping.delete('users/:id');
+        const sse = RestMapping.sse('events');
 
         expect(get.method, 'GET');
         expect(get.path, '/users/:id');
@@ -85,6 +86,10 @@ void main() {
         expect(put.path, '/');
         expect(patch.method, 'PATCH');
         expect(delete.method, 'DELETE');
+        expect(sse.method, 'GET');
+        expect(sse.path, '/events');
+        expect(sse.isSse, isTrue);
+        expect(get.isSse, isFalse);
       },
     );
 

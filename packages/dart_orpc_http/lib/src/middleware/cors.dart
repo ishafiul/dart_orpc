@@ -63,7 +63,10 @@ RpcHttpMiddleware createCorsMiddleware([
       _addCorsHeaders(headers, options, origin);
 
       // Preflight responses typically have no body and 204 No Content.
-      return RpcHttpResponse(statusCode: HttpStatus.noContent, headers: headers);
+      return RpcHttpResponse(
+        statusCode: HttpStatus.noContent,
+        headers: headers,
+      );
     }
 
     final response = await next(request);

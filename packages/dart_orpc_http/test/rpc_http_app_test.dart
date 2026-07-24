@@ -7,7 +7,7 @@ import 'package:test/test.dart';
 
 void main() {
   group('Given a running RpcHttpApp', () {
-    late HttpServer server;
+    late RpcHttpServer server;
     late Uri baseUri;
 
     setUp(() async {
@@ -213,7 +213,7 @@ void main() {
   });
 
   group('Given a running RpcHttpApp with docs basic auth', () {
-    late HttpServer server;
+    late RpcHttpServer server;
     late Uri baseUri;
 
     setUp(() async {
@@ -303,7 +303,7 @@ void main() {
   });
 
   group('Given a running RpcHttpApp with middleware', () {
-    late HttpServer server;
+    late RpcHttpServer server;
     late Uri baseUri;
 
     setUp(() async {
