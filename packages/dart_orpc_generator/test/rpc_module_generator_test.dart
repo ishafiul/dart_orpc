@@ -67,7 +67,10 @@ void main() {
         );
         expect(generatedOutput, contains("outputTypeCode: 'UserResponseDto',"));
         expect(generatedOutput, contains("methodName: 'status',"));
-        expect(generatedOutput, contains('RpcProcedure<Null, UserStatusDto>('));
+        expect(
+          generatedOutput,
+          contains('RpcUnaryProcedure<Null, UserStatusDto>('),
+        );
         expect(
           generatedOutput,
           contains('RpcHttpApp dartOrpcBuildAppModuleRpcApp({'),
@@ -137,7 +140,7 @@ void main() {
         expect(generatedOutput, contains('class AppClient {'));
         expect(
           generatedOutput,
-          contains('late final user = UserClient(_caller);'),
+          contains('late final user = UserClient(_transports);'),
         );
         expect(generatedOutput, contains('Future<UserStatusDto> status() {'));
       },
@@ -274,7 +277,7 @@ void main() {
         );
         expect(
           generatedOutput,
-          contains('RpcProcedure<GetUserDto, UserResponseDto>('),
+          contains('RpcUnaryProcedure<GetUserDto, UserResponseDto>('),
         );
       },
     );
@@ -440,11 +443,11 @@ void main() {
         expect(generatedOutput, contains("method: 'admin.lookup',"));
         expect(
           generatedOutput,
-          contains('late final user = UserClient(_caller);'),
+          contains('late final user = UserClient(_transports);'),
         );
         expect(
           generatedOutput,
-          contains('late final admin = AdminClient(_caller);'),
+          contains('late final admin = AdminClient(_transports);'),
         );
       },
     );
@@ -476,7 +479,7 @@ void main() {
         expect(
           generatedOutput,
           contains(
-            'late final ApiClient _apiModuleClient = ApiClient(transport: _transport);',
+            'late final ApiClient _apiModuleClient = ApiClient(transports: _transports);',
           ),
         );
         expect(
@@ -668,8 +671,419 @@ void main() {
         );
       },
     );
+
+    test(
+      'When a method returns a typed stream then the builder emits one streaming contract for RPC, SSE, OpenAPI, and the client',
+      () async {
+        final run = await runModuleBuilder(_validStreamingModuleSource);
+
+        expect(run.succeeded, isTrue);
+
+        final generatedOutput = run.generatedOutput;
+        expect(
+          generatedOutput,
+          contains('RpcStreamProcedure<WatchInput, MessageDto>('),
+        );
+        expect(
+          generatedOutput,
+          contains('kind: RpcProcedureKind.serverStream,'),
+        );
+        expect(generatedOutput, contains('RestStreamRoute('));
+        expect(
+          generatedOutput,
+          contains('responseKind: RestResponseKind.sse,'),
+        );
+        expect(
+          generatedOutput,
+          contains("rawValue: pathParameters['channelId'],"),
+        );
+        expect(
+          generatedOutput,
+          contains("rawValue: request.queryParameters['after'],"),
+        );
+        expect(
+          generatedOutput,
+          contains("lookupRestHeader(request.headers, 'x-tenant-id')"),
+        );
+        expect(
+          generatedOutput,
+          contains('Stream<MessageDto> watchMessages(WatchInput input) {'),
+        );
+        expect(
+          generatedOutput,
+          contains("_transports.requireStreaming('chat.watchMessages')"),
+        );
+      },
+    );
+
+    test(
+      'When a unary method declares an SSE mapping then generation fails',
+      () async {
+        final run = await runModuleBuilder(_unarySseModuleSource);
+
+        expect(run.succeeded, isFalse);
+        expect(
+          run.errors.join('\n'),
+          contains('Unary RPC method "watch" may not use RestMapping.sse.'),
+        );
+      },
+    );
+
+    test(
+      'When a streaming method declares a JSON REST mapping then generation fails',
+      () async {
+        final run = await runModuleBuilder(_streamJsonRestModuleSource);
+
+        expect(run.succeeded, isFalse);
+        expect(
+          run.errors.join('\n'),
+          contains(
+            'Streaming RPC method "watch" must use RestMapping.sse when a REST mapping is declared.',
+          ),
+        );
+      },
+    );
+
+    test('When a method future-wraps a stream then generation fails', () async {
+      final run = await runModuleBuilder(_futureStreamModuleSource);
+
+      expect(run.succeeded, isFalse);
+      expect(
+        run.errors.join('\n'),
+        contains(
+          'RPC method "watch" must return Stream<T> directly, not Future<Stream<T>>.',
+        ),
+      );
+    });
+
+    for (final scenario in <(String, String, String)>[
+      (
+        'raw Stream',
+        'Stream',
+        'must return a non-nullable Stream<T> with one event type',
+      ),
+      (
+        'nullable Stream',
+        'Stream<MessageDto>?',
+        'must return a non-nullable Stream<T> with one event type',
+      ),
+      (
+        'nested Stream',
+        'Stream<Stream<MessageDto>>',
+        'may not return a nested Stream<Stream<T>>',
+      ),
+      (
+        'unsupported event type',
+        'Stream<String>',
+        'has unsupported event type "String"',
+      ),
+    ]) {
+      test(
+        'When a method returns ${scenario.$1} then generation fails',
+        () async {
+          final run = await runModuleBuilder(
+            _streamShapeModuleSource.replaceFirst('RETURN_TYPE', scenario.$2),
+          );
+
+          expect(run.succeeded, isFalse);
+          expect(run.errors.join('\n'), contains(scenario.$3));
+        },
+      );
+    }
+
+    test(
+      'When a typed stream omits REST mapping then it remains WebSocket-only',
+      () async {
+        final run = await runModuleBuilder(
+          _streamShapeModuleSource.replaceFirst(
+            'RETURN_TYPE',
+            'Stream<MessageDto>',
+          ),
+        );
+
+        expect(run.succeeded, isTrue);
+        expect(
+          run.generatedOutput,
+          contains('RpcStreamProcedure<Null, MessageDto>('),
+        );
+        expect(run.generatedOutput, contains('Stream<MessageDto> watch() {'));
+        expect(run.generatedOutput, isNot(contains('RestStreamRoute(')));
+      },
+    );
+
+    test(
+      'Given a stream DTO inherits its codec when generation runs then it is supported',
+      () async {
+        final run = await runModuleBuilder(_inheritedStreamCodecModuleSource);
+
+        expect(run.succeeded, isTrue);
+        expect(
+          run.generatedOutput,
+          contains('RpcStreamProcedure<Null, MessageDto>('),
+        );
+      },
+    );
+
+    test(
+      'When an SSE stream binds a request body then generation fails',
+      () async {
+        final run = await runModuleBuilder(_sseBodyBindingModuleSource);
+
+        expect(run.succeeded, isFalse);
+        expect(
+          run.errors.join('\n'),
+          contains('may not bind @RpcInput(binding: ...) body fields'),
+        );
+      },
+    );
   });
 }
+
+const _validStreamingModuleSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+import 'package:dart_orpc_core/dart_orpc_core.dart';
+
+part 'example.g.dart';
+
+@Module(controllers: [ChatController])
+final class AppModule {
+  const AppModule();
+}
+
+@Controller('chat')
+final class ChatController {
+  @RpcMethod(
+    name: 'watchMessages',
+    path: RestMapping.sse('/channels/:channelId/messages'),
+  )
+  Stream<MessageDto> watchMessages(
+    RpcContext context,
+    @RpcInput(
+      binding: RpcInputBinding(
+        path: [RpcInputField(WatchInputFields.channelId)],
+        query: [RpcInputField(WatchInputFields.after)],
+        headers: [
+          RpcInputField(WatchInputFields.tenantId, 'x-tenant-id'),
+        ],
+      ),
+    )
+    WatchInput input,
+  ) async* {
+    yield MessageDto(id: input.channelId, text: input.after ?? 'first');
+  }
+}
+
+final class WatchInputFields {
+  const WatchInputFields._();
+
+  static const channelId = 'channelId';
+  static const after = 'after';
+  static const tenantId = 'tenantId';
+}
+
+final class WatchInput {
+  const WatchInput({
+    required this.channelId,
+    required this.after,
+    required this.tenantId,
+  });
+
+  factory WatchInput.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'WatchInput');
+    return WatchInput(
+      channelId: expectStringField(object, 'channelId'),
+      after: optionalStringField(object, 'after'),
+      tenantId: optionalStringField(object, 'tenantId'),
+    );
+  }
+
+  final String channelId;
+  final String? after;
+  final String? tenantId;
+
+  JsonObject toJson() => {
+    'channelId': channelId,
+    'after': after,
+    'tenantId': tenantId,
+  };
+}
+
+final class MessageDto {
+  const MessageDto({required this.id, required this.text});
+
+  factory MessageDto.fromJson(Object? json) {
+    final object = expectJsonObject(json, context: 'MessageDto');
+    return MessageDto(
+      id: expectStringField(object, 'id'),
+      text: expectStringField(object, 'text'),
+    );
+  }
+
+  final String id;
+  final String text;
+
+  JsonObject toJson() => {'id': id, 'text': text};
+}
+''';
+
+const _unarySseModuleSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+part 'example.g.dart';
+
+@Module(controllers: [EventsController])
+final class AppModule {
+  const AppModule();
+}
+
+@Controller('events')
+final class EventsController {
+  @RpcMethod(path: RestMapping.sse('/events'))
+  Future<void> watch() async {}
+}
+''';
+
+const _streamJsonRestModuleSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+part 'example.g.dart';
+
+@Module(controllers: [EventsController])
+final class AppModule {
+  const AppModule();
+}
+
+@Controller('events')
+final class EventsController {
+  @RpcMethod(path: RestMapping.get('/events'))
+  Stream<String> watch() => const Stream.empty();
+}
+''';
+
+const _futureStreamModuleSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+part 'example.g.dart';
+
+@Module(controllers: [EventsController])
+final class AppModule {
+  const AppModule();
+}
+
+@Controller('events')
+final class EventsController {
+  @RpcMethod()
+  Future<Stream<String>> watch() async => const Stream.empty();
+}
+''';
+
+const _streamShapeModuleSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+part 'example.g.dart';
+
+@Module(controllers: [EventsController])
+final class AppModule {
+  const AppModule();
+}
+
+@Controller('events')
+final class EventsController {
+  @RpcMethod()
+  RETURN_TYPE watch() => throw UnimplementedError();
+}
+
+final class MessageDto {
+  const MessageDto();
+
+  factory MessageDto.fromJson(Object? json) => const MessageDto();
+
+  Map<String, Object?> toJson() => const {};
+}
+''';
+
+const _inheritedStreamCodecModuleSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+part 'example.g.dart';
+
+@Module(controllers: [EventsController])
+final class AppModule {
+  const AppModule();
+}
+
+@Controller('events')
+final class EventsController {
+  @RpcMethod()
+  Stream<MessageDto> watch() => const Stream.empty();
+}
+
+mixin GeneratedJsonCodec {
+  Map<String, Object?> toJson() => const {};
+}
+
+final class MessageDto with GeneratedJsonCodec {
+  const MessageDto();
+
+  factory MessageDto.fromJson(Object? json) => const MessageDto();
+}
+''';
+
+const _sseBodyBindingModuleSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+part 'example.g.dart';
+
+@Module(controllers: [EventsController])
+final class AppModule {
+  const AppModule();
+}
+
+@Controller('events')
+final class EventsController {
+  @RpcMethod(path: RestMapping.sse('/events'))
+  Stream<MessageDto> watch(
+    @RpcInput(
+      binding: RpcInputBinding(
+        body: [RpcInputField('filter')],
+      ),
+    )
+    WatchInput input,
+  ) => const Stream.empty();
+}
+
+final class WatchInput {
+  const WatchInput({required this.filter});
+
+  factory WatchInput.fromJson(Object? json) => const WatchInput(filter: '');
+
+  final String filter;
+
+  Map<String, Object?> toJson() => {'filter': filter};
+}
+
+final class MessageDto {
+  const MessageDto();
+
+  factory MessageDto.fromJson(Object? json) => const MessageDto();
+
+  Map<String, Object?> toJson() => const {};
+}
+''';
 
 const _validRpcModuleSource = r'''
 library example;

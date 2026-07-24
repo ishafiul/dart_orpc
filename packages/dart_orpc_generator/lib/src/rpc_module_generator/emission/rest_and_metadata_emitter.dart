@@ -37,11 +37,18 @@ void _writeRestRouteRegistries(
     for (final procedure in controller.procedures.where(
       (procedure) => procedure.path != null,
     )) {
+      final routeClass = procedure.isStream
+          ? 'RestStreamRoute'
+          : 'RestUnaryRoute';
+      buffer..writeln('    $routeClass(');
+      if (!procedure.isStream) {
+        buffer.writeln("      method: '${procedure.path!.method}',");
+      }
       buffer
-        ..writeln('    RestRoute(')
-        ..writeln("      method: '${procedure.path!.method}',")
         ..writeln("      path: '${procedure.path!.path}',")
-        ..writeln('      handler: (context, request, pathParameters) async {');
+        ..writeln(
+          '      handler: (context, request, pathParameters) ${procedure.isStream ? '{' : 'async {'}',
+        );
       if (procedure.restRpcInput != null) {
         for (final declaration in _restRpcInputDeclarations(
           procedure.restRpcInput!,
@@ -61,13 +68,24 @@ void _writeRestRouteRegistries(
       final invocationArguments = procedure.restInvocationParameters
           .map(_restInvocationArgumentExpression)
           .join(', ');
+      if (procedure.isStream) {
+        buffer
+          ..writeln(
+            '        final output = container.${controller.instanceName}.${procedure.methodName}($invocationArguments);',
+          )
+          ..writeln(
+            '        return output.map(${_encodeOutputExpression(procedure)});',
+          );
+      } else {
+        buffer
+          ..writeln(
+            '        final output = await container.${controller.instanceName}.${procedure.methodName}($invocationArguments);',
+          )
+          ..writeln(
+            '        return (${_encodeOutputExpression(procedure)})(output);',
+          );
+      }
       buffer
-        ..writeln(
-          '        final output = await container.${controller.instanceName}.${procedure.methodName}($invocationArguments);',
-        )
-        ..writeln(
-          '        return (${_encodeOutputExpression(procedure)})(output);',
-        )
         ..writeln('      },')
         ..writeln(_restConstructorGuardBlock(procedure))
         ..writeln('    ),');
@@ -144,9 +162,12 @@ void _writeProcedureMetadata(
     ..writeln("      rpcMethod: '${procedure.rpcMethod}',")
     ..writeln("      controllerNamespace: '${procedure.controllerNamespace}',")
     ..writeln("      methodName: '${procedure.methodName}',");
+  if (procedure.isStream) {
+    buffer.writeln('      kind: RpcProcedureKind.serverStream,');
+  }
   if (procedure.path != null) {
     buffer.writeln(
-      "      path: RestProcedureMetadata(method: '${procedure.path!.method}', path: '${procedure.path!.path}'),",
+      "      path: RestProcedureMetadata(method: '${procedure.path!.method}', path: '${procedure.path!.path}'${procedure.path!.isSse ? ', responseKind: RestResponseKind.sse' : ''}),",
     );
   }
   if (procedure.inputTypeCode != null) {

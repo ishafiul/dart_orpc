@@ -85,6 +85,7 @@ final class _ResolvedProcedure {
     required this.outputTypeName,
     required this.outputTypeElement,
     required this.outputUsesLuthor,
+    required this.isStream,
     required this.supportsRpcGeneration,
     required this.serverInvocationArguments,
   });
@@ -110,6 +111,7 @@ final class _ResolvedProcedure {
   final String outputTypeName;
   final Element? outputTypeElement;
   final bool outputUsesLuthor;
+  final bool isStream;
   final bool supportsRpcGeneration;
   final String serverInvocationArguments;
 

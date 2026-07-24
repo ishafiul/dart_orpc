@@ -30,10 +30,15 @@ final class _ResolvedInvocationParameter {
 }
 
 final class _ResolvedPathMapping {
-  const _ResolvedPathMapping({required this.method, required this.path});
+  const _ResolvedPathMapping({
+    required this.method,
+    required this.path,
+    required this.isSse,
+  });
 
   final String method;
   final String path;
+  final bool isSse;
 }
 
 final class _ResolvedOpenApiSchemaComponent {

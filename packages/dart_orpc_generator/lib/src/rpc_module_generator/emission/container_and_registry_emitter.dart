@@ -109,9 +109,12 @@ void _writeLocalProcedureRegistry(
   for (final controller in context.rootModule.controllerBindings) {
     for (final procedure in controller.rpcCompatibleProcedures) {
       final inputTypeCode = procedure.inputTypeCode ?? 'Null';
+      final procedureClass = procedure.isStream
+          ? 'RpcStreamProcedure'
+          : 'RpcUnaryProcedure';
       buffer
         ..writeln(
-          '    RpcProcedure<$inputTypeCode, ${procedure.outputTypeCode}>(',
+          '    $procedureClass<$inputTypeCode, ${procedure.outputTypeCode}>(',
         )
         ..writeln("      method: '${procedure.rpcMethod}',")
         ..writeln('      decodeInput: ${_decodeInputExpression(procedure)},')

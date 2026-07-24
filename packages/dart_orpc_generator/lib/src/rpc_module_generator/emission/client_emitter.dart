@@ -10,18 +10,12 @@ void _writeRootClient(StringBuffer buffer, _ModuleGenerationPlan context) {
   final names = context.generatedNames;
   buffer
     ..writeln()
-    ..writeln('class ${names.rootClientName} {');
-  buffer.writeln(_rootClientConstructorLine(context));
-  if (context.needsTransportField) {
-    buffer
-      ..writeln()
-      ..writeln('  final RpcTransport _transport;');
-  }
-  if (context.hasLocalRpcClientControllers) {
-    buffer
-      ..writeln()
-      ..writeln('  final RpcCaller _caller;');
-  }
+    ..writeln('class ${names.rootClientName} {')
+    ..writeln(
+      '  ${names.rootClientName}({required RpcClientTransports transports}) : _transports = transports;',
+    )
+    ..writeln()
+    ..writeln('  final RpcClientTransports _transports;');
   if (context.hasImportedRpcClientControllers ||
       context.composedRpcClientGetters.isNotEmpty) {
     buffer.writeln();
@@ -36,7 +30,7 @@ void _writeRootClient(StringBuffer buffer, _ModuleGenerationPlan context) {
       final importedClientFieldName =
           '_${_camelCase(importedModule.displayName)}Client';
       buffer.writeln(
-        '  late final $importedRootClientName $importedClientFieldName = $importedRootClientName(transport: _transport);',
+        '  late final $importedRootClientName $importedClientFieldName = $importedRootClientName(transports: _transports);',
       );
     }
     for (final getter in context.composedRpcClientGetters) {
@@ -48,20 +42,6 @@ void _writeRootClient(StringBuffer buffer, _ModuleGenerationPlan context) {
   buffer.writeln('}');
 }
 
-String _rootClientConstructorLine(_ModuleGenerationPlan context) {
-  final names = context.generatedNames;
-  if (context.hasLocalRpcClientControllers && context.needsTransportField) {
-    return '  ${names.rootClientName}({required RpcTransport transport}) : _transport = transport, _caller = RpcCaller(transport);';
-  }
-  if (context.hasLocalRpcClientControllers) {
-    return '  ${names.rootClientName}({required RpcTransport transport}) : _caller = RpcCaller(transport);';
-  }
-  if (context.needsTransportField) {
-    return '  ${names.rootClientName}({required RpcTransport transport}) : _transport = transport;';
-  }
-  return '  ${names.rootClientName}({required RpcTransport transport});';
-}
-
 void _writeControllerClients(
   StringBuffer buffer,
   _ModuleGenerationPlan context,
@@ -70,9 +50,9 @@ void _writeControllerClients(
     buffer
       ..writeln()
       ..writeln('class ${controller.clientClassName} {')
-      ..writeln('  ${controller.clientClassName}(this._caller);')
+      ..writeln('  ${controller.clientClassName}(this._transports);')
       ..writeln()
-      ..writeln('  final RpcCaller _caller;');
+      ..writeln('  final RpcClientTransports _transports;');
     for (final procedure in controller.rpcCompatibleProcedures) {
       _writeClientProcedure(buffer, procedure);
     }
@@ -83,13 +63,21 @@ void _writeControllerClients(
 void _writeClientProcedure(StringBuffer buffer, _ResolvedProcedure procedure) {
   final decodeLine =
       '      decode: (json) => ${procedure.outputTypeCode}.fromJson(Map<String, dynamic>.from(expectJsonObject(json, context: \'RPC response for "${procedure.rpcMethod}"\'))),';
+  final returnType = procedure.isStream ? 'Stream' : 'Future';
+  final callerType = procedure.isStream ? 'RpcStreamCaller' : 'RpcCaller';
+  final transportExpression = procedure.isStream
+      ? "_transports.requireStreaming('${procedure.rpcMethod}')"
+      : "_transports.requireUnary('${procedure.rpcMethod}')";
+  final callerMethod = procedure.isStream ? 'call' : 'call';
   if (procedure.hasInput) {
     buffer
       ..writeln()
       ..writeln(
-        '  Future<${procedure.outputTypeCode}> ${procedure.methodName}(${procedure.inputTypeCode!} ${procedure.inputParameterName!}) {',
+        '  $returnType<${procedure.outputTypeCode}> ${procedure.methodName}(${procedure.inputTypeCode!} ${procedure.inputParameterName!}) {',
       )
-      ..writeln('    return _caller.call<${procedure.outputTypeCode}>(')
+      ..writeln(
+        '    return $callerType($transportExpression).$callerMethod<${procedure.outputTypeCode}>(',
+      )
       ..writeln("      method: '${procedure.rpcMethod}',")
       ..writeln('      input: ${procedure.inputParameterName!}.toJson(),')
       ..writeln(decodeLine)
@@ -100,9 +88,11 @@ void _writeClientProcedure(StringBuffer buffer, _ResolvedProcedure procedure) {
   buffer
     ..writeln()
     ..writeln(
-      '  Future<${procedure.outputTypeCode}> ${procedure.methodName}() {',
+      '  $returnType<${procedure.outputTypeCode}> ${procedure.methodName}() {',
     )
-    ..writeln('    return _caller.call<${procedure.outputTypeCode}>(')
+    ..writeln(
+      '    return $callerType($transportExpression).$callerMethod<${procedure.outputTypeCode}>(',
+    )
     ..writeln("      method: '${procedure.rpcMethod}',")
     ..writeln(decodeLine)
     ..writeln('    );')
@@ -135,10 +125,10 @@ void _writeGeneratedExtension(
       '  JsonObject openApiDocument({OpenApiDocumentOptions? options}) => ${names.composeOpenApiDocumentName}(options: options);',
     )
     ..writeln(
-      '  RpcHttpApp buildRpcApp({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, RpcHttpStaticOptions? staticAssets, RpcHttpHealthOptions? health, RpcHttpMetricsOptions? metrics, Iterable<RpcHttpMiddleware> middleware = const []}) => ${names.composeBuildAppName}(openApi: openApi, docs: docs, staticAssets: staticAssets, health: health, metrics: metrics, middleware: middleware);',
+      '  RpcHttpApp buildRpcApp({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, RpcHttpStaticOptions? staticAssets, RpcHttpHealthOptions? health, RpcHttpMetricsOptions? metrics, RpcWebSocketServerOptions? webSocket, RpcContextFactory? contextFactory, Duration sseHeartbeatInterval = const Duration(seconds: 15), Iterable<RpcHttpMiddleware> middleware = const []}) => ${names.composeBuildAppName}(openApi: openApi, docs: docs, staticAssets: staticAssets, health: health, metrics: metrics, webSocket: webSocket, contextFactory: contextFactory, sseHeartbeatInterval: sseHeartbeatInterval, middleware: middleware);',
     )
     ..writeln(
-      '  ${names.rootClientName} createClient({required RpcTransport transport}) => ${names.rootClientName}(transport: transport);',
+      '  ${names.rootClientName} createClient({required RpcClientTransports transports}) => ${names.rootClientName}(transports: transports);',
     )
     ..writeln('}');
 }
