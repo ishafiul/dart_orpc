@@ -29,7 +29,7 @@ void main() {
         const fromQuery = FromQuery('view');
         const fromHeader = FromHeader('x-tenant-id');
         const boundField = RpcInputField<String>('id', 'userId');
-        const context = RpcContext(headers: {'x-trace-id': 'trace-1'});
+        final context = RpcContext(headers: const {'x-trace-id': 'trace-1'});
         const request = RpcRequest(method: 'user.getById', input: {'id': '1'});
         const successResponse = RpcSuccessResponse(data: {'id': '1'});
         const errorResponse = RpcErrorResponse(

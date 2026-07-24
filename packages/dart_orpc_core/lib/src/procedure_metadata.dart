@@ -2,6 +2,10 @@ import 'json_utils.dart';
 
 enum ProcedureParameterSourceKind { rpcInput, path, query, header, body }
 
+enum RpcProcedureKind { unary, serverStream }
+
+enum RestResponseKind { json, sse }
+
 final class ProcedureParameterMetadata {
   const ProcedureParameterMetadata({
     required this.parameterName,
@@ -17,10 +21,15 @@ final class ProcedureParameterMetadata {
 }
 
 final class RestProcedureMetadata {
-  const RestProcedureMetadata({required this.method, required this.path});
+  const RestProcedureMetadata({
+    required this.method,
+    required this.path,
+    this.responseKind = RestResponseKind.json,
+  });
 
   final String method;
   final String path;
+  final RestResponseKind responseKind;
 }
 
 final class ProcedureCustomMetadata {
@@ -36,6 +45,7 @@ final class ProcedureMetadata {
     required this.controllerNamespace,
     required this.methodName,
     required this.outputTypeCode,
+    this.kind = RpcProcedureKind.unary,
     this.path,
     this.inputTypeCode,
     this.description,
@@ -48,6 +58,7 @@ final class ProcedureMetadata {
   final String rpcMethod;
   final String controllerNamespace;
   final String methodName;
+  final RpcProcedureKind kind;
   final RestProcedureMetadata? path;
   final String? inputTypeCode;
   final String outputTypeCode;
