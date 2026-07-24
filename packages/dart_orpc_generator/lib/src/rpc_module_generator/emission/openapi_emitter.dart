@@ -62,7 +62,7 @@ void _writeOpenApiSections(StringBuffer buffer, _ModuleGenerationPlan context) {
     )
     ..writeln()
     ..writeln(
-      'RpcHttpApp ${names.buildAppName}({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, RpcHttpStaticOptions? staticAssets, RpcHttpHealthOptions? health, RpcHttpMetricsOptions? metrics, Iterable<RpcHttpMiddleware> middleware = const []}) {',
+      'RpcHttpApp ${names.buildAppName}({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, RpcHttpStaticOptions? staticAssets, RpcHttpHealthOptions? health, RpcHttpMetricsOptions? metrics, RpcWebSocketServerOptions? webSocket, RpcContextFactory? contextFactory, Duration sseHeartbeatInterval = const Duration(seconds: 15), Iterable<RpcHttpMiddleware> middleware = const []}) {',
     )
     ..writeln(
       '  final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();',
@@ -88,11 +88,16 @@ void _writeOpenApiSections(StringBuffer buffer, _ModuleGenerationPlan context) {
     ..writeln('    staticAssets: staticAssets,')
     ..writeln('    health: health,')
     ..writeln('    metrics: metrics,')
+    ..writeln('    contextFactory: contextFactory,')
+    ..writeln('    sseHeartbeatInterval: sseHeartbeatInterval,')
+    ..writeln(
+      '    upgradeHandlers: [if (webSocket != null) RpcWebSocketUpgradeHandler(procedures: runtime.procedures, options: webSocket)],',
+    )
     ..writeln('    middleware: middleware,')
     ..writeln('  );')
     ..writeln('}')
     ..writeln()
     ..writeln(
-      'RpcHttpApp ${names.composeBuildAppName}({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, RpcHttpStaticOptions? staticAssets, RpcHttpHealthOptions? health, RpcHttpMetricsOptions? metrics, Iterable<RpcHttpMiddleware> middleware = const []}) => ${names.buildAppName}(openApi: openApi, docs: docs, staticAssets: staticAssets, health: health, metrics: metrics, middleware: middleware);',
+      'RpcHttpApp ${names.composeBuildAppName}({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, RpcHttpStaticOptions? staticAssets, RpcHttpHealthOptions? health, RpcHttpMetricsOptions? metrics, RpcWebSocketServerOptions? webSocket, RpcContextFactory? contextFactory, Duration sseHeartbeatInterval = const Duration(seconds: 15), Iterable<RpcHttpMiddleware> middleware = const []}) => ${names.buildAppName}(openApi: openApi, docs: docs, staticAssets: staticAssets, health: health, metrics: metrics, webSocket: webSocket, contextFactory: contextFactory, sseHeartbeatInterval: sseHeartbeatInterval, middleware: middleware);',
     );
 }

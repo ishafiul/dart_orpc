@@ -102,12 +102,54 @@ DartType _unwrapFuture(DartType type) {
   return type;
 }
 
+DartType? _streamEventType(DartType type) {
+  if (type is InterfaceType &&
+      type.element.name == 'Stream' &&
+      type.typeArguments.length == 1 &&
+      type.nullabilitySuffix == NullabilitySuffix.none) {
+    return type.typeArguments.single;
+  }
+  return null;
+}
+
+bool _isRawOrNullableStream(DartType type) {
+  return type is InterfaceType &&
+      type.element.name == 'Stream' &&
+      (type.typeArguments.length != 1 ||
+          type.typeArguments.single is DynamicType ||
+          type.nullabilitySuffix != NullabilitySuffix.none);
+}
+
+bool _isFutureOfStream(DartType type) {
+  return type is InterfaceType &&
+      type.element.name == 'Future' &&
+      type.typeArguments.length == 1 &&
+      type.typeArguments.single is InterfaceType &&
+      (type.typeArguments.single as InterfaceType).element.name == 'Stream';
+}
+
 bool _isRpcContext(DartType type) => _rpcContextChecker.isExactlyType(type);
 
 bool _usesLuthorValidation(DartType type) {
   final element = type.element;
   return element is InterfaceElement &&
       _luthorChecker.hasAnnotationOfExact(element);
+}
+
+bool _supportsGeneratedOutputCodec(DartType type) {
+  final element = type.element;
+  if (element is! InterfaceElement) {
+    return false;
+  }
+  final hasFromJsonConstructor =
+      element.getNamedConstructor('fromJson') != null;
+  final hasStaticFromJson = element.methods.any(
+    (method) => method.isStatic && method.displayName == 'fromJson',
+  );
+  final toJson = element.lookUpMethod(name: 'toJson', library: element.library);
+  final hasToJson =
+      toJson != null && !toJson.isStatic && toJson.formalParameters.isEmpty;
+  return (hasFromJsonConstructor || hasStaticFromJson) && hasToJson;
 }
 
 String _typeKeyFor(DartType type) => type.getDisplayString();

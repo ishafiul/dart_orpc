@@ -104,7 +104,54 @@ _ResolvedProcedure _buildMethodBinding(
     methodName: methodName,
     restRpcInput: restRpcInput,
   );
-  final outputType = _unwrapFuture(method.returnType);
+  final declaredReturnType = method.returnType;
+  final streamType = _streamEventType(declaredReturnType);
+  final isStream = streamType != null;
+  if (_isFutureOfStream(declaredReturnType)) {
+    throw InvalidGenerationSourceError(
+      'RPC method "$methodName" must return Stream<T> directly, not Future<Stream<T>>.',
+      element: method,
+    );
+  }
+  if (_isRawOrNullableStream(declaredReturnType)) {
+    throw InvalidGenerationSourceError(
+      'RPC method "$methodName" must return a non-nullable Stream<T> with one event type.',
+      element: method,
+    );
+  }
+  if (isStream && _streamEventType(streamType) != null) {
+    throw InvalidGenerationSourceError(
+      'RPC method "$methodName" may not return a nested Stream<Stream<T>>.',
+      element: method,
+    );
+  }
+  if (isStream && !invocationDetails.supportsRpcGeneration) {
+    throw InvalidGenerationSourceError(
+      'Streaming RPC method "$methodName" only supports an optional RpcContext and one @RpcInput parameter.',
+      element: method,
+    );
+  }
+  if (isStream && path != null && !path.isSse) {
+    throw InvalidGenerationSourceError(
+      'Streaming RPC method "$methodName" must use RestMapping.sse when a REST mapping is declared.',
+      element: method,
+    );
+  }
+  if (!isStream && path?.isSse == true) {
+    throw InvalidGenerationSourceError(
+      'Unary RPC method "$methodName" may not use RestMapping.sse.',
+      element: method,
+    );
+  }
+  if (streamType != null && !_supportsGeneratedOutputCodec(streamType)) {
+    throw InvalidGenerationSourceError(
+      'Streaming RPC method "$methodName" has unsupported event type '
+      '"${streamType.getDisplayString()}". Stream events must be DTOs with '
+      'a fromJson constructor or static method and an instance toJson method.',
+      element: method,
+    );
+  }
+  final outputType = streamType ?? _unwrapFuture(declaredReturnType);
   final wireName = annotationReader.peek('name')?.stringValue ?? methodName;
 
   return _ResolvedProcedure(
@@ -131,6 +178,7 @@ _ResolvedProcedure _buildMethodBinding(
         outputType.element?.displayName ?? outputType.getDisplayString(),
     outputTypeElement: outputType.element,
     outputUsesLuthor: _usesLuthorValidation(outputType),
+    isStream: isStream,
     supportsRpcGeneration: invocationDetails.supportsRpcGeneration,
     serverInvocationArguments: invocationDetails.invocationArguments.join(', '),
   );
@@ -365,6 +413,7 @@ _ResolvedPathMapping? _readPathMapping(ConstantReader annotationReader) {
   return _ResolvedPathMapping(
     method: pathReader.read('method').stringValue,
     path: _normalizeRestPath(pathReader.read('rawPath').stringValue),
+    isSse: pathReader.read('isSse').boolValue,
   );
 }
 

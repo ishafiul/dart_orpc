@@ -39,6 +39,10 @@ is the handoff from analysis to emission.
 Some resolved models retain analyzer elements only for source-library import and
 export discovery. Emitters must not query those elements.
 
+For streaming procedures, analysis resolves `Stream<T>` into two analyzer-free
+values: `isStream` and the event type `T`. Emitters never receive `Stream<T>` as
+the output contract and never re-inspect a method return type.
+
 ### `emission/`
 
 Turns the resolved plan into Dart source for containers and registries, REST and
@@ -70,6 +74,12 @@ belongs in analysis or emission.
 Do not read annotations from an emitter, generate source from an analyzer
 resolver, or rebuild resolved information in multiple stages.
 
+Server streaming follows the same rule. One resolved procedure drives
+`RpcStreamProcedure`, an optional `RestStreamRoute`, SSE metadata, OpenAPI
+extensions, and the generated `Stream<T>` client method. Invalid combinations
+such as unary SSE, JSON REST on streams, raw or nested streams, and
+`Future<Stream<T>>` must fail during analysis.
+
 ## Analyzer upgrades
 
 When changing the analyzer constraint:
@@ -89,5 +99,6 @@ When changing the analyzer constraint:
   analyzer-free emitter boundary.
 - Generated-output assertions protect the public contract. Prefer focused
   assertions or stable goldens over snapshots of incidental whitespace.
-- CI enforces at least 90% line coverage for the generator package. Coverage is
-  a floor, not a substitute for contract-focused tests.
+- CI enforces at least 90% line coverage for the generator and each primary
+  runtime package (`core`, `client`, `http`, `websocket`, and `openapi`).
+  Coverage is a floor, not a substitute for contract-focused tests.

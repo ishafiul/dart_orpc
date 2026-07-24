@@ -214,7 +214,7 @@ List<_ComposedRpcClientGetter> _resolveComposedRpcClientGetters(
       _ComposedRpcClientGetter(
         clientClassName: controller.clientClassName,
         clientGetterName: controller.clientGetterName,
-        initializerExpression: '${controller.clientClassName}(_caller)',
+        initializerExpression: '${controller.clientClassName}(_transports)',
       ),
       moduleElement: moduleElement,
     );
