@@ -566,6 +566,13 @@ Version 0.1 supports:
 
 # 18. Future Features
 
+### Implemented after the original MVP
+
+-   server-streaming `Stream<T>` procedures
+-   WebSocket unary and server-streaming transport on the HTTP server port
+-   explicit REST/SSE mappings and OpenAPI stream metadata
+-   cooperative cancellation, bounded WebSocket output, and graceful shutdown
+
 ### v0.2
 
 -   guards
@@ -576,8 +583,9 @@ Version 0.1 supports:
 ### v0.3
 
 -   file uploads
--   streaming RPC
--   WebSocket transport
+-   reconnection and resumable stream cursors
+-   browser WebSocket client adapter
+-   client-streaming and bidirectional RPC
 
 ### v1.0
 

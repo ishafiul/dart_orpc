@@ -65,7 +65,7 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
 ) {
   final metadataRegistry = _$createTodoModuleLocalProcedureMetadataRegistry();
   return RpcProcedureRegistry([
-    RpcProcedure<Null, TodoListResponseDto>(
+    RpcUnaryProcedure<Null, TodoListResponseDto>(
       method: 'todo.list',
       decodeInput: (rawInput) =>
           expectNoRpcInput(rawInput, context: 'RPC method "todo.list"'),
@@ -80,7 +80,38 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
 
       handler: (context, input) => container.todoController.list(context),
     ),
-    RpcProcedure<GetTodoDto, TodoResponseDto>(
+    RpcStreamProcedure<Null, TodoResponseDto>(
+      method: 'todo.watch',
+      decodeInput: (rawInput) =>
+          expectNoRpcInput(rawInput, context: 'RPC method "todo.watch"'),
+      encodeOutput: (output) => encodeRpcOutputWithLuthor<TodoResponseDto>(
+        output: output,
+        method: 'todo.watch',
+        toJson: (output) => output.toJson(),
+        validate: $TodoResponseDtoValidate,
+      ),
+      metadata: metadataRegistry['todo.watch']!,
+      guards: [container.todoRouteLoggerGuard, container.todoPermissionGuard],
+
+      handler: (context, input) => container.todoController.watch(context),
+    ),
+    RpcStreamProcedure<Null, TodoChangeResponseDto>(
+      method: 'todo.watchLive',
+      decodeInput: (rawInput) =>
+          expectNoRpcInput(rawInput, context: 'RPC method "todo.watchLive"'),
+      encodeOutput: (output) =>
+          encodeRpcOutputWithLuthor<TodoChangeResponseDto>(
+            output: output,
+            method: 'todo.watchLive',
+            toJson: (output) => output.toJson(),
+            validate: $TodoChangeResponseDtoValidate,
+          ),
+      metadata: metadataRegistry['todo.watchLive']!,
+      guards: [container.todoRouteLoggerGuard, container.todoPermissionGuard],
+
+      handler: (context, input) => container.todoController.watchLive(context),
+    ),
+    RpcUnaryProcedure<GetTodoDto, TodoResponseDto>(
       method: 'todo.getById',
       decodeInput: (rawInput) => decodeRpcInputWithLuthor<GetTodoDto>(
         rawInput: rawInput,
@@ -99,7 +130,7 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
       handler: (context, input) =>
           container.todoController.getById(context, input),
     ),
-    RpcProcedure<CreateTodoDto, TodoResponseDto>(
+    RpcUnaryProcedure<CreateTodoDto, TodoResponseDto>(
       method: 'todo.create',
       decodeInput: (rawInput) => decodeRpcInputWithLuthor<CreateTodoDto>(
         rawInput: rawInput,
@@ -118,7 +149,7 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
       handler: (context, input) =>
           container.todoController.create(context, input),
     ),
-    RpcProcedure<UpdateTodoDto, TodoResponseDto>(
+    RpcUnaryProcedure<UpdateTodoDto, TodoResponseDto>(
       method: 'todo.update',
       decodeInput: (rawInput) => decodeRpcInputWithLuthor<UpdateTodoDto>(
         rawInput: rawInput,
@@ -137,7 +168,7 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
       handler: (context, input) =>
           container.todoController.update(context, input),
     ),
-    RpcProcedure<GetTodoDto, DeleteTodoResponseDto>(
+    RpcUnaryProcedure<GetTodoDto, DeleteTodoResponseDto>(
       method: 'todo.delete',
       decodeInput: (rawInput) => decodeRpcInputWithLuthor<GetTodoDto>(
         rawInput: rawInput,
@@ -199,7 +230,7 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
 ) {
   final metadataRegistry = _$createTodoModuleLocalProcedureMetadataRegistry();
   return RestRouteRegistry([
-    RestRoute(
+    RestUnaryRoute(
       method: 'GET',
       path: '/todos',
       handler: (context, request, pathParameters) async {
@@ -214,7 +245,39 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
       metadata: metadataRegistry['todo.list']!,
       guards: [container.todoRouteLoggerGuard, container.todoPermissionGuard],
     ),
-    RestRoute(
+    RestStreamRoute(
+      path: '/todos/events',
+      handler: (context, request, pathParameters) {
+        final output = container.todoController.watch(context);
+        return output.map(
+          (output) => encodeRpcOutputWithLuthor<TodoResponseDto>(
+            output: output,
+            method: 'todo.watch',
+            toJson: (output) => output.toJson(),
+            validate: $TodoResponseDtoValidate,
+          ),
+        );
+      },
+      metadata: metadataRegistry['todo.watch']!,
+      guards: [container.todoRouteLoggerGuard, container.todoPermissionGuard],
+    ),
+    RestStreamRoute(
+      path: '/todos/live-events',
+      handler: (context, request, pathParameters) {
+        final output = container.todoController.watchLive(context);
+        return output.map(
+          (output) => encodeRpcOutputWithLuthor<TodoChangeResponseDto>(
+            output: output,
+            method: 'todo.watchLive',
+            toJson: (output) => output.toJson(),
+            validate: $TodoChangeResponseDtoValidate,
+          ),
+        );
+      },
+      metadata: metadataRegistry['todo.watchLive']!,
+      guards: [container.todoRouteLoggerGuard, container.todoPermissionGuard],
+    ),
+    RestUnaryRoute(
       method: 'GET',
       path: '/todos/:id',
       handler: (context, request, pathParameters) async {
@@ -241,7 +304,7 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
       metadata: metadataRegistry['todo.getById']!,
       guards: [container.todoRouteLoggerGuard, container.todoPermissionGuard],
     ),
-    RestRoute(
+    RestUnaryRoute(
       method: 'POST',
       path: '/todos',
       handler: (context, request, pathParameters) async {
@@ -272,7 +335,7 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
       metadata: metadataRegistry['todo.create']!,
       guards: [container.todoRouteLoggerGuard, container.todoPermissionGuard],
     ),
-    RestRoute(
+    RestUnaryRoute(
       method: 'PATCH',
       path: '/todos/:id',
       handler: (context, request, pathParameters) async {
@@ -311,7 +374,7 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
       metadata: metadataRegistry['todo.update']!,
       guards: [container.todoRouteLoggerGuard, container.todoPermissionGuard],
     ),
-    RestRoute(
+    RestUnaryRoute(
       method: 'DELETE',
       path: '/todos/:id',
       handler: (context, request, pathParameters) async {
@@ -360,6 +423,53 @@ ProcedureMetadataRegistry _$createTodoModuleLocalProcedureMetadataRegistry() {
       path: RestProcedureMetadata(method: 'GET', path: '/todos'),
       outputTypeCode: 'TodoListResponseDto',
       description: 'List all todos.',
+      tags: ['todo'],
+      guardTypes: ['TodoRouteLoggerGuard', 'TodoPermissionGuard'],
+      customMetadata: [
+        ProcedureCustomMetadata(
+          key: 'permissions',
+          value: {
+            'anyOf': ['todo.read', 'todo.admin'],
+          },
+        ),
+      ],
+    ),
+    const ProcedureMetadata(
+      rpcMethod: 'todo.watch',
+      controllerNamespace: 'todo',
+      methodName: 'watch',
+      kind: RpcProcedureKind.serverStream,
+      path: RestProcedureMetadata(
+        method: 'GET',
+        path: '/todos/events',
+        responseKind: RestResponseKind.sse,
+      ),
+      outputTypeCode: 'TodoResponseDto',
+      description: 'Stream the current todo snapshot as validated events.',
+      tags: ['todo'],
+      guardTypes: ['TodoRouteLoggerGuard', 'TodoPermissionGuard'],
+      customMetadata: [
+        ProcedureCustomMetadata(
+          key: 'permissions',
+          value: {
+            'anyOf': ['todo.read', 'todo.admin'],
+          },
+        ),
+      ],
+    ),
+    const ProcedureMetadata(
+      rpcMethod: 'todo.watchLive',
+      controllerNamespace: 'todo',
+      methodName: 'watchLive',
+      kind: RpcProcedureKind.serverStream,
+      path: RestProcedureMetadata(
+        method: 'GET',
+        path: '/todos/live-events',
+        responseKind: RestResponseKind.sse,
+      ),
+      outputTypeCode: 'TodoChangeResponseDto',
+      description:
+          'Stream todo create, update, and delete events as they happen.',
       tags: ['todo'],
       guardTypes: ['TodoRouteLoggerGuard', 'TodoPermissionGuard'],
       customMetadata: [
@@ -509,6 +619,10 @@ OpenApiSchemaRegistry _$createTodoModuleLocalOpenApiSchemaRegistry() {
     ),
     OpenApiSchemaComponent(name: 'GetTodoDto', validator: $GetTodoDtoSchema),
     OpenApiSchemaComponent(
+      name: 'TodoChangeResponseDto',
+      validator: $TodoChangeResponseDtoSchema,
+    ),
+    OpenApiSchemaComponent(
       name: 'TodoListResponseDto',
       validator: $TodoListResponseDtoSchema,
     ),
@@ -560,6 +674,9 @@ RpcHttpApp _$buildTodoModuleRpcApp({
   RpcHttpStaticOptions? staticAssets,
   RpcHttpHealthOptions? health,
   RpcHttpMetricsOptions? metrics,
+  RpcWebSocketServerOptions? webSocket,
+  RpcContextFactory? contextFactory,
+  Duration sseHeartbeatInterval = const Duration(seconds: 15),
   Iterable<RpcHttpMiddleware> middleware = const [],
 }) {
   final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();
@@ -585,6 +702,15 @@ RpcHttpApp _$buildTodoModuleRpcApp({
     staticAssets: staticAssets,
     health: health,
     metrics: metrics,
+    contextFactory: contextFactory,
+    sseHeartbeatInterval: sseHeartbeatInterval,
+    upgradeHandlers: [
+      if (webSocket != null)
+        RpcWebSocketUpgradeHandler(
+          procedures: runtime.procedures,
+          options: webSocket,
+        ),
+    ],
     middleware: middleware,
   );
 }
@@ -595,6 +721,9 @@ RpcHttpApp dartOrpcBuildTodoModuleRpcApp({
   RpcHttpStaticOptions? staticAssets,
   RpcHttpHealthOptions? health,
   RpcHttpMetricsOptions? metrics,
+  RpcWebSocketServerOptions? webSocket,
+  RpcContextFactory? contextFactory,
+  Duration sseHeartbeatInterval = const Duration(seconds: 15),
   Iterable<RpcHttpMiddleware> middleware = const [],
 }) => _$buildTodoModuleRpcApp(
   openApi: openApi,
@@ -602,25 +731,30 @@ RpcHttpApp dartOrpcBuildTodoModuleRpcApp({
   staticAssets: staticAssets,
   health: health,
   metrics: metrics,
+  webSocket: webSocket,
+  contextFactory: contextFactory,
+  sseHeartbeatInterval: sseHeartbeatInterval,
   middleware: middleware,
 );
 
 class TodoClientRoot {
-  TodoClientRoot({required RpcTransport transport})
-    : _caller = RpcCaller(transport);
+  TodoClientRoot({required RpcClientTransports transports})
+    : _transports = transports;
 
-  final RpcCaller _caller;
+  final RpcClientTransports _transports;
 
-  late final todo = TodoClient(_caller);
+  late final todo = TodoClient(_transports);
 }
 
 class TodoClient {
-  TodoClient(this._caller);
+  TodoClient(this._transports);
 
-  final RpcCaller _caller;
+  final RpcClientTransports _transports;
 
   Future<TodoListResponseDto> list() {
-    return _caller.call<TodoListResponseDto>(
+    return RpcCaller(
+      _transports.requireUnary('todo.list'),
+    ).call<TodoListResponseDto>(
       method: 'todo.list',
       decode: (json) => TodoListResponseDto.fromJson(
         Map<String, dynamic>.from(
@@ -630,8 +764,36 @@ class TodoClient {
     );
   }
 
+  Stream<TodoResponseDto> watch() {
+    return RpcStreamCaller(
+      _transports.requireStreaming('todo.watch'),
+    ).call<TodoResponseDto>(
+      method: 'todo.watch',
+      decode: (json) => TodoResponseDto.fromJson(
+        Map<String, dynamic>.from(
+          expectJsonObject(json, context: 'RPC response for "todo.watch"'),
+        ),
+      ),
+    );
+  }
+
+  Stream<TodoChangeResponseDto> watchLive() {
+    return RpcStreamCaller(
+      _transports.requireStreaming('todo.watchLive'),
+    ).call<TodoChangeResponseDto>(
+      method: 'todo.watchLive',
+      decode: (json) => TodoChangeResponseDto.fromJson(
+        Map<String, dynamic>.from(
+          expectJsonObject(json, context: 'RPC response for "todo.watchLive"'),
+        ),
+      ),
+    );
+  }
+
   Future<TodoResponseDto> getById(GetTodoDto input) {
-    return _caller.call<TodoResponseDto>(
+    return RpcCaller(
+      _transports.requireUnary('todo.getById'),
+    ).call<TodoResponseDto>(
       method: 'todo.getById',
       input: input.toJson(),
       decode: (json) => TodoResponseDto.fromJson(
@@ -643,7 +805,9 @@ class TodoClient {
   }
 
   Future<TodoResponseDto> create(CreateTodoDto input) {
-    return _caller.call<TodoResponseDto>(
+    return RpcCaller(
+      _transports.requireUnary('todo.create'),
+    ).call<TodoResponseDto>(
       method: 'todo.create',
       input: input.toJson(),
       decode: (json) => TodoResponseDto.fromJson(
@@ -655,7 +819,9 @@ class TodoClient {
   }
 
   Future<TodoResponseDto> update(UpdateTodoDto input) {
-    return _caller.call<TodoResponseDto>(
+    return RpcCaller(
+      _transports.requireUnary('todo.update'),
+    ).call<TodoResponseDto>(
       method: 'todo.update',
       input: input.toJson(),
       decode: (json) => TodoResponseDto.fromJson(
@@ -667,7 +833,9 @@ class TodoClient {
   }
 
   Future<DeleteTodoResponseDto> delete(GetTodoDto input) {
-    return _caller.call<DeleteTodoResponseDto>(
+    return RpcCaller(
+      _transports.requireUnary('todo.delete'),
+    ).call<DeleteTodoResponseDto>(
       method: 'todo.delete',
       input: input.toJson(),
       decode: (json) => DeleteTodoResponseDto.fromJson(
@@ -696,6 +864,9 @@ extension DartOrpcTodoModuleGenerated on TodoModule {
     RpcHttpStaticOptions? staticAssets,
     RpcHttpHealthOptions? health,
     RpcHttpMetricsOptions? metrics,
+    RpcWebSocketServerOptions? webSocket,
+    RpcContextFactory? contextFactory,
+    Duration sseHeartbeatInterval = const Duration(seconds: 15),
     Iterable<RpcHttpMiddleware> middleware = const [],
   }) => dartOrpcBuildTodoModuleRpcApp(
     openApi: openApi,
@@ -703,8 +874,11 @@ extension DartOrpcTodoModuleGenerated on TodoModule {
     staticAssets: staticAssets,
     health: health,
     metrics: metrics,
+    webSocket: webSocket,
+    contextFactory: contextFactory,
+    sseHeartbeatInterval: sseHeartbeatInterval,
     middleware: middleware,
   );
-  TodoClientRoot createClient({required RpcTransport transport}) =>
-      TodoClientRoot(transport: transport);
+  TodoClientRoot createClient({required RpcClientTransports transports}) =>
+      TodoClientRoot(transports: transports);
 }

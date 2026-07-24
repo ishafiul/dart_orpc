@@ -1379,6 +1379,290 @@ $TodoMetadataDtoCopyWith<$Res>? get metadata {
 
 
 /// @nodoc
+mixin _$TodoChangeResponseDto {
+
+ String get type; TodoResponseDto get todo;
+/// Create a copy of TodoChangeResponseDto
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$TodoChangeResponseDtoCopyWith<TodoChangeResponseDto> get copyWith => _$TodoChangeResponseDtoCopyWithImpl<TodoChangeResponseDto>(this as TodoChangeResponseDto, _$identity);
+
+  /// Serializes this TodoChangeResponseDto to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TodoChangeResponseDto&&(identical(other.type, type) || other.type == type)&&(identical(other.todo, todo) || other.todo == todo));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,type,todo);
+
+@override
+String toString() {
+  return 'TodoChangeResponseDto(type: $type, todo: $todo)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $TodoChangeResponseDtoCopyWith<$Res>  {
+  factory $TodoChangeResponseDtoCopyWith(TodoChangeResponseDto value, $Res Function(TodoChangeResponseDto) _then) = _$TodoChangeResponseDtoCopyWithImpl;
+@useResult
+$Res call({
+ String type, TodoResponseDto todo
+});
+
+
+$TodoResponseDtoCopyWith<$Res> get todo;
+
+}
+/// @nodoc
+class _$TodoChangeResponseDtoCopyWithImpl<$Res>
+    implements $TodoChangeResponseDtoCopyWith<$Res> {
+  _$TodoChangeResponseDtoCopyWithImpl(this._self, this._then);
+
+  final TodoChangeResponseDto _self;
+  final $Res Function(TodoChangeResponseDto) _then;
+
+/// Create a copy of TodoChangeResponseDto
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? type = null,Object? todo = null,}) {
+  return _then(_self.copyWith(
+type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
+as String,todo: null == todo ? _self.todo : todo // ignore: cast_nullable_to_non_nullable
+as TodoResponseDto,
+  ));
+}
+/// Create a copy of TodoChangeResponseDto
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$TodoResponseDtoCopyWith<$Res> get todo {
+
+  return $TodoResponseDtoCopyWith<$Res>(_self.todo, (value) {
+    return _then(_self.copyWith(todo: value));
+  });
+}
+}
+
+
+/// Adds pattern-matching-related methods to [TodoChangeResponseDto].
+extension TodoChangeResponseDtoPatterns on TodoChangeResponseDto {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _TodoChangeResponseDto value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _TodoChangeResponseDto() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _TodoChangeResponseDto value)  $default,){
+final _that = this;
+switch (_that) {
+case _TodoChangeResponseDto():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _TodoChangeResponseDto value)?  $default,){
+final _that = this;
+switch (_that) {
+case _TodoChangeResponseDto() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String type,  TodoResponseDto todo)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _TodoChangeResponseDto() when $default != null:
+return $default(_that.type,_that.todo);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String type,  TodoResponseDto todo)  $default,) {final _that = this;
+switch (_that) {
+case _TodoChangeResponseDto():
+return $default(_that.type,_that.todo);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String type,  TodoResponseDto todo)?  $default,) {final _that = this;
+switch (_that) {
+case _TodoChangeResponseDto() when $default != null:
+return $default(_that.type,_that.todo);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _TodoChangeResponseDto implements TodoChangeResponseDto {
+  const _TodoChangeResponseDto({required this.type, required this.todo});
+  factory _TodoChangeResponseDto.fromJson(Map<String, dynamic> json) => _$TodoChangeResponseDtoFromJson(json);
+
+@override final  String type;
+@override final  TodoResponseDto todo;
+
+/// Create a copy of TodoChangeResponseDto
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$TodoChangeResponseDtoCopyWith<_TodoChangeResponseDto> get copyWith => __$TodoChangeResponseDtoCopyWithImpl<_TodoChangeResponseDto>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$TodoChangeResponseDtoToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TodoChangeResponseDto&&(identical(other.type, type) || other.type == type)&&(identical(other.todo, todo) || other.todo == todo));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,type,todo);
+
+@override
+String toString() {
+  return 'TodoChangeResponseDto(type: $type, todo: $todo)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$TodoChangeResponseDtoCopyWith<$Res> implements $TodoChangeResponseDtoCopyWith<$Res> {
+  factory _$TodoChangeResponseDtoCopyWith(_TodoChangeResponseDto value, $Res Function(_TodoChangeResponseDto) _then) = __$TodoChangeResponseDtoCopyWithImpl;
+@override @useResult
+$Res call({
+ String type, TodoResponseDto todo
+});
+
+
+@override $TodoResponseDtoCopyWith<$Res> get todo;
+
+}
+/// @nodoc
+class __$TodoChangeResponseDtoCopyWithImpl<$Res>
+    implements _$TodoChangeResponseDtoCopyWith<$Res> {
+  __$TodoChangeResponseDtoCopyWithImpl(this._self, this._then);
+
+  final _TodoChangeResponseDto _self;
+  final $Res Function(_TodoChangeResponseDto) _then;
+
+/// Create a copy of TodoChangeResponseDto
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? type = null,Object? todo = null,}) {
+  return _then(_TodoChangeResponseDto(
+type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
+as String,todo: null == todo ? _self.todo : todo // ignore: cast_nullable_to_non_nullable
+as TodoResponseDto,
+  ));
+}
+
+/// Create a copy of TodoChangeResponseDto
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$TodoResponseDtoCopyWith<$Res> get todo {
+
+  return $TodoResponseDtoCopyWith<$Res>(_self.todo, (value) {
+    return _then(_self.copyWith(todo: value));
+  });
+}
+}
+
+
+/// @nodoc
 mixin _$TodoListResponseDto {
 
  List<TodoResponseDto> get items;

@@ -15,8 +15,6 @@ No ready items.
 - [ ] **OBS-001 · P1 · Feature:** Add production metrics and tracing.
 - [ ] **SEC-001 · P1 · Feature:** Document the application authentication integration
   model.
-- [ ] **HTTP-001 · P1 · Feature:** Add production request lifecycle controls and
-  graceful shutdown.
 - [ ] **HTTP-002 · P2 · Feature:** Add rate-limiting support.
 - [ ] **CLIENT-001 · P1 · Feature:** Add client headers, authentication, timeouts,
   and cancellation.
@@ -27,11 +25,12 @@ No ready items.
 - [ ] **AUTH-001 · P1 · Feature:** Add JWT, session, and API-key authentication
   adapters.
 - [ ] **TRANSPORT-001 · P1 · Feature:** Add multipart upload support.
-- [ ] **TRANSPORT-002 · P1 · Feature:** Add streaming RPC.
-- [ ] **TRANSPORT-003 · P1 · Feature:** Add WebSocket transport.
+- [ ] **TRANSPORT-004 · P2 · Feature:** Add opt-in WebSocket reconnection and
+  resumable stream cursors.
+- [ ] **TRANSPORT-005 · P2 · Feature:** Add a browser WebSocket client adapter.
+- [ ] **TRANSPORT-006 · P2 · Feature:** Add client-streaming and bidirectional
+  RPC after the server-streaming protocol has stabilized.
 - [ ] **CLIENTGEN-001 · P1 · Feature:** Add non-Dart client generation.
-- [ ] **QA-001 · P1 · Test:** Add an end-to-end generated server and client acceptance
-  test.
 
 ## In progress
 
@@ -46,12 +45,20 @@ No blocked items.
 
 ## Done
 
+- [x] **TRANSPORT-003 · P1 · Feature:** Add the versioned WebSocket unary and
+  server-streaming transport with bounded output and lifecycle controls.
+- [x] **TRANSPORT-002 · P1 · Feature:** Add typed server-streaming RPC and
+  explicit REST/SSE derived from shared procedure metadata.
+- [x] **HTTP-001 · P1 · Feature:** Add streaming HTTP bodies, request
+  cancellation, connection draining, and graceful shutdown.
 - [x] **DI-001 · P1 · Architecture:** Share each generated module container
   between its RPC and REST registries during application construction.
 - [x] **BUG-006 · P1 · Fix:** Make workspace tests run without a globally installed
   Melos executable.
 - [x] **QA-002 · P1 · Test:** Establish comprehensive generator regression coverage
   and enforce a minimum coverage threshold.
+- [x] **QA-001 · P1 · Test:** Add an end-to-end generated server and client acceptance
+  test covering HTTP RPC, REST, WebSocket RPC, SSE, OpenAPI, and shared guards.
 - [x] **BUG-004 · P1 · Fix:** Reject duplicate RPC methods and REST routes during
   generation.
 - [x] **BUG-005 · P1 · Fix:** Reject duplicate generated client namespaces.

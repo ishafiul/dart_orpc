@@ -10,7 +10,15 @@ Future<void> main(List<String> args) async {
     baseUrl: baseUrl,
     interceptors: const [BasicLoggerInterceptor()],
   );
-  final client = const AppModule().createClient(transport: transport);
+  final webSocket = await WebSocketRpcTransport.connect(
+    Uri.parse(baseUrl.replaceFirst('http', 'ws')).resolve('/rpc/ws'),
+  );
+  final client = const AppModule().createClient(
+    transports: RpcClientTransports.split(
+      unary: transport,
+      streaming: webSocket,
+    ),
+  );
 
   try {
     final initialList = await client.todo.list();
@@ -30,17 +38,29 @@ Future<void> main(List<String> args) async {
     final summary = await client.todoAnalysis.summary();
     _printStep('todoAnalysis.summary', summary.toJson());
 
+    final streamedTodos = await client.todo.watch().toList();
+    _printStep('todo.watch', [for (final todo in streamedTodos) todo.toJson()]);
+
     final deleted = await client.todo.delete(GetTodoDto(id: created.id));
     _printStep('todo.delete', deleted.toJson());
 
     final finalList = await client.todo.list();
     _printStep('todo.list (after)', finalList.toJson());
+
+    print(
+      'Listening for live todo changes. Create, update, or delete a todo '
+      'through RPC/REST; press Ctrl+C to stop.',
+    );
+    await for (final change in client.todo.watchLive()) {
+      _printStep('todo.watchLive (${change.type})', change.todo.toJson());
+    }
   } on RpcException catch (error) {
     _printStep('rpc.error', {
       'error': {'code': error.code.wireName, 'message': error.message},
     });
   } finally {
     transport.close();
+    await webSocket.close();
   }
 }
 
