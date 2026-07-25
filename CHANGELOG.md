@@ -15,6 +15,27 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`dart_orpc_cli` - `v0.1.0-dev.3`](#dart_orpc_cli---v010-dev3)
+
+---
+
+#### `dart_orpc_cli` - `v0.1.0-dev.3`
+
+ - **FEAT**: Add create command for generating minimal hello-world dart_orpc app.
+
+
+## 2026-07-25
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`dart_orpc` - `v0.1.0-dev.2`](#dart_orpc---v010-dev2)
  - [`dart_orpc_annotations` - `v0.1.0-dev.2`](#dart_orpc_annotations---v010-dev2)
  - [`dart_orpc_client` - `v0.1.0-dev.2`](#dart_orpc_client---v010-dev2)
