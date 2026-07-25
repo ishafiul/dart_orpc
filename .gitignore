@@ -8,5 +8,6 @@ pubspec.lock
 .asdf/
 .vscode/
 .idea/
+*.iml
 .dart_home/
 tools

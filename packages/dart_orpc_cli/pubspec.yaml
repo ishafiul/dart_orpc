@@ -1,7 +1,8 @@
 name: dart_orpc_cli
 description: CLI tooling for dart_orpc development workflows.
-version: 0.1.0-dev.1
-publish_to: none
+version: 0.1.0-dev.2
+repository: https://github.com/ishafiul/dart_orpc/tree/main/packages/dart_orpc_cli
+issue_tracker: https://github.com/ishafiul/dart_orpc/issues
 resolution: workspace
 
 environment:

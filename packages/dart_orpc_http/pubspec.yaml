@@ -1,6 +1,8 @@
 name: dart_orpc_http
 description: Pure-Dart HTTP transport adapter for dart_orpc.
 version: 0.1.0-dev.2
+repository: https://github.com/ishafiul/dart_orpc/tree/main/packages/dart_orpc_http
+issue_tracker: https://github.com/ishafiul/dart_orpc/issues
 resolution: workspace
 
 environment:
