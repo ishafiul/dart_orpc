@@ -11,3 +11,6 @@ pubspec.lock
 *.iml
 .dart_home/
 tools
+.env
+.env.*
+!.env.example
