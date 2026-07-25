@@ -15,6 +15,56 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`dart_orpc_core` - `v0.1.0-dev.3`](#dart_orpc_core---v010-dev3)
+ - [`dart_orpc_generator` - `v0.1.0-dev.3`](#dart_orpc_generator---v010-dev3)
+ - [`dart_orpc_http` - `v0.1.0-dev.3`](#dart_orpc_http---v010-dev3)
+ - [`dart_orpc_websocket` - `v0.1.0-dev.3`](#dart_orpc_websocket---v010-dev3)
+ - [`dart_orpc` - `v0.1.0-dev.3`](#dart_orpc---v010-dev3)
+ - [`dart_orpc_client` - `v0.1.0-dev.3`](#dart_orpc_client---v010-dev3)
+ - [`dart_orpc_luthor` - `v0.1.0-dev.3`](#dart_orpc_luthor---v010-dev3)
+ - [`dart_orpc_openapi` - `v0.1.0-dev.3`](#dart_orpc_openapi---v010-dev3)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `dart_orpc` - `v0.1.0-dev.3`
+ - `dart_orpc_client` - `v0.1.0-dev.3`
+ - `dart_orpc_luthor` - `v0.1.0-dev.3`
+ - `dart_orpc_openapi` - `v0.1.0-dev.3`
+
+---
+
+#### `dart_orpc_core` - `v0.1.0-dev.3`
+
+ - **FEAT**(core): Add typed RPC context bindings.
+
+#### `dart_orpc_generator` - `v0.1.0-dev.3`
+
+ - **FEAT**(generator): Expose context bindings in generated app builders.
+
+#### `dart_orpc_http` - `v0.1.0-dev.3`
+
+ - **FEAT**(http): Add reusable environment reader.
+ - **FEAT**(http): Propagate default bindings across request transports.
+
+#### `dart_orpc_websocket` - `v0.1.0-dev.3`
+
+ - **FEAT**(http): Propagate default bindings across request transports.
+
+
+## 2026-07-25
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`dart_orpc_cli` - `v0.1.0-dev.3`](#dart_orpc_cli---v010-dev3)
 
 ---

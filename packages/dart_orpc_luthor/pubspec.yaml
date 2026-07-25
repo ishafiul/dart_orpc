@@ -1,6 +1,6 @@
 name: dart_orpc_luthor
 description: Luthor validation bridge for dart_orpc.
-version: 0.1.0-dev.2
+version: 0.1.0-dev.3
 repository: https://github.com/ishafiul/dart_orpc/tree/main/packages/dart_orpc_luthor
 issue_tracker: https://github.com/ishafiul/dart_orpc/issues
 resolution: workspace
@@ -9,7 +9,7 @@ environment:
   sdk: ^3.11.0
 
 dependencies:
-  dart_orpc_core: ^0.1.0-dev.2
+  dart_orpc_core: ^0.1.0-dev.3
   luthor: ^0.17.0
 
 dev_dependencies:

@@ -1,3 +1,7 @@
+## 0.1.0-dev.3
+
+ - **FEAT**(core): Add typed RPC context bindings.
+
 ## 0.1.0-dev.2
 
  - **REFACTOR**: replace manual beforeInvoke guards with a declarative guards property in RpcProcedure and RestRoute definitions.

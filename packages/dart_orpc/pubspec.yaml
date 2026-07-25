@@ -1,6 +1,6 @@
 name: dart_orpc
 description: Public facade package for the dart_orpc runtime APIs.
-version: 0.1.0-dev.2
+version: 0.1.0-dev.3
 repository: https://github.com/ishafiul/dart_orpc
 issue_tracker: https://github.com/ishafiul/dart_orpc/issues
 resolution: workspace
@@ -10,12 +10,12 @@ environment:
 
 dependencies:
   dart_orpc_annotations: ^0.1.0-dev.2
-  dart_orpc_client: ^0.1.0-dev.2
-  dart_orpc_core: ^0.1.0-dev.2
-  dart_orpc_http: ^0.1.0-dev.2
-  dart_orpc_luthor: ^0.1.0-dev.2
-  dart_orpc_openapi: ^0.1.0-dev.2
-  dart_orpc_websocket: ^0.1.0-dev.2
+  dart_orpc_client: ^0.1.0-dev.3
+  dart_orpc_core: ^0.1.0-dev.3
+  dart_orpc_http: ^0.1.0-dev.3
+  dart_orpc_luthor: ^0.1.0-dev.3
+  dart_orpc_openapi: ^0.1.0-dev.3
+  dart_orpc_websocket: ^0.1.0-dev.3
 
 dev_dependencies:
   test: ^1.26.3

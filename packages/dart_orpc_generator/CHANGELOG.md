@@ -1,3 +1,7 @@
+## 0.1.0-dev.3
+
+ - **FEAT**(generator): Expose context bindings in generated app builders.
+
 ## 0.1.0-dev.2
 
  - **REFACTOR**(generator): Improve architecture and regression coverage (#1).
