@@ -167,6 +167,42 @@ void main() {
   });
 
   group('Given RpcContext defaults', () {
+    test('When using typed bindings then the key infers the value type', () {
+      const tenantKey = RpcContextKey<String>('tenant');
+      const missingKey = RpcContextKey<int>('missing');
+      final context = RpcContext(
+        headers: const {},
+        bindings: const RpcContextBindings.empty().withValue(tenantKey, 'acme'),
+      );
+
+      final String tenant = context.requireBinding(tenantKey);
+
+      expect(tenant, 'acme');
+      expect(context.binding(tenantKey), 'acme');
+      expect(context.binding(missingKey), isNull);
+      expect(
+        () => context.requireBinding(missingKey),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('When bindings merge then later request values take precedence', () {
+      const tenantKey = RpcContextKey<String>('tenant');
+      const traceKey = RpcContextKey<String>('trace');
+      final applicationBindings = const RpcContextBindings.empty()
+          .withValue(tenantKey, 'default')
+          .withValue(traceKey, 'trace-1');
+      final requestBindings = const RpcContextBindings.empty().withValue(
+        tenantKey,
+        'request',
+      );
+
+      final merged = applicationBindings.merge(requestBindings);
+
+      expect(merged.require(tenantKey), 'request');
+      expect(merged.require(traceKey), 'trace-1');
+    });
+
     test(
       'When constructing RpcContext with only headers then it defaults to POST /rpc',
       () {
@@ -217,6 +253,7 @@ void main() {
         expect(copied.httpMethod, context.httpMethod);
         expect(copied.path, context.path);
         expect(copied.attributes, context.attributes);
+        expect(copied.bindings, context.bindings);
         expect(copied.cancellation, same(cancellation.signal));
       },
     );
