@@ -90,6 +90,7 @@ final class RpcHttpApp {
     this.staticAssets,
     this.health,
     this.metrics,
+    this.bindings = const RpcContextBindings.empty(),
     this.contextFactory,
     this.sseHeartbeatInterval = const Duration(seconds: 15),
     this.maxRequestBodyBytes = _defaultMaxRequestBodyBytes,
@@ -116,6 +117,7 @@ final class RpcHttpApp {
          staticAssets: staticAssets,
          health: health,
          metrics: metrics,
+         bindings: bindings,
          contextFactory: contextFactory,
          sseHeartbeatInterval: sseHeartbeatInterval,
          middleware: middleware,
@@ -131,6 +133,7 @@ final class RpcHttpApp {
   final RpcHttpStaticOptions? staticAssets;
   final RpcHttpHealthOptions? health;
   final RpcHttpMetricsOptions? metrics;
+  final RpcContextBindings bindings;
   final RpcContextFactory? contextFactory;
   final Duration sseHeartbeatInterval;
   final int? maxRequestBodyBytes;
@@ -262,12 +265,16 @@ final class RpcHttpApp {
   Future<RpcContext> _createContext(RpcHttpRequest request) async {
     final customContext = await contextFactory?.call(request);
     if (customContext != null) {
-      return customContext.copyWith(cancellation: request.cancellation);
+      return customContext.copyWith(
+        bindings: bindings.merge(customContext.bindings),
+        cancellation: request.cancellation,
+      );
     }
     return RpcContext(
       headers: request.headers,
       httpMethod: request.method,
       path: request.path,
+      bindings: bindings,
       cancellation: request.cancellation,
     );
   }

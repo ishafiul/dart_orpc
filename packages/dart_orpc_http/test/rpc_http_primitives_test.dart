@@ -35,8 +35,46 @@ void main() {
 
   group('Given a handler context factory', () {
     test(
-      'When a REST route runs then custom attributes and call cancellation are preserved',
+      'When default bindings are configured then framework context fields and values are available',
       () async {
+        const envKey = RpcContextKey<String>('app.env');
+        final routes = RestRouteRegistry([
+          RestUnaryRoute(
+            method: 'GET',
+            path: '/context',
+            handler: (context, _, _) => {
+              'method': context.httpMethod,
+              'path': context.path,
+              'env': context.requireBinding(envKey),
+            },
+          ),
+        ]);
+        final handler = createRpcHttpHandler(
+          procedures: RpcProcedureRegistry(const []),
+          restRoutes: routes,
+          bindings: const RpcContextBindings.empty().withValue(
+            envKey,
+            'production',
+          ),
+        );
+
+        final response = await handler(
+          const RpcHttpRequest(method: 'GET', path: '/context'),
+        );
+
+        expect(jsonDecode(response.body! as String), {
+          'method': 'GET',
+          'path': '/context',
+          'env': 'production',
+        });
+      },
+    );
+
+    test(
+      'When a REST route runs then custom context overrides bindings and preserves cancellation',
+      () async {
+        const tenantKey = RpcContextKey<String>('tenant');
+        const envKey = RpcContextKey<String>('env');
         final cancellation = RpcCancellationSource();
         final routes = RestRouteRegistry([
           RestUnaryRoute(
@@ -44,6 +82,8 @@ void main() {
             path: '/context',
             handler: (context, _, _) => {
               'tenant': context.attributes['tenant'],
+              'tenantBinding': context.requireBinding(tenantKey),
+              'envBinding': context.requireBinding(envKey),
               'sameCancellation': identical(
                 context.cancellation,
                 cancellation.signal,
@@ -54,9 +94,16 @@ void main() {
         final handler = createRpcHttpHandler(
           procedures: RpcProcedureRegistry(const []),
           restRoutes: routes,
+          bindings: const RpcContextBindings.empty()
+              .withValue(tenantKey, 'default')
+              .withValue(envKey, 'production'),
           contextFactory: (_) => RpcContext(
             headers: const {},
             attributes: const {'tenant': 'acme'},
+            bindings: const RpcContextBindings.empty().withValue(
+              tenantKey,
+              'request',
+            ),
           ),
         );
 
@@ -71,6 +118,8 @@ void main() {
         expect(routes.routes, hasLength(1));
         expect(jsonDecode(response.body! as String), {
           'tenant': 'acme',
+          'tenantBinding': 'request',
+          'envBinding': 'production',
           'sameCancellation': true,
         });
       },

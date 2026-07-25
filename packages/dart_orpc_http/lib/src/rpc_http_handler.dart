@@ -270,6 +270,7 @@ RpcHttpHandler createRpcHttpHandler({
   RpcHttpStaticOptions? staticAssets,
   RpcHttpHealthOptions? health,
   RpcHttpMetricsOptions? metrics,
+  RpcContextBindings bindings = const RpcContextBindings.empty(),
   RpcContextFactory? contextFactory,
   Duration sseHeartbeatInterval = const Duration(seconds: 15),
   Iterable<RpcHttpMiddleware> middleware = const [],
@@ -321,6 +322,7 @@ RpcHttpHandler createRpcHttpHandler({
         request,
         path: path,
         procedures: procedures,
+        bindings: bindings,
         contextFactory: contextFactory,
       );
     }
@@ -334,6 +336,7 @@ RpcHttpHandler createRpcHttpHandler({
         request,
         path: path,
         match: restMatch,
+        bindings: bindings,
         contextFactory: contextFactory,
         sseHeartbeatInterval: sseHeartbeatInterval,
       );
@@ -460,6 +463,7 @@ Future<RpcHttpResponse> _handleRpcRequest(
   RpcHttpRequest request, {
   required String path,
   required RpcProcedureRegistry procedures,
+  required RpcContextBindings bindings,
   RpcContextFactory? contextFactory,
 }) async {
   if (request.method != 'POST') {
@@ -481,6 +485,7 @@ Future<RpcHttpResponse> _handleRpcRequest(
     final context = await _buildContext(
       request,
       path: path,
+      bindings: bindings,
       contextFactory: contextFactory,
     );
 
@@ -504,6 +509,7 @@ Future<RpcHttpResponse> _handleRestRequest(
   RpcHttpRequest request, {
   required String path,
   required RestRouteMatch match,
+  required RpcContextBindings bindings,
   RpcContextFactory? contextFactory,
   required Duration sseHeartbeatInterval,
 }) async {
@@ -511,6 +517,7 @@ Future<RpcHttpResponse> _handleRestRequest(
     final context = await _buildContext(
       request,
       path: path,
+      bindings: bindings,
       contextFactory: contextFactory,
     );
 
@@ -818,17 +825,22 @@ final _startTime = DateTime.now().millisecondsSinceEpoch;
 Future<RpcContext> _buildContext(
   RpcHttpRequest request, {
   required String path,
+  required RpcContextBindings bindings,
   RpcContextFactory? contextFactory,
 }) async {
   if (contextFactory != null) {
     final context = await contextFactory(request);
-    return context.copyWith(cancellation: request.cancellation);
+    return context.copyWith(
+      bindings: bindings.merge(context.bindings),
+      cancellation: request.cancellation,
+    );
   }
 
   return RpcContext(
     headers: Map<String, String>.unmodifiable(request.headers),
     httpMethod: request.method,
     path: path,
+    bindings: bindings,
     cancellation: request.cancellation,
   );
 }

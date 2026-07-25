@@ -8,6 +8,8 @@ import 'package:dart_orpc_websocket/dart_orpc_websocket.dart';
 import 'package:test/test.dart';
 
 void main() {
+  const environmentKey = RpcContextKey<String>('app.env');
+
   group('Given WebSocket RPC on an RpcHttpApp', () {
     late RpcHttpServer server;
     late WebSocketRpcTransport transport;
@@ -28,6 +30,18 @@ void main() {
               expectJsonObject(input, context: 'math.double input'),
           encodeOutput: (output) => output,
           handler: (_, input) => {'value': (input['value']! as int) * 2},
+        ),
+        RpcUnaryProcedure<Null, String>(
+          method: 'context.env',
+          metadata: const ProcedureMetadata(
+            rpcMethod: 'context.env',
+            controllerNamespace: 'context',
+            methodName: 'env',
+            outputTypeCode: 'String',
+          ),
+          decodeInput: (_) => null,
+          encodeOutput: (output) => output,
+          handler: (context, _) => context.requireBinding(environmentKey),
         ),
         RpcStreamProcedure<JsonObject, JsonObject>(
           method: 'counter.watch',
@@ -72,6 +86,10 @@ void main() {
       ]);
       final app = RpcHttpApp(
         procedures: procedures,
+        bindings: const RpcContextBindings.empty().withValue(
+          environmentKey,
+          'production',
+        ),
         upgradeHandlers: [RpcWebSocketUpgradeHandler(procedures: procedures)],
       );
       server = await app.listen(
@@ -97,6 +115,17 @@ void main() {
 
         expect(result, {'value': 42});
         expect(transport.pendingCalls, 0);
+      },
+    );
+
+    test(
+      'When app bindings are configured then WebSocket context receives them',
+      () async {
+        final result = await transport.send(
+          const RpcRequest(method: 'context.env'),
+        );
+
+        expect(result, 'production');
       },
     );
 
