@@ -1,7 +1,6 @@
 name: dart_orpc_annotations
 description: Public annotations for dart_orpc code generation.
-version: 0.1.0-dev.1
-publish_to: none
+version: 0.1.0-dev.2
 resolution: workspace
 
 environment:

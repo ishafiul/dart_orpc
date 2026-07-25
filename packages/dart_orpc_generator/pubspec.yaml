@@ -1,7 +1,6 @@
 name: dart_orpc_generator
 description: build_runner generators for dart_orpc.
-version: 0.1.0-dev.1
-publish_to: none
+version: 0.1.0-dev.2
 resolution: workspace
 
 environment:
@@ -10,8 +9,8 @@ environment:
 dependencies:
   analyzer: '>=8.1.1 <11.0.0'
   build: ^4.0.4
-  dart_orpc_annotations: ^0.1.0-dev.1
-  dart_orpc_core: ^0.1.0-dev.1
+  dart_orpc_annotations: ^0.1.0-dev.2
+  dart_orpc_core: ^0.1.0-dev.2
   luthor: ^0.17.0
   source_gen: ^4.2.0
 
