@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:args/args.dart';
 
 import 'command.dart';
+import 'commands/create_command.dart';
 import 'commands/serve_command.dart';
 import 'commands/watch_command.dart';
 import 'process_runner.dart';
@@ -16,6 +17,12 @@ final class DartOrpcCli {
   }) : _stdout = stdoutSink ?? stdout,
        _stderr = stderrSink ?? stderr,
        _commands = [
+         CreateCommand(
+           currentDirectory: currentDirectory ?? Directory.current,
+           stdoutSink: stdoutSink ?? stdout,
+           stderrSink: stderrSink ?? stderr,
+           processStarter: processStarter,
+         ),
          ServeCommand(
            currentDirectory: currentDirectory ?? Directory.current,
            stdoutSink: stdoutSink ?? stdout,
