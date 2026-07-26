@@ -531,10 +531,11 @@ Future<RpcHttpResponse> _handleRestRequest(
     }
 
     return switch (match.route) {
-      RestUnaryRoute(:final handler) => RpcHttpResponse(
-        statusCode: HttpStatus.ok,
-        headers: const {'content-type': 'application/json; charset=utf-8'},
-        body: jsonEncode(await handler(context, request, match.pathParameters)),
+      RestUnaryRoute() => await _handleRestUnaryRoute(
+        match.route as RestUnaryRoute,
+        context,
+        request,
+        match.pathParameters,
       ),
       RestStreamRoute(:final handler) => RpcHttpResponse.streaming(
         statusCode: HttpStatus.ok,
@@ -556,6 +557,23 @@ Future<RpcHttpResponse> _handleRestRequest(
   } catch (_) {
     return _rpcErrorResponse(RpcException.internalError());
   }
+}
+
+Future<RpcHttpResponse> _handleRestUnaryRoute(
+  RestUnaryRoute route,
+  RpcContext context,
+  RpcHttpRequest request,
+  Map<String, String> pathParameters,
+) async {
+  final output = await route.handler(context, request, pathParameters);
+  if (route.metadata?.outputTypeCode == 'void') {
+    return const RpcHttpResponse(statusCode: HttpStatus.noContent);
+  }
+  return RpcHttpResponse(
+    statusCode: HttpStatus.ok,
+    headers: const {'content-type': 'application/json; charset=utf-8'},
+    body: jsonEncode(output),
+  );
 }
 
 Future<RpcHttpResponse> _handleOpenApiRequest(

@@ -441,6 +441,35 @@ void main() {
     );
 
     test(
+      'When a REST procedure returns void then OpenAPI documents a contentless 204 response',
+      () {
+        final document = createOpenApiDocument(
+          title: 'Status API',
+          procedures: ProcedureMetadataRegistry([
+            const ProcedureMetadata(
+              rpcMethod: 'status.clear',
+              controllerNamespace: 'status',
+              methodName: 'clear',
+              path: RestProcedureMetadata(method: 'DELETE', path: '/status'),
+              outputTypeCode: 'void',
+            ),
+          ]),
+        );
+        final paths = document['paths'] as Map<String, Object?>;
+        final operation =
+            (paths['/status'] as Map<String, Object?>)['delete']
+                as Map<String, Object?>;
+        final responses = operation['responses'] as Map<String, Object?>;
+
+        expect(responses, contains('204'));
+        expect(responses, isNot(contains('200')));
+        expect(responses['204'], {
+          'description': 'Successful response with no content.',
+        });
+      },
+    );
+
+    test(
       'When duplicate schema names are registered then construction fails',
       () {
         final component = OpenApiSchemaComponent(
