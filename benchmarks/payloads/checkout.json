@@ -1,0 +1,21 @@
+{
+  "customer": {
+    "id": "customer-42",
+    "email": "benchmark@example.com",
+    "tier": "gold"
+  },
+  "currency": "USD",
+  "coupon": "SAVE10",
+  "shippingAddress": {
+    "line1": "42 Benchmark Avenue",
+    "city": "Dart City",
+    "postalCode": "42424",
+    "country": "US"
+  },
+  "items": [
+    {"sku": "BOOK-000042", "quantity": 2, "unitPriceCents": 2499},
+    {"sku": "BOOK-000108", "quantity": 1, "unitPriceCents": 3599},
+    {"sku": "MEDIA-000007", "quantity": 3, "unitPriceCents": 1299},
+    {"sku": "OFFICE-000013", "quantity": 1, "unitPriceCents": 1899}
+  ]
+}

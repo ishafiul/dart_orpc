@@ -54,6 +54,9 @@ melos:
     format:
       description: Format the repository.
       run: dart format .
+    benchmark:
+      description: Run the complete framework benchmark suite with resource sampling.
+      run: dart run benchmarks/tool/benchmark.dart suite
     serve:basic-app:
       description: Run the basic_app RPC server and keep it running.
       run: dart run dart_orpc_cli:dart_orpc serve --project apps/basic_app

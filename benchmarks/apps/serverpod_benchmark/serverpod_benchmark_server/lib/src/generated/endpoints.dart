@@ -18,7 +18,11 @@ class Endpoints extends _i1.EndpointDispatch {
   void initializeEndpoints(_i1.Server server) {
     var endpoints = <String, _i1.Endpoint>{
       'benchmark': _i2.BenchmarkEndpoint()
-        ..initialize(server, 'benchmark', null),
+        ..initialize(
+          server,
+          'benchmark',
+          null,
+        ),
     };
     connectors['benchmark'] = _i1.EndpointConnector(
       name: 'benchmark',
@@ -27,16 +31,23 @@ class Endpoints extends _i1.EndpointDispatch {
         'plaintext': _i1.MethodConnector(
           name: 'plaintext',
           params: {},
-          call: (_i1.Session session, Map<String, dynamic> params) async =>
-              (endpoints['benchmark'] as _i2.BenchmarkEndpoint).plaintext(
-                session,
-              ),
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['benchmark'] as _i2.BenchmarkEndpoint)
+                  .plaintext(session),
         ),
         'json': _i1.MethodConnector(
           name: 'json',
           params: {},
-          call: (_i1.Session session, Map<String, dynamic> params) async =>
-              (endpoints['benchmark'] as _i2.BenchmarkEndpoint).json(session),
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['benchmark'] as _i2.BenchmarkEndpoint).json(
+                session,
+              ),
         ),
         'echo': _i1.MethodConnector(
           name: 'echo',
@@ -47,8 +58,11 @@ class Endpoints extends _i1.EndpointDispatch {
               nullable: false,
             ),
           },
-          call: (_i1.Session session, Map<String, dynamic> params) async =>
-              (endpoints['benchmark'] as _i2.BenchmarkEndpoint).echo(
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['benchmark'] as _i2.BenchmarkEndpoint).echo(
                 session,
                 params['input'],
               ),
