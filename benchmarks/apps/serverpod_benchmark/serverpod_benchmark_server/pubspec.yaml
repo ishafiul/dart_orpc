@@ -8,10 +8,11 @@ environment:
 resolution: workspace
 
 dependencies:
+  benchmark_workloads:
+    path: ../../../packages/benchmark_workloads
   serverpod: 3.4.11
 
 dev_dependencies:
   lints: ^6.0.0
   serverpod_test: 3.4.11
   test: ^1.26.0
-

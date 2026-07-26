@@ -9,6 +9,8 @@ Future<void> run(List<String> args) async {
   pod.webServer
     ..addRoute(PlaintextRoute(), '/plaintext')
     ..addRoute(JsonRoute(), '/json')
-    ..addRoute(EchoRoute(), '/echo');
+    ..addRoute(EchoRoute(), '/echo')
+    ..addRoute(CatalogRoute(), '/catalog')
+    ..addRoute(CheckoutRoute(), '/checkout');
   await pod.start();
 }

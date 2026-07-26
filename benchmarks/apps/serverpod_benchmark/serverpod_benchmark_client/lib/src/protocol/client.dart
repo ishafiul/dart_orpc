@@ -21,16 +21,25 @@ class EndpointBenchmark extends _i1.EndpointRef {
   @override
   String get name => 'benchmark';
 
-  _i2.Future<String> plaintext() =>
-      caller.callServerEndpoint<String>('benchmark', 'plaintext', {});
+  _i2.Future<String> plaintext() => caller.callServerEndpoint<String>(
+    'benchmark',
+    'plaintext',
+    {},
+  );
 
   _i2.Future<Map<String, String>> json() =>
-      caller.callServerEndpoint<Map<String, String>>('benchmark', 'json', {});
+      caller.callServerEndpoint<Map<String, String>>(
+        'benchmark',
+        'json',
+        {},
+      );
 
   _i2.Future<Map<String, String>> echo(Map<String, String> input) =>
-      caller.callServerEndpoint<Map<String, String>>('benchmark', 'echo', {
-        'input': input,
-      });
+      caller.callServerEndpoint<Map<String, String>>(
+        'benchmark',
+        'echo',
+        {'input': input},
+      );
 }
 
 class Client extends _i1.ServerpodClientShared {
@@ -43,7 +52,12 @@ class Client extends _i1.ServerpodClientShared {
     super.authenticationKeyManager,
     Duration? streamingConnectionTimeout,
     Duration? connectionTimeout,
-    Function(_i1.MethodCallContext, Object, StackTrace)? onFailedCall,
+    Function(
+      _i1.MethodCallContext,
+      Object,
+      StackTrace,
+    )?
+    onFailedCall,
     Function(_i1.MethodCallContext)? onSucceededCall,
     bool? disconnectStreamsOnLostInternetConnection,
   }) : super(

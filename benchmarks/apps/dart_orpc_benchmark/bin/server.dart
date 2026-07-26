@@ -1,27 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:dart_orpc_core/dart_orpc_core.dart';
-import 'package:dart_orpc_http/dart_orpc_http.dart';
+import 'package:dart_orpc/dart_orpc.dart';
+import 'package:dart_orpc_benchmark/benchmark_app.orpc.dart';
 
 const _message = 'Hello, World!';
 
 Future<void> main() async {
-  final app = RpcHttpApp(
-    procedures: RpcProcedureRegistry([_echoProcedure()]),
-    restRoutes: RestRouteRegistry([
-      RestRoute(
-        method: 'GET',
-        path: '/json',
-        handler: (_, _, _) => const {'message': _message},
-      ),
-      RestRoute(
-        method: 'POST',
-        path: '/echo',
-        handler: (_, request, _) => jsonDecode(request.body),
-      ),
-    ]),
-    middleware: [_plaintextMiddleware],
+  final app = const BenchmarkModule().buildRpcApp(
+    middleware: [_microBenchmarkMiddleware],
   );
 
   final port = int.parse(Platform.environment['PORT'] ?? '8081');
@@ -29,40 +16,34 @@ Future<void> main() async {
   stdout.writeln('READY dart_orpc ${server.port}');
 }
 
-RpcProcedure<Map<String, Object?>, Map<String, Object?>> _echoProcedure() {
-  const metadata = ProcedureMetadata(
-    rpcMethod: 'benchmark.echo',
-    controllerNamespace: 'benchmark',
-    methodName: 'echo',
-    inputTypeCode: 'Map<String, Object?>',
-    outputTypeCode: 'Map<String, Object?>',
-  );
-
-  return RpcProcedure(
-    method: metadata.rpcMethod,
-    metadata: metadata,
-    decodeInput: _decodeMap,
-    encodeOutput: (output) => output,
-    handler: (_, input) => input,
-  );
-}
-
-Map<String, Object?> _decodeMap(Object? input) {
-  if (input is! Map) {
-    throw RpcException.badRequest('Input must be a JSON object.');
-  }
-
-  return input.map((key, value) => MapEntry(key.toString(), value));
-}
-
-RpcHttpHandler _plaintextMiddleware(RpcHttpHandler next) {
+RpcHttpHandler _microBenchmarkMiddleware(RpcHttpHandler next) {
   return (request) {
-    if (request.method == 'GET' && request.path == '/plaintext') {
+    if (request.method == 'GET') {
+      if (request.path == '/plaintext') {
+        return Future.value(
+          const RpcHttpResponse(
+            statusCode: HttpStatus.ok,
+            headers: {'content-type': 'text/plain; charset=utf-8'},
+            body: _message,
+          ),
+        );
+      }
+      if (request.path == '/json') {
+        return Future.value(
+          RpcHttpResponse(
+            statusCode: HttpStatus.ok,
+            headers: const {'content-type': 'application/json; charset=utf-8'},
+            body: jsonEncode(const {'message': _message}),
+          ),
+        );
+      }
+    }
+    if (request.method == 'POST' && request.path == '/echo') {
       return Future.value(
-        const RpcHttpResponse(
+        RpcHttpResponse(
           statusCode: HttpStatus.ok,
-          headers: {'content-type': 'text/plain; charset=utf-8'},
-          body: _message,
+          headers: const {'content-type': 'application/json; charset=utf-8'},
+          body: jsonEncode(jsonDecode(request.body)),
         ),
       );
     }

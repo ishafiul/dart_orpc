@@ -7,11 +7,19 @@ environment:
   sdk: ^3.11.0
 
 dependencies:
+  benchmark_workloads:
+    path: ../../packages/benchmark_workloads
+  dart_orpc:
+    path: ../../../packages/dart_orpc
+
+dependency_overrides:
   dart_orpc_core:
     path: ../../../packages/dart_orpc_core
   dart_orpc_http:
     path: ../../../packages/dart_orpc_http
 
-dependency_overrides:
-  dart_orpc_core:
-    path: ../../../packages/dart_orpc_core
+dev_dependencies:
+  build_runner: ^2.12.2
+  dart_orpc_generator:
+    path: ../../../packages/dart_orpc_generator
+  luthor_generator: ^0.17.0

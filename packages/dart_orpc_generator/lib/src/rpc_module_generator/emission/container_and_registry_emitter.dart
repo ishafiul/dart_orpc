@@ -112,6 +112,8 @@ void _writeLocalProcedureRegistry(
       final procedureClass = procedure.isStream
           ? 'RpcStreamProcedure'
           : 'RpcUnaryProcedure';
+      final invocationExpression =
+          'container.${controller.instanceName}.${procedure.methodName}(${procedure.serverInvocationArguments})';
       buffer
         ..writeln(
           '    $procedureClass<$inputTypeCode, ${procedure.outputTypeCode}>(',
@@ -121,7 +123,7 @@ void _writeLocalProcedureRegistry(
         ..writeln('      encodeOutput: ${_encodeOutputExpression(procedure)},')
         ..writeln(_rpcGuardInvocationBlock(procedure))
         ..writeln(
-          '      handler: (context, input) => container.${controller.instanceName}.${procedure.methodName}(${procedure.serverInvocationArguments}),',
+          '      handler: ${_serverHandlerExpression(procedure, invocationExpression)},',
         )
         ..writeln('    ),');
     }

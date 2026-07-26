@@ -163,6 +163,30 @@ void main() {
     );
 
     test(
+      'When unary methods return scalars or void then generated codecs preserve their public contracts',
+      () async {
+        final run = await runModuleBuilder(_scalarAndVoidOutputModuleSource);
+
+        expect(run.succeeded, isTrue);
+        final output = run.generatedOutput;
+        expect(output, contains('RpcUnaryProcedure<Null, String>('));
+        expect(output, contains('encodeOutput: (output) => output,'));
+        expect(output, contains('Future<String> greeting() {'));
+        expect(output, contains('decode: (json) => json as String'));
+        expect(output, contains('RpcUnaryProcedure<Null, Null>('));
+        expect(output, contains("outputTypeCode: 'void',"));
+        expect(output, contains('Future<void> clear() async {'));
+        expect(output, contains('Future<void> clearLater() async {'));
+        expect(output, contains('decode: (_) => null'));
+        expect(output, contains('container.statusController.clear();'));
+        expect(
+          output,
+          contains('await container.statusController.clearLater();'),
+        );
+      },
+    );
+
+    test(
       'When controller and method guards are declared then the generated module resolves guard providers and runs them for both RPC and REST',
       () async {
         final run = await runModuleBuilder(_guardedRpcModuleSource);
@@ -772,11 +796,6 @@ void main() {
         'Stream<Stream<MessageDto>>',
         'may not return a nested Stream<Stream<T>>',
       ),
-      (
-        'unsupported event type',
-        'Stream<String>',
-        'has unsupported event type "String"',
-      ),
     ]) {
       test(
         'When a method returns ${scenario.$1} then generation fails',
@@ -790,6 +809,28 @@ void main() {
         },
       );
     }
+
+    test(
+      'When a stream returns scalar events then generation uses identity codecs',
+      () async {
+        final run = await runModuleBuilder(
+          _streamShapeModuleSource.replaceFirst(
+            'RETURN_TYPE',
+            'Stream<String>',
+          ),
+        );
+
+        expect(run.succeeded, isTrue);
+        expect(
+          run.generatedOutput,
+          contains('RpcStreamProcedure<Null, String>('),
+        );
+        expect(
+          run.generatedOutput,
+          contains('decode: (json) => json as String'),
+        );
+      },
+    );
 
     test(
       'When a typed stream omits REST mapping then it remains WebSocket-only',
@@ -944,6 +985,31 @@ final class AppModule {
 final class EventsController {
   @RpcMethod(path: RestMapping.sse('/events'))
   Future<void> watch() async {}
+}
+''';
+
+const _scalarAndVoidOutputModuleSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+part 'example.g.dart';
+
+@Module(controllers: [StatusController])
+final class AppModule {
+  const AppModule();
+}
+
+@Controller('status')
+final class StatusController {
+  @RpcMethod(path: RestMapping.get('/greeting'))
+  String greeting() => 'hello';
+
+  @RpcMethod(path: RestMapping.delete('/status'))
+  void clear() {}
+
+  @RpcMethod()
+  Future<void> clearLater() async {}
 }
 ''';
 

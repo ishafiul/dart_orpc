@@ -22,6 +22,8 @@ final class EnvReader {
     return value;
   }
 
+  String required(String name) => requiredString(name);
+
   String string(String name, {required String fallback}) {
     final value = _read(name)?.trim();
     return value == null || value.isEmpty ? fallback : value;
@@ -37,6 +39,10 @@ final class EnvReader {
       throw StateError('$name must be a positive integer.');
     }
     return value;
+  }
+
+  Duration duration(String name, {required Duration fallback}) {
+    return Duration(seconds: positiveInt(name, fallback: fallback.inSeconds));
   }
 
   int port(String name, {required int fallback}) {

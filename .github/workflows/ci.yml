@@ -21,6 +21,9 @@ jobs:
       - name: Resolve dependencies
         run: dart pub get
 
+      - name: Generate workspace code
+        run: dart run melos run generate
+
       - name: Analyze workspace
         run: dart run melos run analyze
 

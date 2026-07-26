@@ -10,8 +10,13 @@ void main() {
     });
 
     expect(env.requiredString('SECRET'), 'value');
+    expect(env.required('SECRET'), 'value');
     expect(env.string('NAME', fallback: 'app'), 'app');
     expect(env.positiveInt('SECONDS', fallback: 30), 60);
+    expect(
+      env.duration('SECONDS', fallback: const Duration(seconds: 30)),
+      const Duration(seconds: 60),
+    );
     expect(env.port('PORT', fallback: 3000), 4000);
   });
 
@@ -21,12 +26,17 @@ void main() {
       final env = EnvReader.fromMap({'SECONDS': 'invalid', 'PORT': '70000'});
 
       expect(() => env.requiredString('SECRET'), throwsA(isA<StateError>()));
+      expect(() => env.required('SECRET'), throwsA(isA<StateError>()));
       expect(
         () => env.positiveInt('SECONDS', fallback: 30),
         throwsA(isA<StateError>()),
       );
       expect(
         () => env.port('PORT', fallback: 3000),
+        throwsA(isA<StateError>()),
+      );
+      expect(
+        () => env.duration('SECONDS', fallback: const Duration(seconds: 30)),
         throwsA(isA<StateError>()),
       );
     },

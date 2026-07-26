@@ -192,19 +192,22 @@ JsonObject _buildOperation(
         ? procedure.tags
         : [procedure.controllerNamespace],
     'responses': {
-      '200': {
-        'description': 'Successful response.',
-        'content': {
-          if (isSse)
-            'text/event-stream': {
-              'schema': {'type': 'string'},
-            }
-          else
-            'application/json': {
-              'schema': _schemaForTypeCode(procedure.outputTypeCode, schemas),
-            },
+      if (procedure.outputTypeCode == 'void')
+        '204': {'description': 'Successful response with no content.'}
+      else
+        '200': {
+          'description': 'Successful response.',
+          'content': {
+            if (isSse)
+              'text/event-stream': {
+                'schema': {'type': 'string'},
+              }
+            else
+              'application/json': {
+                'schema': _schemaForTypeCode(procedure.outputTypeCode, schemas),
+              },
+          },
         },
-      },
       'default': {
         'description': 'Error response.',
         'content': {

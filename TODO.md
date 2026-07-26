@@ -31,7 +31,6 @@ No ready items.
 - [ ] **TRANSPORT-006 · P2 · Feature:** Add client-streaming and bidirectional
   RPC after the server-streaming protocol has stabilized.
 - [ ] **CLIENTGEN-001 · P1 · Feature:** Add non-Dart client generation.
-
 ## In progress
 
 - [ ] **GEN-001 · P1 · Maintenance:** Refactor the generator into a maintainable,
@@ -45,6 +44,8 @@ No blocked items.
 
 ## Done
 
+- [x] **GEN-002 · P1 · Feature:** Support JSON-native scalar and `void` procedure
+  outputs across generated RPC, REST, OpenAPI, and Dart clients.
 - [x] **TRANSPORT-003 · P1 · Feature:** Add the versioned WebSocket unary and
   server-streaming transport with bounded output and lifecycle controls.
 - [x] **TRANSPORT-002 · P1 · Feature:** Add typed server-streaming RPC and

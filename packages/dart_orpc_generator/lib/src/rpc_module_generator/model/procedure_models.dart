@@ -85,6 +85,8 @@ final class _ResolvedProcedure {
     required this.outputTypeName,
     required this.outputTypeElement,
     required this.outputUsesLuthor,
+    required this.outputCodecKind,
+    required this.returnsFutureVoid,
     required this.isStream,
     required this.supportsRpcGeneration,
     required this.serverInvocationArguments,
@@ -111,14 +113,22 @@ final class _ResolvedProcedure {
   final String outputTypeName;
   final Element? outputTypeElement;
   final bool outputUsesLuthor;
+  final _OutputCodecKind outputCodecKind;
+  final bool returnsFutureVoid;
   final bool isStream;
   final bool supportsRpcGeneration;
   final String serverInvocationArguments;
+
+  bool get isVoid => outputCodecKind == _OutputCodecKind.voidValue;
+
+  String get metadataOutputTypeCode => isVoid ? 'void' : outputTypeCode;
 
   List<String> get guardTypeNames => [
     for (final guardBinding in guardBindings) guardBinding.typeName,
   ];
 }
+
+enum _OutputCodecKind { dto, jsonValue, voidValue }
 
 final class _ResolvedParameter {
   const _ResolvedParameter({

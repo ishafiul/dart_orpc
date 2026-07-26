@@ -31,6 +31,37 @@ void main() {
         expect(buffered.body, 'two');
       },
     );
+
+    test(
+      'When a REST procedure returns void then the response is 204 without a body',
+      () async {
+        const metadata = ProcedureMetadata(
+          rpcMethod: 'status.clear',
+          controllerNamespace: 'status',
+          methodName: 'clear',
+          outputTypeCode: 'void',
+        );
+        final handler = createRpcHttpHandler(
+          procedures: RpcProcedureRegistry(const []),
+          restRoutes: RestRouteRegistry([
+            RestUnaryRoute(
+              method: 'DELETE',
+              path: '/status',
+              metadata: metadata,
+              handler: (_, _, _) => null,
+            ),
+          ]),
+        );
+
+        final response = await handler(
+          const RpcHttpRequest(method: 'DELETE', path: '/status'),
+        );
+
+        expect(response.statusCode, HttpStatus.noContent);
+        expect(response.body, isNull);
+        expect(response.headers, isEmpty);
+      },
+    );
   });
 
   group('Given a handler context factory', () {

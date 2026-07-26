@@ -27,10 +27,29 @@ String _decodeInputExpression(_ResolvedProcedure procedure) {
 }
 
 String _encodeOutputExpression(_ResolvedProcedure procedure) {
+  if (procedure.outputCodecKind == _OutputCodecKind.voidValue) {
+    return '(_) => null';
+  }
+  if (procedure.outputCodecKind == _OutputCodecKind.jsonValue) {
+    return '(output) => output';
+  }
   if (procedure.outputUsesLuthor) {
     return '(output) => encodeRpcOutputWithLuthor<${procedure.outputTypeCode}>(output: output, method: \'${procedure.rpcMethod}\', toJson: (output) => output.toJson(), validate: \$${procedure.outputTypeName}Validate)';
   }
   return '(output) => output.toJson()';
+}
+
+String _serverHandlerExpression(
+  _ResolvedProcedure procedure,
+  String invocationExpression,
+) {
+  if (!procedure.isVoid) {
+    return '(context, input) => $invocationExpression';
+  }
+  final invocation = procedure.returnsFutureVoid
+      ? 'await $invocationExpression;'
+      : '$invocationExpression;';
+  return '(context, input) async { $invocation return null; }';
 }
 
 String? _restParameterDeclaration(
