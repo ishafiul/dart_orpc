@@ -33,6 +33,13 @@ melos:
     analyze:
       description: Analyze the whole workspace.
       run: dart analyze
+    generate:
+      description: Generate code in every workspace package that uses build_runner.
+      run: >-
+        dart run melos exec
+        --fail-fast
+        --depends-on=build_runner
+        -- dart run build_runner build --delete-conflicting-outputs
     test:
       description: Run tests in workspace packages that define them.
       run: dart run melos exec --fail-fast --dir-exists=test -- dart test
