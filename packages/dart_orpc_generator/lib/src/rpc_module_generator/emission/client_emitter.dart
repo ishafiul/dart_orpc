@@ -61,14 +61,21 @@ void _writeControllerClients(
 }
 
 void _writeClientProcedure(StringBuffer buffer, _ResolvedProcedure procedure) {
-  final decodeLine =
-      '      decode: (json) => ${procedure.outputTypeCode}.fromJson(Map<String, dynamic>.from(expectJsonObject(json, context: \'RPC response for "${procedure.rpcMethod}"\'))),';
+  final decodeLine = '      decode: ${_clientDecodeExpression(procedure)},';
   final returnType = procedure.isStream ? 'Stream' : 'Future';
   final callerType = procedure.isStream ? 'RpcStreamCaller' : 'RpcCaller';
   final transportExpression = procedure.isStream
       ? "_transports.requireStreaming('${procedure.rpcMethod}')"
       : "_transports.requireUnary('${procedure.rpcMethod}')";
   final callerMethod = procedure.isStream ? 'call' : 'call';
+  if (procedure.isVoid) {
+    _writeVoidClientProcedure(
+      buffer,
+      procedure,
+      transportExpression: transportExpression,
+    );
+    return;
+  }
   if (procedure.hasInput) {
     buffer
       ..writeln()
@@ -95,6 +102,49 @@ void _writeClientProcedure(StringBuffer buffer, _ResolvedProcedure procedure) {
     )
     ..writeln("      method: '${procedure.rpcMethod}',")
     ..writeln(decodeLine)
+    ..writeln('    );')
+    ..writeln('  }');
+}
+
+String _clientDecodeExpression(_ResolvedProcedure procedure) {
+  if (procedure.outputCodecKind == _OutputCodecKind.jsonValue) {
+    final typeCode = procedure.outputTypeCode;
+    final nullable = typeCode.endsWith('?');
+    final nonNullableTypeCode = nullable
+        ? typeCode.substring(0, typeCode.length - 1)
+        : typeCode;
+    final decode = switch (nonNullableTypeCode) {
+      'double' => '(json as num).toDouble()',
+      'Null' => 'null',
+      _ => 'json as $nonNullableTypeCode',
+    };
+    return nullable
+        ? '(json) => json == null ? null : $decode'
+        : '(json) => $decode';
+  }
+  return '(json) => ${procedure.outputTypeCode}.fromJson(Map<String, dynamic>.from(expectJsonObject(json, context: \'RPC response for "${procedure.rpcMethod}"\')))';
+}
+
+void _writeVoidClientProcedure(
+  StringBuffer buffer,
+  _ResolvedProcedure procedure, {
+  required String transportExpression,
+}) {
+  final parameterDeclaration = procedure.hasInput
+      ? '${procedure.inputTypeCode!} ${procedure.inputParameterName!}'
+      : '';
+  buffer
+    ..writeln()
+    ..writeln(
+      '  Future<void> ${procedure.methodName}($parameterDeclaration) async {',
+    )
+    ..writeln('    await RpcCaller($transportExpression).call<Null>(')
+    ..writeln("      method: '${procedure.rpcMethod}',");
+  if (procedure.hasInput) {
+    buffer.writeln('      input: ${procedure.inputParameterName!}.toJson(),');
+  }
+  buffer
+    ..writeln('      decode: (_) => null,')
     ..writeln('    );')
     ..writeln('  }');
 }

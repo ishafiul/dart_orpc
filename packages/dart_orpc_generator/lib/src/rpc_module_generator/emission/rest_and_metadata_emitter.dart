@@ -77,13 +77,22 @@ void _writeRestRouteRegistries(
             '        return output.map(${_encodeOutputExpression(procedure)});',
           );
       } else {
-        buffer
-          ..writeln(
-            '        final output = await container.${controller.instanceName}.${procedure.methodName}($invocationArguments);',
-          )
-          ..writeln(
-            '        return (${_encodeOutputExpression(procedure)})(output);',
-          );
+        if (procedure.isVoid) {
+          final awaitPrefix = procedure.returnsFutureVoid ? 'await ' : '';
+          buffer
+            ..writeln(
+              '        ${awaitPrefix}container.${controller.instanceName}.${procedure.methodName}($invocationArguments);',
+            )
+            ..writeln('        return null;');
+        } else {
+          buffer
+            ..writeln(
+              '        final output = await container.${controller.instanceName}.${procedure.methodName}($invocationArguments);',
+            )
+            ..writeln(
+              '        return (${_encodeOutputExpression(procedure)})(output);',
+            );
+        }
       }
       buffer
         ..writeln('      },')
@@ -173,7 +182,9 @@ void _writeProcedureMetadata(
   if (procedure.inputTypeCode != null) {
     buffer.writeln("      inputTypeCode: '${procedure.inputTypeCode}',");
   }
-  buffer.writeln("      outputTypeCode: '${procedure.outputTypeCode}',");
+  buffer.writeln(
+    "      outputTypeCode: '${procedure.metadataOutputTypeCode}',",
+  );
   if (procedure.description != null) {
     buffer.writeln(
       "      description: '${_escapeDartString(procedure.description!)}',",

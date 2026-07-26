@@ -102,6 +102,35 @@ DartType _unwrapFuture(DartType type) {
   return type;
 }
 
+bool _isFutureType(DartType type) {
+  return type is InterfaceType &&
+      type.element.name == 'Future' &&
+      type.typeArguments.length == 1;
+}
+
+bool _isVoidType(DartType type) => type is VoidType;
+
+bool _isJsonValueType(DartType type) {
+  if (type.isDartCoreNull) {
+    return true;
+  }
+  if (type is InterfaceType) {
+    final name = type.element.name;
+    return const {'String', 'bool', 'int', 'double', 'num'}.contains(name);
+  }
+  return false;
+}
+
+_OutputCodecKind _outputCodecKind(DartType type) {
+  if (_isVoidType(type)) {
+    return _OutputCodecKind.voidValue;
+  }
+  if (_isJsonValueType(type)) {
+    return _OutputCodecKind.jsonValue;
+  }
+  return _OutputCodecKind.dto;
+}
+
 DartType? _streamEventType(DartType type) {
   if (type is InterfaceType &&
       type.element.name == 'Stream' &&

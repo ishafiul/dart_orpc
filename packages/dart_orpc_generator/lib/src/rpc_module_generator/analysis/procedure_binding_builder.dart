@@ -143,15 +143,33 @@ _ResolvedProcedure _buildMethodBinding(
       element: method,
     );
   }
-  if (streamType != null && !_supportsGeneratedOutputCodec(streamType)) {
+  if (streamType != null &&
+      !_isJsonValueType(streamType) &&
+      !_supportsGeneratedOutputCodec(streamType)) {
     throw InvalidGenerationSourceError(
       'Streaming RPC method "$methodName" has unsupported event type '
-      '"${streamType.getDisplayString()}". Stream events must be DTOs with '
-      'a fromJson constructor or static method and an instance toJson method.',
+      '"${streamType.getDisplayString()}". Stream events must be JSON-native '
+      'values or DTOs with a fromJson constructor or static method and an '
+      'instance toJson method.',
       element: method,
     );
   }
   final outputType = streamType ?? _unwrapFuture(declaredReturnType);
+  final outputCodecKind = _outputCodecKind(outputType);
+  if (!isStream &&
+      outputCodecKind == _OutputCodecKind.dto &&
+      !_supportsGeneratedOutputCodec(outputType)) {
+    throw InvalidGenerationSourceError(
+      'RPC method "$methodName" has unsupported output type '
+      '"${outputType.getDisplayString()}". Outputs must be JSON-native values, '
+      'void, or DTOs with a fromJson constructor or static method and an '
+      'instance toJson method.',
+      element: method,
+    );
+  }
+  final generatedOutputType = outputCodecKind == _OutputCodecKind.voidValue
+      ? 'Null'
+      : outputType.getDisplayString();
   final wireName = annotationReader.peek('name')?.stringValue ?? methodName;
 
   return _ResolvedProcedure(
@@ -173,11 +191,15 @@ _ResolvedProcedure _buildMethodBinding(
     inputParameterName: inputParameter?.displayName,
     inputUsesLuthor:
         inputParameter != null && _usesLuthorValidation(inputParameter.type),
-    outputTypeCode: outputType.getDisplayString(),
+    outputTypeCode: generatedOutputType,
     outputTypeName:
         outputType.element?.displayName ?? outputType.getDisplayString(),
     outputTypeElement: outputType.element,
     outputUsesLuthor: _usesLuthorValidation(outputType),
+    outputCodecKind: outputCodecKind,
+    returnsFutureVoid:
+        outputCodecKind == _OutputCodecKind.voidValue &&
+        _isFutureType(declaredReturnType),
     isStream: isStream,
     supportsRpcGeneration: invocationDetails.supportsRpcGeneration,
     serverInvocationArguments: invocationDetails.invocationArguments.join(', '),
