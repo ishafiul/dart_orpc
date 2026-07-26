@@ -1,6 +1,6 @@
 name: dart_orpc_openapi
 description: OpenAPI document generation and Scalar docs helpers for dart_orpc.
-version: 0.1.0-dev.3
+version: 0.1.0-dev.4
 repository: https://github.com/ishafiul/dart_orpc/tree/main/packages/dart_orpc_openapi
 issue_tracker: https://github.com/ishafiul/dart_orpc/issues
 resolution: workspace

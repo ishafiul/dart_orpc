@@ -8,4 +8,4 @@ environment:
 
 dependencies:
   basic_app: ^0.1.0-dev.1
-  dart_orpc: ^0.1.0-dev.3
+  dart_orpc: ^0.1.0-dev.4

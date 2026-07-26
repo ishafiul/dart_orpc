@@ -1,3 +1,7 @@
+## 0.1.0-dev.4
+
+ - **FEAT**: support scalar and void outputs with structured benchmarks (#12).
+
 ## 0.1.0-dev.3
 
  - **FEAT**(generator): Expose context bindings in generated app builders.
