@@ -143,6 +143,56 @@ void main() {
     );
 
     test(
+      'When a procedure requires bearer auth then OpenAPI exposes Scalar security metadata',
+      () {
+        final document = createOpenApiDocument(
+          title: 'Secure API',
+          procedures: ProcedureMetadataRegistry([
+            const ProcedureMetadata(
+              rpcMethod: 'todo.list',
+              controllerNamespace: 'todo',
+              methodName: 'list',
+              path: RestProcedureMetadata(method: 'GET', path: '/todos'),
+              outputTypeCode: 'TodoListDto',
+              securityRequirements: [
+                ProcedureSecurityRequirement('bearerAuth'),
+              ],
+            ),
+            const ProcedureMetadata(
+              rpcMethod: 'auth.login',
+              controllerNamespace: 'auth',
+              methodName: 'login',
+              path: RestProcedureMetadata(method: 'POST', path: '/login'),
+              outputTypeCode: 'TokenDto',
+            ),
+          ]),
+        );
+
+        expect(
+          (document['components'] as Map<String, Object?>)['securitySchemes'],
+          {
+            'bearerAuth': {
+              'type': 'http',
+              'scheme': 'bearer',
+              'bearerFormat': 'JWT',
+            },
+          },
+        );
+        final paths = document['paths'] as Map<String, Object?>;
+        final protectedOperation =
+            (paths['/todos'] as Map<String, Object?>)['get']
+                as Map<String, Object?>;
+        final publicOperation =
+            (paths['/login'] as Map<String, Object?>)['post']
+                as Map<String, Object?>;
+        expect(protectedOperation['security'], [
+          {'bearerAuth': <String>[]},
+        ]);
+        expect(publicOperation.containsKey('security'), isFalse);
+      },
+    );
+
+    test(
       'When a server stream has an SSE mapping then OpenAPI documents its event schema and terminal events',
       () {
         final document = createOpenApiDocument(

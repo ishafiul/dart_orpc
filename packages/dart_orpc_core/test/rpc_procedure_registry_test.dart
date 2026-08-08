@@ -52,6 +52,39 @@ void main() {
       );
     });
 
+    test('binds HTTP headers into RPC input before DTO decoding', () async {
+      final registry = RpcProcedureRegistry([
+        RpcProcedure<JsonObject, String>(
+          method: 'tenant.read',
+          metadata: const ProcedureMetadata(
+            rpcMethod: 'tenant.read',
+            controllerNamespace: 'tenant',
+            methodName: 'read',
+            outputTypeCode: 'String',
+            parameters: [
+              ProcedureParameterMetadata(
+                parameterName: 'tenantId',
+                wireName: 'x-tenant-id',
+                source: ProcedureParameterSourceKind.header,
+                typeCode: 'String',
+              ),
+            ],
+          ),
+          decodeInput: (rawInput) =>
+              expectJsonObject(rawInput, context: 'tenant input'),
+          encodeOutput: (output) => output,
+          handler: (_, input) => input['tenantId'] as String,
+        ),
+      ]);
+
+      final response = await registry.dispatch(
+        RpcContext(headers: const {'X-Tenant-Id': 'tenant-1'}),
+        const RpcRequest(method: 'tenant.read', input: {}),
+      );
+
+      expect(response, 'tenant-1');
+    });
+
     test('throws not found when an unknown stream is dispatched', () {
       final registry = RpcProcedureRegistry(const []);
 

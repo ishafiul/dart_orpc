@@ -82,6 +82,17 @@ final class UseGuards {
   final List<Type> guards;
 }
 
+/// Declares that a procedure requires an HTTP Bearer token.
+///
+/// This annotation describes the public API contract. Applications still
+/// provide the guard that validates the token and populates [RpcContext].
+final class BearerAuth {
+  const BearerAuth({required this.guard});
+
+  /// Application guard that validates the bearer token.
+  final Type guard;
+}
+
 final class RpcMetadata {
   const RpcMetadata(this.key);
 

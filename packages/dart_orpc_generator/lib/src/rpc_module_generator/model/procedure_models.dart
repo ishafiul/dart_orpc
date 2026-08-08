@@ -68,6 +68,7 @@ final class _ResolvedProcedure {
     required this.methodName,
     required this.rpcMethod,
     required this.guardBindings,
+    required this.requiresBearerAuth,
     required this.customMetadata,
     required this.parameters,
     required this.restInvocationParameters,
@@ -96,6 +97,7 @@ final class _ResolvedProcedure {
   final String methodName;
   final String rpcMethod;
   final List<_ResolvedGuardBinding> guardBindings;
+  final bool requiresBearerAuth;
   final List<_ResolvedCustomMetadata> customMetadata;
   final _ResolvedPathMapping? path;
   final List<_ResolvedParameter> parameters;

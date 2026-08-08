@@ -2,6 +2,7 @@ import 'package:dart_orpc_core/dart_orpc_core.dart';
 
 import 'rpc_client_exception.dart';
 import 'rpc_caller.dart';
+import 'rpc_call_options.dart';
 import 'rpc_transport.dart';
 
 final class RpcStreamCaller {
@@ -12,11 +13,19 @@ final class RpcStreamCaller {
   Stream<T> call<T>({
     required String method,
     Object? input,
+    RpcCallOptions? options,
     required RpcResultDecoder<T> decode,
   }) async* {
-    final events = _transport.subscribe(
-      RpcRequest(method: method, input: input),
-    );
+    final request = RpcRequest(method: method, input: input);
+    final events = options == null
+        ? _transport.subscribe(request)
+        : _transport is RpcStreamTransportWithOptions
+        ? _transport.subscribeWithOptions(request, options: options)
+        : Stream<Object>.error(
+            RpcClientConfigurationException(
+              'Transport does not support per-call RPC options.',
+            ),
+          );
 
     await for (final event in events) {
       try {

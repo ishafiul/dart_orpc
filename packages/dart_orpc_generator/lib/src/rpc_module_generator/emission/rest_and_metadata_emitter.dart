@@ -204,6 +204,11 @@ void _writeProcedureMetadata(
     }
     buffer.writeln('      ],');
   }
+  if (procedure.requiresBearerAuth) {
+    buffer.writeln(
+      "      securityRequirements: [ProcedureSecurityRequirement('bearerAuth')],",
+    );
+  }
   if (procedure.customMetadata.isNotEmpty) {
     buffer..writeln('      customMetadata: [');
     for (final metadata in procedure.customMetadata) {

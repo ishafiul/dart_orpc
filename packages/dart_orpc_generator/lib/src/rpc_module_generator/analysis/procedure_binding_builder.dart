@@ -6,6 +6,7 @@ _ResolvedProcedure _buildMethodBinding(
   required Map<String, String> availableProviders,
   List<_ResolvedGuardBinding> inheritedGuardBindings = const [],
   List<_ResolvedCustomMetadata> inheritedCustomMetadata = const [],
+  bool inheritedBearerAuth = false,
 }) {
   final methodAnnotation = _rpcMethodChecker.firstAnnotationOfExact(method);
   if (methodAnnotation == null) {
@@ -29,6 +30,11 @@ _ResolvedProcedure _buildMethodBinding(
           'method "${method.enclosingElement?.displayName ?? '<unknown>'}.${method.displayName}"',
     ),
   );
+  final methodBearerAuthGuard = _readBearerAuthGuard(
+    method,
+    guardBindings: guardBindings,
+  );
+  final requiresBearerAuth = inheritedBearerAuth || methodBearerAuthGuard;
   final customMetadata = [
     ...inheritedCustomMetadata,
     ..._resolveCustomMetadata(
@@ -177,6 +183,7 @@ _ResolvedProcedure _buildMethodBinding(
     methodName: methodName,
     rpcMethod: '$namespace.$wireName',
     guardBindings: guardBindings,
+    requiresBearerAuth: requiresBearerAuth,
     customMetadata: customMetadata,
     path: path,
     description: description,
@@ -255,6 +262,24 @@ List<_ResolvedGuardBinding> _resolveGuardBindings(
   }
 
   return resolvedGuards;
+}
+
+bool _readBearerAuthGuard(
+  Element element, {
+  required List<_ResolvedGuardBinding> guardBindings,
+}) {
+  final annotation = _bearerAuthChecker.firstAnnotationOfExact(element);
+  if (annotation == null) return false;
+
+  final guardType = ConstantReader(annotation).read('guard').typeValue;
+  final guardKey = _typeKeyFor(guardType);
+  if (!guardBindings.any((binding) => binding.typeKey == guardKey)) {
+    throw InvalidGenerationSourceError(
+      'BearerAuth guard must also be declared in @UseGuards on "${element.displayName}".',
+      element: element,
+    );
+  }
+  return true;
 }
 
 List<_ResolvedGuardBinding> _mergeGuardBindings(

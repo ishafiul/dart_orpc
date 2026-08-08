@@ -82,6 +82,7 @@ JsonObject createOpenApiDocument({
   final paths = _buildPaths(procedures, effectiveSchemas);
   final componentSchemas = _buildComponentSchemas(effectiveSchemas);
   final serverList = servers.toList(growable: false);
+  final securitySchemes = _buildSecuritySchemes(procedures);
 
   final info = <String, Object?>{'title': title, 'version': version};
   if (description != null && description.isNotEmpty) {
@@ -92,7 +93,10 @@ JsonObject createOpenApiDocument({
     'openapi': '3.0.3',
     'info': info,
     'paths': paths,
-    'components': {'schemas': componentSchemas},
+    'components': {
+      'schemas': componentSchemas,
+      if (securitySchemes.isNotEmpty) 'securitySchemes': securitySchemes,
+    },
   };
 
   if (serverList.isNotEmpty) {
@@ -232,6 +236,15 @@ JsonObject _buildOperation(
     operation['description'] = procedure.description;
   }
 
+  if (procedure.securityRequirements.isNotEmpty) {
+    operation['security'] = [
+      {
+        for (final requirement in procedure.securityRequirements)
+          requirement.schemeName: <String>[],
+      },
+    ];
+  }
+
   if (parameters.isNotEmpty) {
     operation['parameters'] = parameters;
   }
@@ -259,6 +272,20 @@ JsonObject _buildOperation(
   }
 
   return operation;
+}
+
+JsonObject _buildSecuritySchemes(ProcedureMetadataRegistry procedures) {
+  final schemeNames = <String>{
+    for (final procedure in procedures.procedures)
+      for (final requirement in procedure.securityRequirements)
+        requirement.schemeName,
+  }.toList()..sort();
+
+  return {
+    for (final schemeName in schemeNames)
+      if (schemeName == 'bearerAuth')
+        schemeName: {'type': 'http', 'scheme': 'bearer', 'bearerFormat': 'JWT'},
+  };
 }
 
 JsonObject _buildParameter(

@@ -23,6 +23,10 @@ _ControllerBinding _buildControllerBinding(
     availableProviders: availableProviders,
     ownerLabel: 'controller "${controllerElement.displayName}"',
   );
+  final controllerBearerAuthGuard = _readBearerAuthGuard(
+    controllerElement,
+    guardBindings: controllerGuardBindings,
+  );
   final controllerCustomMetadata = _resolveCustomMetadata(
     controllerElement,
     ownerLabel: 'controller "${controllerElement.displayName}"',
@@ -47,6 +51,7 @@ _ControllerBinding _buildControllerBinding(
           method,
           availableProviders: availableProviders,
           inheritedGuardBindings: controllerGuardBindings,
+          inheritedBearerAuth: controllerBearerAuthGuard,
           inheritedCustomMetadata: controllerCustomMetadata,
         ),
       )

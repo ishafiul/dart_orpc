@@ -34,6 +34,48 @@ void main() {
       },
     );
 
+    test(
+      'When global and per-call auth options are configured then per-call values win',
+      () async {
+        final transport = HttpRpcTransport(
+          baseUrl: rpcTestBaseUrl,
+          headers: const {'x-api-key': 'global-key'},
+          bearerTokenProvider: () async => 'global-token',
+          client: MockClient((request) async {
+            expect(request.headers['x-api-key'], 'call-key');
+            expect(request.headers['authorization'], 'Bearer call-token');
+            return rpcDataResponse(true);
+          }),
+        );
+
+        final response = await transport.sendWithOptions(
+          const RpcRequest(method: 'secure.check'),
+          options: const RpcCallOptions(
+            headers: {'X-API-KEY': 'call-key'},
+            bearerToken: 'call-token',
+          ),
+        );
+
+        expect(response, isTrue);
+      },
+    );
+
+    test(
+      'When a token provider returns null then transport omits authorization',
+      () async {
+        final transport = HttpRpcTransport(
+          baseUrl: rpcTestBaseUrl,
+          bearerTokenProvider: () => null,
+          client: MockClient((request) async {
+            expect(request.headers.containsKey('authorization'), isFalse);
+            return rpcDataResponse(true);
+          }),
+        );
+
+        await transport.send(const RpcRequest(method: 'public.check'));
+      },
+    );
+
     test('When an RPC error is returned then it throws RpcException', () async {
       final transport = HttpRpcTransport(
         baseUrl: rpcTestBaseUrl,

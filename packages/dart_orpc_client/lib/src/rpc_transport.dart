@@ -1,6 +1,7 @@
 import 'package:dart_orpc_core/dart_orpc_core.dart';
 
 import 'rpc_client_exception.dart';
+import 'rpc_call_options.dart';
 
 abstract interface class RpcUnaryTransport {
   Future<Object?> send(RpcRequest request);
@@ -8,6 +9,22 @@ abstract interface class RpcUnaryTransport {
 
 abstract interface class RpcStreamTransport {
   Stream<Object?> subscribe(RpcRequest request);
+}
+
+abstract interface class RpcUnaryTransportWithOptions
+    implements RpcUnaryTransport {
+  Future<Object?> sendWithOptions(
+    RpcRequest request, {
+    RpcCallOptions? options,
+  });
+}
+
+abstract interface class RpcStreamTransportWithOptions
+    implements RpcStreamTransport {
+  Stream<Object?> subscribeWithOptions(
+    RpcRequest request, {
+    RpcCallOptions? options,
+  });
 }
 
 abstract interface class RpcDuplexTransport
