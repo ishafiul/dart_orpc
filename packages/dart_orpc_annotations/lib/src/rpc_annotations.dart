@@ -4,12 +4,17 @@ final class Module {
     this.controllers = const [],
     this.providers = const [],
     this.exports = const [],
+    this.global = false,
   });
 
   final List<Type> imports;
   final List<Type> controllers;
   final List<Type> providers;
   final List<Type> exports;
+
+  /// Whether this module's explicitly exported providers are visible to every
+  /// module in the reachable application graph.
+  final bool global;
 }
 
 final class Controller {

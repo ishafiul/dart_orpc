@@ -4,6 +4,7 @@ Future<Set<String>> _collectImportDirectivesForModule(
   _ResolvedModule rootModule, {
   required BuildStep buildStep,
   required List<_ResolvedInstantiation> importedProviderInstantiations,
+  required List<_ExternalProviderRequirement> externalProviderRequirements,
 }) async {
   final currentLibraryAsset = buildStep.inputId;
   final imports = <String>{};
@@ -39,9 +40,15 @@ Future<Set<String>> _collectImportDirectivesForModule(
   ]) {
     await addElementImport(instantiation.providerElement);
   }
+  for (final requirement in externalProviderRequirements) {
+    await addElementImport(requirement.typeElement);
+  }
+
+  for (final controller in rootModule.allControllers) {
+    await addElementImport(controller.controllerElement);
+  }
 
   for (final controller in rootModule.controllerBindings) {
-    await addElementImport(controller.controllerElement);
     for (final procedure in controller.procedures) {
       await addElementImport(procedure.inputTypeElement);
       await addElementImport(procedure.outputTypeElement);

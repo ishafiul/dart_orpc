@@ -43,7 +43,9 @@ void _writeContainerFactory(
   final rootModule = context.rootModule;
   buffer
     ..writeln()
-    ..writeln('${names.containerClassName} ${names.createContainerName}() {');
+    ..writeln(
+      '${names.containerClassName} ${names.createContainerName}(${_dependencyParameterDeclaration(context)}) {',
+    );
   for (final instantiation in context.importedProviderInstantiations) {
     buffer.writeln('  ${instantiation.code}');
   }
@@ -59,11 +61,9 @@ void _writeContainerFactory(
       rootModule.controllerBindings.isNotEmpty) {
     buffer.writeln();
   }
-  for (var index = 0; index < rootModule.controllerBindings.length; index++) {
-    buffer.writeln(
-      '  ${rootModule.controllerBindings[index].instantiationCode}',
-    );
-    if (index < rootModule.controllerBindings.length - 1) {
+  for (var index = 0; index < rootModule.allControllers.length; index++) {
+    buffer.writeln('  ${rootModule.allControllers[index].instantiationCode}');
+    if (index < rootModule.allControllers.length - 1) {
       buffer.writeln();
     }
   }
@@ -91,8 +91,12 @@ void _writeLocalProcedureRegistry(
   buffer
     ..writeln()
     ..writeln('// ignore: unused_element')
-    ..writeln('RpcProcedureRegistry ${names.createLocalRegistryName}() {')
-    ..writeln('  final container = ${names.createContainerName}();')
+    ..writeln(
+      'RpcProcedureRegistry ${names.createLocalRegistryName}(${_dependencyParameterDeclaration(context)}) {',
+    )
+    ..writeln(
+      '  final container = ${names.createContainerName}(${_dependencyArgumentList(context)});',
+    )
     ..writeln('  return ${names.createRegistryFromContainerName}(container);')
     ..writeln('}')
     ..writeln()
@@ -106,7 +110,7 @@ void _writeLocalProcedureRegistry(
     )
     ..writeln('  return RpcProcedureRegistry([');
 
-  for (final controller in context.rootModule.controllerBindings) {
+  for (final controller in context.rootModule.allControllers) {
     for (final procedure in controller.rpcCompatibleProcedures) {
       final inputTypeCode = procedure.inputTypeCode ?? 'Null';
       final procedureClass = procedure.isStream
@@ -141,45 +145,37 @@ void _writeProcedureRegistry(
   final names = context.generatedNames;
   buffer
     ..writeln()
-    ..writeln('RpcProcedureRegistry ${names.createRegistryName}() {')
+    ..writeln(
+      'RpcProcedureRegistry ${names.createRegistryName}(${_dependencyParameterDeclaration(context)}) {',
+    )
     ..writeln('  return RpcProcedureRegistry([');
-  for (final importedModule in context.rootModule.importedModules) {
-    buffer.writeln(
-      '    ...${_publicProcedureRegistryFactoryNameFor(importedModule.displayName)}().procedures,',
-    );
-  }
   buffer
-    ..writeln('    ...${names.createLocalRegistryName}().procedures,')
+    ..writeln(
+      '    ...${names.createLocalRegistryName}(${_dependencyArgumentList(context)}).procedures,',
+    )
     ..writeln('  ]);')
     ..writeln('}')
     ..writeln()
     ..writeln(
-      'RpcProcedureRegistry ${names.composeProcedureRegistryName}() => ${names.createRegistryName}();',
+      'RpcProcedureRegistry ${names.composeProcedureRegistryName}(${_dependencyParameterDeclaration(context)}) => ${names.createRegistryName}(${_dependencyArgumentList(context)});',
     );
 }
 
 void _writeModuleRuntime(StringBuffer buffer, _ModuleGenerationPlan context) {
   final names = context.generatedNames;
-  final importedModules = context.rootModule.importedModules;
   final runtimeType =
       '({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})';
 
   buffer
     ..writeln()
-    ..writeln('$runtimeType ${names.createRuntimeName}() {');
-
-  for (final importedModule in importedModules) {
-    final variableName = '${_camelCase(importedModule.displayName)}Runtime';
-    buffer.writeln(
-      '  final $variableName = ${_publicModuleRuntimeFactoryNameFor(importedModule.displayName)}();',
+    ..writeln(
+      '$runtimeType ${names.createRuntimeName}(${_dependencyParameterDeclaration(context)}) {',
     );
-  }
-  if (importedModules.isNotEmpty) {
-    buffer.writeln();
-  }
 
   buffer
-    ..writeln('  final container = ${names.createContainerName}();')
+    ..writeln(
+      '  final container = ${names.createContainerName}(${_dependencyArgumentList(context)});',
+    )
     ..writeln('  final localProcedures =')
     ..writeln('      ${names.createRegistryFromContainerName}(container);')
     ..writeln('  final localRestRoutes =')
@@ -189,18 +185,10 @@ void _writeModuleRuntime(StringBuffer buffer, _ModuleGenerationPlan context) {
     ..writeln()
     ..writeln('  return (')
     ..writeln('    procedures: RpcProcedureRegistry([');
-  for (final importedModule in importedModules) {
-    final variableName = '${_camelCase(importedModule.displayName)}Runtime';
-    buffer.writeln('      ...$variableName.procedures.procedures,');
-  }
   buffer
     ..writeln('      ...localProcedures.procedures,')
     ..writeln('    ]),')
     ..writeln('    restRoutes: RestRouteRegistry([');
-  for (final importedModule in importedModules) {
-    final variableName = '${_camelCase(importedModule.displayName)}Runtime';
-    buffer.writeln('      ...$variableName.restRoutes.routes,');
-  }
   buffer
     ..writeln('      ...localRestRoutes.routes,')
     ..writeln('    ]),')
@@ -208,6 +196,25 @@ void _writeModuleRuntime(StringBuffer buffer, _ModuleGenerationPlan context) {
     ..writeln('}')
     ..writeln()
     ..writeln(
-      '$runtimeType ${names.composeRuntimeName}() => ${names.createRuntimeName}();',
+      '$runtimeType ${names.composeRuntimeName}(${_dependencyParameterDeclaration(context)}) => ${names.createRuntimeName}(${_dependencyArgumentList(context)});',
     );
+}
+
+String _dependencyParameterDeclaration(_ModuleGenerationPlan context) {
+  if (context.externalProviderRequirements.isEmpty) return '';
+  return '{${_dependencyParameterFields(context)}}';
+}
+
+String _dependencyParameterFields(_ModuleGenerationPlan context) {
+  return context.externalProviderRequirements
+      .map(
+        (requirement) =>
+            'required ${requirement.typeName} ${requirement.variableName}',
+      )
+      .join(', ');
+}
+
+String _dependencyArgumentList(_ModuleGenerationPlan context) {
+  if (context.externalProviderRequirements.isEmpty) return '';
+  return '${context.externalProviderRequirements.map((requirement) => '${requirement.variableName}: ${requirement.variableName}').join(', ')}';
 }

@@ -1,34 +1,12 @@
 part of '../../rpc_module_generator.dart';
 
-Map<String, _ResolvedProviderBinding> _mergeImportedProviders(
-  List<_ResolvedModule> importedModules, {
-  required InterfaceElement moduleElement,
-}) {
-  final importedProviders = <String, _ResolvedProviderBinding>{};
-  for (final importedModule in importedModules) {
-    for (final provider in importedModule.exportedProviders.values) {
-      _recordProviderBinding(
-        importedProviders,
-        provider,
-        moduleElement: moduleElement,
-      );
-    }
-  }
-  return importedProviders;
-}
-
 Map<String, _ResolvedProviderBinding> _resolveExportedProviders(
-  ConstantReader reader, {
+  List<InterfaceElement> exportElements, {
   required InterfaceElement moduleElement,
   required List<_ResolvedModule> importedModules,
   required Map<String, _ResolvedProviderBinding> importedProviders,
   required Map<String, _ResolvedProviderBinding> localProviders,
 }) {
-  final exportElements = _readInterfaceElements(
-    reader,
-    element: moduleElement,
-    fieldName: 'exports',
-  );
   final importedModuleByTypeKey = {
     for (final importedModule in importedModules)
       importedModule.typeKey: importedModule,
@@ -91,6 +69,8 @@ void _recordProviderBinding(
 List<_ResolvedInstantiation> _resolveProviderInstantiations(
   List<InterfaceElement> providers, {
   required Map<String, _ResolvedProviderBinding> importedProviders,
+  Map<String, String> externalProviders = const {},
+  Map<String, String> forcedVariableNames = const {},
   required Set<String> usedNames,
   required Element moduleElement,
 }) {
@@ -98,6 +78,7 @@ List<_ResolvedInstantiation> _resolveProviderInstantiations(
   final availableProviders = {
     for (final provider in importedProviders.values)
       provider.typeKey: provider.variableName,
+    ...externalProviders,
   };
   final declaredProviderNames = <String>{};
   final remainingProviders = [...providers];
@@ -126,6 +107,7 @@ List<_ResolvedInstantiation> _resolveProviderInstantiations(
         provider,
         availableProviders: availableProviders,
         usedNames: usedNames,
+        forcedVariableName: forcedVariableNames[_typeKeyFor(provider.thisType)],
       );
       if (instantiation == null) {
         continue;
@@ -138,6 +120,13 @@ List<_ResolvedInstantiation> _resolveProviderInstantiations(
     if (progressed) {
       continue;
     }
+    final cycle = _findProviderDependencyCycle(remainingProviders);
+    if (cycle != null) {
+      throw InvalidGenerationSourceError(
+        'Provider dependency cycle: ${cycle.join(' -> ')}.',
+        element: moduleElement,
+      );
+    }
     throw InvalidGenerationSourceError(
       'Unable to resolve provider constructor dependencies for: ${remainingProviders.map((provider) => provider.displayName).join(', ')}.',
       element: moduleElement,
@@ -145,4 +134,38 @@ List<_ResolvedInstantiation> _resolveProviderInstantiations(
   }
 
   return resolved;
+}
+
+List<String>? _findProviderDependencyCycle(List<InterfaceElement> providers) {
+  final providersByType = {
+    for (final provider in providers) _typeKeyFor(provider.thisType): provider,
+  };
+
+  List<String>? walk(InterfaceElement provider, List<String> path) {
+    final typeKey = _typeKeyFor(provider.thisType);
+    final cycleStart = path.indexOf(typeKey);
+    if (cycleStart != -1) {
+      return [
+        ...path.skip(cycleStart).map(_providerNameForTypeKey),
+        provider.displayName,
+      ];
+    }
+    final next = _selectUnnamedConstructor(provider).formalParameters
+        .map((parameter) => providersByType[_typeKeyFor(parameter.type)])
+        .whereType<InterfaceElement>()
+        .firstOrNull;
+    if (next == null) return null;
+    return walk(next, [...path, typeKey]);
+  }
+
+  for (final provider in providers) {
+    final cycle = walk(provider, const []);
+    if (cycle != null) return cycle;
+  }
+  return null;
+}
+
+String _providerNameForTypeKey(String typeKey) {
+  final separator = typeKey.lastIndexOf(':');
+  return separator == -1 ? typeKey : typeKey.substring(separator + 1);
 }

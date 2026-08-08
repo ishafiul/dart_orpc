@@ -1,3 +1,4 @@
+import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:build/build.dart';
 import 'package:test/test.dart';
 
@@ -484,18 +485,9 @@ void main() {
         );
         expect(
           generatedOutput,
-          contains(
-            'final userModuleRuntime = dartOrpcCreateUserModuleRuntime();',
-          ),
+          contains('final userController = UserController(userService);'),
         );
-        expect(
-          generatedOutput,
-          contains('...userModuleRuntime.procedures.procedures,'),
-        );
-        expect(
-          generatedOutput,
-          contains('...userModuleRuntime.restRoutes.routes,'),
-        );
+        expect(generatedOutput, isNot(contains('userModuleRuntime')));
         expect(
           generatedOutput,
           contains('container.userController.getById(context, input)'),
@@ -514,6 +506,53 @@ void main() {
           generatedOutput,
           contains('late final admin = AdminClient(_transports);'),
         );
+      },
+    );
+
+    test(
+      'When a reachable global module exports a provider then feature modules consume one application instance',
+      () async {
+        final run = await runModuleBuilder(_globalModuleSource);
+
+        expect(run.succeeded, isTrue);
+        expect(
+          run.generatedOutput,
+          contains(r'_$createAppModuleContainer() {'),
+        );
+        expect(run.generatedOutput, contains('final database = Database();'));
+        expect(
+          run.generatedOutput,
+          contains('final todoService = TodoService(database);'),
+        );
+        expect(
+          run.generatedOutput,
+          contains('final todoController = TodoController(todoService);'),
+        );
+        expect(run.generatedOutput, contains(r'class _$TodoModuleContainer'));
+        expect(run.generatedOutput, contains('required Database database'));
+      },
+    );
+
+    test(
+      'When a global provider is private then an unrelated feature cannot consume it',
+      () async {
+        final run = await runModuleBuilder(_privateGlobalProviderSource);
+
+        expect(run.succeeded, isFalse);
+        expect(
+          run.errors.join('\n'),
+          contains('Export the provider from that module.'),
+        );
+      },
+    );
+
+    test(
+      'When two global modules export the same provider then generation reports the conflict',
+      () async {
+        final run = await runModuleBuilder(_duplicateGlobalProviderSource);
+
+        expect(run.succeeded, isFalse);
+        expect(run.errors.join('\n'), contains('Global provider "Database"'));
       },
     );
 
@@ -577,17 +616,17 @@ void main() {
     );
 
     test(
-      'When provider dependencies cannot be resolved then the builder reports a generation error',
+      'When a feature has an external provider dependency then the builder emits a typed requirement',
       () async {
         final run = await runModuleBuilder(_missingProviderDependencySource);
 
-        expect(run.succeeded, isFalse);
+        expect(run.succeeded, isTrue);
         expect(
-          run.errors.join('\n'),
-          contains(
-            'Unable to resolve provider constructor dependencies for: UserService.',
-          ),
+          run.generatedOutput,
+          contains('required MissingDependency missingDependency'),
         );
+        expect(run.generatedOutput, contains('UserService(missingDependency)'));
+        expect(parseString(content: run.generatedOutput).errors, isEmpty);
       },
     );
 
@@ -601,6 +640,21 @@ void main() {
         expect(
           run.errors.join('\n'),
           contains('not available as a module provider'),
+        );
+      },
+    );
+
+    test(
+      'When provider constructors form a cycle then generation reports the full cycle',
+      () async {
+        final run = await runModuleBuilder(_providerCycleSource);
+
+        expect(run.succeeded, isFalse);
+        expect(
+          run.errors.join('\n'),
+          contains(
+            'Provider dependency cycle: FirstService -> SecondService -> FirstService',
+          ),
         );
       },
     );
@@ -2003,6 +2057,136 @@ final class UserService {
   UserService(this.dependency);
 
   final MissingDependency dependency;
+}
+''';
+
+const _providerCycleSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+part 'example.g.dart';
+
+@Module(providers: [FirstService, SecondService])
+final class AppModule {
+  const AppModule();
+}
+
+final class FirstService {
+  FirstService(this.second);
+
+  final SecondService second;
+}
+
+final class SecondService {
+  SecondService(this.first);
+
+  final FirstService first;
+}
+''';
+
+const _globalModuleSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+import 'package:dart_orpc_core/dart_orpc_core.dart';
+
+part 'example.g.dart';
+
+@Module(imports: [PlatformModule, TodoModule])
+final class AppModule {
+  const AppModule();
+}
+
+@Module(global: true, providers: [Database], exports: [Database])
+final class PlatformModule {
+  const PlatformModule();
+}
+
+@Module(providers: [TodoService], controllers: [TodoController])
+final class TodoModule {
+  const TodoModule();
+}
+
+final class Database {
+  const Database();
+}
+
+final class TodoService {
+  TodoService(this.database);
+
+  final Database database;
+}
+
+@Controller('todo')
+final class TodoController {
+  TodoController(this.todoService);
+
+  final TodoService todoService;
+
+  @RpcMethod(name: 'list')
+  void list() {}
+}
+''';
+
+const _privateGlobalProviderSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+import 'package:dart_orpc_core/dart_orpc_core.dart';
+
+part 'example.g.dart';
+
+@Module(imports: [PlatformModule, TodoModule])
+final class AppModule {
+  const AppModule();
+}
+
+@Module(global: true, providers: [PrivateStore])
+final class PlatformModule {
+  const PlatformModule();
+}
+
+@Module(providers: [TodoService])
+final class TodoModule {
+  const TodoModule();
+}
+
+final class PrivateStore {
+  const PrivateStore();
+}
+
+final class TodoService {
+  TodoService(this.store);
+
+  final PrivateStore store;
+}
+''';
+
+const _duplicateGlobalProviderSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+part 'example.g.dart';
+
+@Module(imports: [FirstModule, SecondModule])
+final class AppModule {
+  const AppModule();
+}
+
+@Module(global: true, providers: [Database], exports: [Database])
+final class FirstModule {
+  const FirstModule();
+}
+
+@Module(global: true, providers: [Database], exports: [Database])
+final class SecondModule {
+  const SecondModule();
+}
+
+final class Database {
+  const Database();
 }
 ''';
 

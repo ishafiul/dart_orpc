@@ -16,6 +16,7 @@ final class _ModuleGenerationPipeline {
       context.rootModule,
       buildStep: buildStep,
       importedProviderInstantiations: context.importedProviderInstantiations,
+      externalProviderRequirements: context.externalProviderRequirements,
     );
     final exportDirectives = await _collectExportDirectivesForModule(
       context.rootModule,

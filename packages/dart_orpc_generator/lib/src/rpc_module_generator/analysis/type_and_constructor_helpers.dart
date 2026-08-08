@@ -39,6 +39,7 @@ _ResolvedInstantiation? _tryBuildInstantiation(
   InterfaceElement element, {
   required Map<String, String> availableProviders,
   required Set<String> usedNames,
+  String? forcedVariableName,
 }) {
   final constructor = _selectUnnamedConstructor(element);
   final positionalArguments = <String>[];
@@ -56,7 +57,9 @@ _ResolvedInstantiation? _tryBuildInstantiation(
     }
   }
 
-  final variableName = _uniqueName(_lowerCamel(element.displayName), usedNames);
+  final variableName = forcedVariableName == null
+      ? _uniqueName(_lowerCamel(element.displayName), usedNames)
+      : forcedVariableName;
   return _ResolvedInstantiation(
     typeKey: _typeKeyFor(element.thisType),
     typeName: element.displayName,

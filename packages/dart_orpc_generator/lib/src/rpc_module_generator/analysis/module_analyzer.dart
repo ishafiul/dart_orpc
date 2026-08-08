@@ -14,6 +14,11 @@ final class _ModuleAnalyzer {
       usedNames: usedNames,
     );
     final rootModule = moduleGraph.rootModule;
+    final allProviderInstantiations = [
+      for (final module in moduleGraph.orderedModules)
+        ...module.providerInstantiations,
+    ];
+    final allControllers = rootModule.allControllers;
     _validateUniqueProcedureContracts(rootModule, moduleElement: element);
     final importedModules = rootModule.importedModules;
     final importedModulesWithRpcClients = importedModules
@@ -31,12 +36,12 @@ final class _ModuleAnalyzer {
       moduleName: element.displayName,
       rootModule: rootModule,
       importedModulesWithRpcClients: importedModulesWithRpcClients,
-      importedProviderInstantiations:
-          _collectImportedProviderInstantiationsForRoot(
-            rootModule,
-            rootModuleElement: element,
-            annotation: annotation,
-          ),
+      importedProviderInstantiations: allProviderInstantiations
+          .where(
+            (instantiation) =>
+                !rootModule.providerInstantiations.contains(instantiation),
+          )
+          .toList(growable: false),
       rpcClientControllers: rpcClientControllers,
       hasLocalRpcClientControllers: rpcClientControllers.isNotEmpty,
       hasImportedRpcClientControllers: importedModulesWithRpcClients.isNotEmpty,
@@ -53,17 +58,22 @@ final class _ModuleAnalyzer {
         rootModule.controllerBindings,
       ),
       containerMembers: [
-        for (final instantiation in rootModule.providerInstantiations)
+        for (final instantiation in allProviderInstantiations)
           _GeneratedContainerMember(
             typeName: instantiation.typeName,
             name: instantiation.variableName,
           ),
-        for (final controller in rootModule.controllerBindings)
+        for (final controller in allControllers)
           _GeneratedContainerMember(
             typeName: controller.typeName,
             name: controller.instanceName,
           ),
       ],
+      externalProviderRequirements: {
+        for (final module in moduleGraph.orderedModules)
+          for (final requirement in module.externalProviderRequirements)
+            requirement.typeKey: requirement,
+      }.values.toList(growable: false),
     );
   }
 }

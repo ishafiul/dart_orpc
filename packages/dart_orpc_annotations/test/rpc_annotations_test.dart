@@ -17,6 +17,16 @@ void main() {
         expect(module.controllers, [String]);
         expect(module.providers, [int]);
         expect(module.exports, [double]);
+        expect(module.global, isFalse);
+      },
+    );
+
+    test(
+      'When constructing a global Module then it stores global visibility',
+      () {
+        const module = Module(global: true);
+
+        expect(module.global, isTrue);
       },
     );
 

@@ -12,7 +12,6 @@ import 'package:source_gen/source_gen.dart';
 part 'rpc_module_generator/analysis/controller_binding_builder.dart';
 part 'rpc_module_generator/analysis/contract_collision_validator.dart';
 part 'rpc_module_generator/analysis/dto_field_resolver.dart';
-part 'rpc_module_generator/analysis/imported_provider_instantiations.dart';
 part 'rpc_module_generator/analysis/module_analyzer.dart';
 part 'rpc_module_generator/analysis/module_graph_resolver.dart';
 part 'rpc_module_generator/analysis/procedure_binding_builder.dart';
