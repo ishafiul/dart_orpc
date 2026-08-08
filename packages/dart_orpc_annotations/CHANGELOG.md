@@ -1,3 +1,8 @@
+## 0.1.0-dev.3
+
+ - **FEAT**: Add root-scoped global modules (#14).
+ - **FEAT**: Add contract-driven headers and bearer security (#13).
+
 ## 0.1.0-dev.2
 
  - **FEAT**: HTTP SSE Lifecycle (#8).

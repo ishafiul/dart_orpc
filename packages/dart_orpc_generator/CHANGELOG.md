@@ -1,3 +1,8 @@
+## 0.1.0-dev.5
+
+ - **FEAT**: Add root-scoped global modules (#14).
+ - **FEAT**: Add contract-driven headers and bearer security (#13).
+
 ## 0.1.0-dev.4
 
  - **FEAT**: support scalar and void outputs with structured benchmarks (#12).

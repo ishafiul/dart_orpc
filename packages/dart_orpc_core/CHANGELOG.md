@@ -1,3 +1,7 @@
+## 0.1.0-dev.4
+
+ - **FEAT**: Add contract-driven headers and bearer security (#13).
+
 ## 0.1.0-dev.3
 
  - **FEAT**(core): Add typed RPC context bindings.
