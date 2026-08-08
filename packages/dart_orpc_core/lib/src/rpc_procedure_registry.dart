@@ -1,5 +1,6 @@
 import 'rpc_context.dart';
 import 'rpc_exception.dart';
+import 'procedure_metadata.dart';
 import 'rpc_procedure.dart';
 import 'rpc_request.dart';
 
@@ -23,7 +24,10 @@ final class RpcProcedureRegistry {
       );
     }
 
-    return procedure.invoke(context, request.input);
+    return procedure.invoke(
+      context,
+      _bindHeaders(context, procedure.metadata, request.input),
+    );
   }
 
   Stream<Object?> dispatchStream(
@@ -40,7 +44,10 @@ final class RpcProcedureRegistry {
       );
     }
 
-    yield* procedure.invokeStream(context, request.input);
+    yield* procedure.invokeStream(
+      context,
+      _bindHeaders(context, procedure.metadata, request.input),
+    );
   }
 
   Future<Object?> dispatch(RpcContext context, RpcRequest request) {
@@ -49,6 +56,41 @@ final class RpcProcedureRegistry {
 
   static RpcException _notFound(String method) {
     return RpcException.notFound('No RPC procedure registered for "$method".');
+  }
+
+  static Object? _bindHeaders(
+    RpcContext context,
+    ProcedureMetadata metadata,
+    Object? input,
+  ) {
+    final headerParameters = metadata.parameters.where(
+      (parameter) => parameter.source == ProcedureParameterSourceKind.header,
+    );
+    if (headerParameters.isEmpty) {
+      return input;
+    }
+
+    if (input is! Map) {
+      return input;
+    }
+
+    final boundInput = <Object?, Object?>{...input};
+    for (final parameter in headerParameters) {
+      final value = _headerValue(context.headers, parameter.wireName);
+      if (value != null) {
+        boundInput[parameter.parameterName] = value;
+      }
+    }
+    return boundInput;
+  }
+
+  static String? _headerValue(Map<String, String> headers, String name) {
+    for (final entry in headers.entries) {
+      if (entry.key.toLowerCase() == name.toLowerCase()) {
+        return entry.value;
+      }
+    }
+    return null;
   }
 
   static Map<String, RegisteredRpcProcedure> _indexProcedures(

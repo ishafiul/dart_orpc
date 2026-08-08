@@ -33,6 +33,16 @@ void main() {
     });
 
     test(
+      'When constructing BearerAuth then it creates the security marker',
+      () {
+        const bearerAuth = BearerAuth(guard: String);
+
+        expect(bearerAuth, isA<BearerAuth>());
+        expect(bearerAuth.guard, String);
+      },
+    );
+
+    test(
       'When constructing RpcMetadata then it stores the custom metadata key',
       () {
         const metadata = RpcMetadata('permissions');

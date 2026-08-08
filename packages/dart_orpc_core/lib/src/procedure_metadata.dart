@@ -6,6 +6,13 @@ enum RpcProcedureKind { unary, serverStream }
 
 enum RestResponseKind { json, sse }
 
+/// Named security requirement declared by an RPC procedure.
+final class ProcedureSecurityRequirement {
+  const ProcedureSecurityRequirement(this.schemeName);
+
+  final String schemeName;
+}
+
 final class ProcedureParameterMetadata {
   const ProcedureParameterMetadata({
     required this.parameterName,
@@ -51,6 +58,7 @@ final class ProcedureMetadata {
     this.description,
     this.tags = const [],
     this.guardTypes = const [],
+    this.securityRequirements = const [],
     this.customMetadata = const [],
     this.parameters = const [],
   });
@@ -65,6 +73,7 @@ final class ProcedureMetadata {
   final String? description;
   final List<String> tags;
   final List<String> guardTypes;
+  final List<ProcedureSecurityRequirement> securityRequirements;
   final List<ProcedureCustomMetadata> customMetadata;
   final List<ProcedureParameterMetadata> parameters;
 
