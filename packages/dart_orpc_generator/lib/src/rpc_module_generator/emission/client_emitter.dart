@@ -47,6 +47,9 @@ void _writeControllerClients(
   _ModuleGenerationPlan context,
 ) {
   for (final controller in context.rpcClientControllers) {
+    for (final procedure in controller.rpcCompatibleProcedures) {
+      _writeClientRequestOptions(buffer, procedure);
+    }
     buffer
       ..writeln()
       ..writeln('class ${controller.clientClassName} {')
@@ -60,6 +63,35 @@ void _writeControllerClients(
   }
 }
 
+void _writeClientRequestOptions(
+  StringBuffer buffer,
+  _ResolvedProcedure procedure,
+) {
+  final headerParameters = _clientHeaderParameters(procedure);
+  if (headerParameters.isEmpty) return;
+  final typeName = _clientRequestOptionsTypeName(procedure);
+  buffer
+    ..writeln()
+    ..writeln('  /// Typed transport options for `${procedure.rpcMethod}`.')
+    ..writeln('  final class $typeName {')
+    ..writeln('    const $typeName({');
+  for (final parameter in headerParameters) {
+    buffer.writeln('      required this.${parameter.parameterName},');
+  }
+  buffer
+    ..writeln('      this.call,')
+    ..writeln('    });');
+  for (final parameter in headerParameters) {
+    buffer.writeln(
+      '    final ${parameter.typeCode} ${parameter.parameterName};',
+    );
+  }
+  buffer
+    ..writeln('    final RpcCallOptions? call;')
+    ..writeln('  }')
+    ..writeln();
+}
+
 void _writeClientProcedure(StringBuffer buffer, _ResolvedProcedure procedure) {
   final decodeLine = '      decode: ${_clientDecodeExpression(procedure)},';
   final returnType = procedure.isStream ? 'Stream' : 'Future';
@@ -68,6 +100,24 @@ void _writeClientProcedure(StringBuffer buffer, _ResolvedProcedure procedure) {
       ? "_transports.requireStreaming('${procedure.rpcMethod}')"
       : "_transports.requireUnary('${procedure.rpcMethod}')";
   final callerMethod = procedure.isStream ? 'call' : 'call';
+  final headerParameters = _clientHeaderParameters(procedure);
+  final hasCallOptions =
+      procedure.requiresBearerAuth || headerParameters.isNotEmpty;
+  final optionsDeclaration = headerParameters.isNotEmpty
+      ? '{required ${_clientRequestOptionsTypeName(procedure)} requestOptions}'
+      : hasCallOptions
+      ? '{RpcCallOptions? options}'
+      : '';
+  final optionsExpression = headerParameters.isNotEmpty
+      ? _clientCallOptionsExpression('requestOptions', headerParameters)
+      : hasCallOptions
+      ? 'options'
+      : 'null';
+  final inputExpression = procedure.hasInput && headerParameters.isNotEmpty
+      ? _clientInputExpression(procedure, procedure.inputParameterName!)
+      : procedure.hasInput
+      ? 'input.toJson()'
+      : null;
   if (procedure.isVoid) {
     _writeVoidClientProcedure(
       buffer,
@@ -80,13 +130,14 @@ void _writeClientProcedure(StringBuffer buffer, _ResolvedProcedure procedure) {
     buffer
       ..writeln()
       ..writeln(
-        '  $returnType<${procedure.outputTypeCode}> ${procedure.methodName}(${procedure.inputTypeCode!} ${procedure.inputParameterName!}) {',
+        '  $returnType<${procedure.outputTypeCode}> ${procedure.methodName}(${procedure.inputTypeCode!} ${procedure.inputParameterName!}${optionsDeclaration.isEmpty ? '' : ', $optionsDeclaration'}) {',
       )
       ..writeln(
         '    return $callerType($transportExpression).$callerMethod<${procedure.outputTypeCode}>(',
       )
       ..writeln("      method: '${procedure.rpcMethod}',")
-      ..writeln('      input: ${procedure.inputParameterName!}.toJson(),')
+      ..writeln('      input: $inputExpression,')
+      ..writeln('      options: $optionsExpression,')
       ..writeln(decodeLine)
       ..writeln('    );')
       ..writeln('  }');
@@ -95,12 +146,13 @@ void _writeClientProcedure(StringBuffer buffer, _ResolvedProcedure procedure) {
   buffer
     ..writeln()
     ..writeln(
-      '  $returnType<${procedure.outputTypeCode}> ${procedure.methodName}() {',
+      '  $returnType<${procedure.outputTypeCode}> ${procedure.methodName}(${optionsDeclaration.isEmpty ? '' : optionsDeclaration}) {',
     )
     ..writeln(
       '    return $callerType($transportExpression).$callerMethod<${procedure.outputTypeCode}>(',
     )
     ..writeln("      method: '${procedure.rpcMethod}',")
+    ..writeln('      options: $optionsExpression,')
     ..writeln(decodeLine)
     ..writeln('    );')
     ..writeln('  }');
@@ -133,20 +185,71 @@ void _writeVoidClientProcedure(
   final parameterDeclaration = procedure.hasInput
       ? '${procedure.inputTypeCode!} ${procedure.inputParameterName!}'
       : '';
+  final headerParameters = _clientHeaderParameters(procedure);
+  final optionsDeclaration = headerParameters.isNotEmpty
+      ? '{required ${_clientRequestOptionsTypeName(procedure)} requestOptions}'
+      : procedure.requiresBearerAuth
+      ? '{RpcCallOptions? options}'
+      : '';
+  final inputExpression = procedure.hasInput && headerParameters.isNotEmpty
+      ? _clientInputExpression(procedure, procedure.inputParameterName!)
+      : procedure.hasInput
+      ? '${procedure.inputParameterName!}.toJson()'
+      : null;
+  final optionsExpression = headerParameters.isNotEmpty
+      ? _clientCallOptionsExpression('requestOptions', headerParameters)
+      : procedure.requiresBearerAuth
+      ? 'options'
+      : 'null';
   buffer
     ..writeln()
     ..writeln(
-      '  Future<void> ${procedure.methodName}($parameterDeclaration) async {',
+      '  Future<void> ${procedure.methodName}($parameterDeclaration${optionsDeclaration.isEmpty ? '' : ', $optionsDeclaration'}) async {',
     )
     ..writeln('    await RpcCaller($transportExpression).call<Null>(')
     ..writeln("      method: '${procedure.rpcMethod}',");
   if (procedure.hasInput) {
-    buffer.writeln('      input: ${procedure.inputParameterName!}.toJson(),');
+    buffer.writeln('      input: $inputExpression,');
   }
   buffer
+    ..writeln('      options: $optionsExpression,')
     ..writeln('      decode: (_) => null,')
     ..writeln('    );')
     ..writeln('  }');
+}
+
+List<_ResolvedParameter> _clientHeaderParameters(_ResolvedProcedure procedure) {
+  return procedure.parameters
+      .where(
+        (parameter) =>
+            parameter.source == ProcedureParameterSourceKind.header &&
+            !parameter.typeCode.endsWith('?'),
+      )
+      .toList(growable: false);
+}
+
+String _clientRequestOptionsTypeName(_ResolvedProcedure procedure) {
+  return '${_pascalCase(procedure.controllerNamespace)}${_pascalCase(procedure.methodName)}RequestOptions';
+}
+
+String _clientInputExpression(_ResolvedProcedure procedure, String inputName) {
+  final fields = _clientHeaderParameters(procedure)
+      .map((parameter) => "'${_escapeDartString(parameter.parameterName)}'")
+      .join(', ');
+  return '<String, Object?>{...$inputName.toJson()}..removeWhere((key, _) => [$fields].contains(key))';
+}
+
+String _clientCallOptionsExpression(
+  String requestOptionsName,
+  List<_ResolvedParameter> headerParameters,
+) {
+  final entries = headerParameters
+      .map(
+        (parameter) =>
+            "'${_escapeDartString(parameter.wireName)}': $requestOptionsName.${parameter.parameterName}",
+      )
+      .join(', ');
+  return 'RpcCallOptions(headers: {...?$requestOptionsName.call?.headers, $entries}, bearerToken: $requestOptionsName.call?.bearerToken)';
 }
 
 void _writeGeneratedExtension(

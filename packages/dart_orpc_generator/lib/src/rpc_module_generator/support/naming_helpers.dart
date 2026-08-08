@@ -167,6 +167,11 @@ String _lowerCamel(String value) {
 
 String _camelCase(String value) => _lowerCamel(value);
 
+String _pascalCase(String value) {
+  if (value.isEmpty) return value;
+  return '${value[0].toUpperCase()}${value.substring(1)}';
+}
+
 String _publicProcedureRegistryFactoryNameFor(String moduleName) =>
     'dartOrpcCreate${moduleName}ProcedureRegistry';
 String _publicRestRouteRegistryFactoryNameFor(String moduleName) =>

@@ -214,6 +214,12 @@ void main() {
           generatedOutput,
           contains("guardTypes: ['AuthGuard', 'UserReadGuard'],"),
         );
+        expect(
+          generatedOutput,
+          contains(
+            "securityRequirements: [ProcedureSecurityRequirement('bearerAuth')],",
+          ),
+        );
         expect(generatedOutput, contains('customMetadata: ['));
         expect(generatedOutput, contains("'allOf': ['tenant.active'],"));
         expect(
@@ -377,6 +383,41 @@ void main() {
           contains('source: ProcedureParameterSourceKind.header,'),
         );
         expect(generatedOutput, contains("wireName: 'x-tenant-id',"));
+      },
+    );
+
+    test(
+      'When a required DTO header is generated then the client requires typed request options',
+      () async {
+        final source = _sharedRpcAndRestBodySource
+            .replaceFirst(
+              'const UpdateUserDto({required this.id, required this.name, this.tenantId});',
+              'const UpdateUserDto({required this.id, required this.name, required this.tenantId});',
+            )
+            .replaceFirst(
+              "tenantId: object['tenantId'] as String?,",
+              "tenantId: object['tenantId'] as String,",
+            )
+            .replaceFirst('final String? tenantId;', 'final String tenantId;');
+        final run = await runModuleBuilder(source);
+
+        expect(run.succeeded, isTrue);
+        expect(
+          run.generatedOutput,
+          contains('final class UserUpdateRequestOptions'),
+        );
+        expect(
+          run.generatedOutput,
+          contains('required UserUpdateRequestOptions requestOptions'),
+        );
+        expect(
+          run.generatedOutput,
+          contains("'x-tenant-id': requestOptions.tenantId"),
+        );
+        expect(
+          run.generatedOutput,
+          contains("..removeWhere((key, _) => ['tenantId'].contains(key))"),
+        );
       },
     );
 
@@ -1281,6 +1322,7 @@ final class RequirePermissions {
   final List<String>? allOf;
 }
 
+@BearerAuth(guard: AuthGuard)
 @UseGuards([AuthGuard])
 @RequirePermissions(allOf: ['tenant.active'])
 @Controller('user')
