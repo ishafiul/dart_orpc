@@ -16,8 +16,12 @@ void _writeRestRouteRegistries(
   buffer
     ..writeln()
     ..writeln('// ignore: unused_element')
-    ..writeln('RestRouteRegistry ${names.createLocalRestRouteRegistryName}() {')
-    ..writeln('  final container = ${names.createContainerName}();')
+    ..writeln(
+      'RestRouteRegistry ${names.createLocalRestRouteRegistryName}(${_dependencyParameterDeclaration(context)}) {',
+    )
+    ..writeln(
+      '  final container = ${names.createContainerName}(${_dependencyArgumentList(context)});',
+    )
     ..writeln(
       '  return ${names.createRestRouteRegistryFromContainerName}(container);',
     )
@@ -33,7 +37,7 @@ void _writeRestRouteRegistries(
     )
     ..writeln('  return RestRouteRegistry([');
 
-  for (final controller in context.rootModule.controllerBindings) {
+  for (final controller in context.rootModule.allControllers) {
     for (final procedure in controller.procedures.where(
       (procedure) => procedure.path != null,
     )) {
@@ -105,20 +109,19 @@ void _writeRestRouteRegistries(
     ..writeln('  ]);')
     ..writeln('}')
     ..writeln()
-    ..writeln('RestRouteRegistry ${names.createRestRouteRegistryName}() {')
+    ..writeln(
+      'RestRouteRegistry ${names.createRestRouteRegistryName}(${_dependencyParameterDeclaration(context)}) {',
+    )
     ..writeln('  return RestRouteRegistry([');
-  for (final importedModule in context.rootModule.importedModules) {
-    buffer.writeln(
-      '    ...${_publicRestRouteRegistryFactoryNameFor(importedModule.displayName)}().routes,',
-    );
-  }
   buffer
-    ..writeln('    ...${names.createLocalRestRouteRegistryName}().routes,')
+    ..writeln(
+      '    ...${names.createLocalRestRouteRegistryName}(${_dependencyArgumentList(context)}).routes,',
+    )
     ..writeln('  ]);')
     ..writeln('}')
     ..writeln()
     ..writeln(
-      'RestRouteRegistry ${names.composeRestRouteRegistryName}() => ${names.createRestRouteRegistryName}();',
+      'RestRouteRegistry ${names.composeRestRouteRegistryName}(${_dependencyParameterDeclaration(context)}) => ${names.createRestRouteRegistryName}(${_dependencyArgumentList(context)});',
     );
 }
 
@@ -134,7 +137,7 @@ void _writeMetadataRegistries(
       'ProcedureMetadataRegistry ${names.createLocalMetadataRegistryName}() {',
     )
     ..writeln('  return ProcedureMetadataRegistry([');
-  for (final controller in context.rootModule.controllerBindings) {
+  for (final controller in context.rootModule.allControllers) {
     for (final procedure in controller.procedures) {
       _writeProcedureMetadata(buffer, procedure);
     }
@@ -147,11 +150,6 @@ void _writeMetadataRegistries(
       'ProcedureMetadataRegistry ${names.createMetadataRegistryName}() {',
     )
     ..writeln('  return ProcedureMetadataRegistry([');
-  for (final importedModule in context.rootModule.importedModules) {
-    buffer.writeln(
-      '    ...${_publicProcedureMetadataRegistryFactoryNameFor(importedModule.displayName)}().procedures,',
-    );
-  }
   buffer
     ..writeln('    ...${names.createLocalMetadataRegistryName}().procedures,')
     ..writeln('  ]);')
@@ -237,13 +235,13 @@ void _writeProcedureMetadata(
 }
 
 bool _hasLocalRpcProcedures(_ModuleGenerationPlan context) {
-  return context.rootModule.controllerBindings.any(
+  return context.rootModule.allControllers.any(
     (controller) => controller.rpcCompatibleProcedures.isNotEmpty,
   );
 }
 
 bool _hasLocalRestRoutes(_ModuleGenerationPlan context) {
-  return context.rootModule.controllerBindings.any(
+  return context.rootModule.allControllers.any(
     (controller) =>
         controller.procedures.any((procedure) => procedure.path != null),
   );

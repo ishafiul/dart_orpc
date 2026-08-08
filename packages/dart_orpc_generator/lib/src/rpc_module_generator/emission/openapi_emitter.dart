@@ -62,7 +62,7 @@ void _writeOpenApiSections(StringBuffer buffer, _ModuleGenerationPlan context) {
     )
     ..writeln()
     ..writeln(
-      'RpcHttpApp ${names.buildAppName}({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, RpcHttpStaticOptions? staticAssets, RpcHttpHealthOptions? health, RpcHttpMetricsOptions? metrics, RpcWebSocketServerOptions? webSocket, RpcContextBindings bindings = const RpcContextBindings.empty(), RpcContextFactory? contextFactory, Duration sseHeartbeatInterval = const Duration(seconds: 15), Iterable<RpcHttpMiddleware> middleware = const []}) {',
+      'RpcHttpApp ${names.buildAppName}({${_dependencyParameterFields(context)}${_dependencyParameterFields(context).isEmpty ? '' : ', '}OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, RpcHttpStaticOptions? staticAssets, RpcHttpHealthOptions? health, RpcHttpMetricsOptions? metrics, RpcWebSocketServerOptions? webSocket, RpcContextBindings bindings = const RpcContextBindings.empty(), RpcContextFactory? contextFactory, Duration sseHeartbeatInterval = const Duration(seconds: 15), Iterable<RpcHttpMiddleware> middleware = const []}) {',
     )
     ..writeln(
       '  final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();',
@@ -72,7 +72,9 @@ void _writeOpenApiSections(StringBuffer buffer, _ModuleGenerationPlan context) {
       "  final effectiveOpenApiTitle = effectiveOpenApi.title ?? '${_escapeDartString(context.openApiTitle)}';",
     )
     ..writeln('  final effectiveOpenApiPath = effectiveDocs.openApiPath;')
-    ..writeln('  final runtime = ${names.createRuntimeName}();')
+    ..writeln(
+      '  final runtime = ${names.createRuntimeName}(${_dependencyArgumentList(context)});',
+    )
     ..writeln('  return RpcHttpApp(')
     ..writeln('    procedures: runtime.procedures,')
     ..writeln('    restRoutes: runtime.restRoutes,')
@@ -99,6 +101,6 @@ void _writeOpenApiSections(StringBuffer buffer, _ModuleGenerationPlan context) {
     ..writeln('}')
     ..writeln()
     ..writeln(
-      'RpcHttpApp ${names.composeBuildAppName}({OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, RpcHttpStaticOptions? staticAssets, RpcHttpHealthOptions? health, RpcHttpMetricsOptions? metrics, RpcWebSocketServerOptions? webSocket, RpcContextBindings bindings = const RpcContextBindings.empty(), RpcContextFactory? contextFactory, Duration sseHeartbeatInterval = const Duration(seconds: 15), Iterable<RpcHttpMiddleware> middleware = const []}) => ${names.buildAppName}(openApi: openApi, docs: docs, staticAssets: staticAssets, health: health, metrics: metrics, webSocket: webSocket, bindings: bindings, contextFactory: contextFactory, sseHeartbeatInterval: sseHeartbeatInterval, middleware: middleware);',
+      'RpcHttpApp ${names.composeBuildAppName}({${_dependencyParameterFields(context)}${_dependencyParameterFields(context).isEmpty ? '' : ', '}OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, RpcHttpStaticOptions? staticAssets, RpcHttpHealthOptions? health, RpcHttpMetricsOptions? metrics, RpcWebSocketServerOptions? webSocket, RpcContextFactory? contextFactory, RpcContextBindings bindings = const RpcContextBindings.empty(), Duration sseHeartbeatInterval = const Duration(seconds: 15), Iterable<RpcHttpMiddleware> middleware = const []}) => ${names.buildAppName}(${_dependencyArgumentList(context)}${_dependencyArgumentList(context).isEmpty ? '' : ', '}openApi: openApi, docs: docs, staticAssets: staticAssets, health: health, metrics: metrics, webSocket: webSocket, bindings: bindings, contextFactory: contextFactory, sseHeartbeatInterval: sseHeartbeatInterval, middleware: middleware);',
     );
 }

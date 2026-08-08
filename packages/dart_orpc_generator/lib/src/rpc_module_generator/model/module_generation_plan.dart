@@ -19,6 +19,7 @@ final class _ModuleGenerationPlan {
     required this.openApiTitle,
     required this.openApiSchemaComponents,
     required this.containerMembers,
+    required this.externalProviderRequirements,
   });
 
   final String moduleName;
@@ -34,4 +35,5 @@ final class _ModuleGenerationPlan {
   final String openApiTitle;
   final List<_ResolvedOpenApiSchemaComponent> openApiSchemaComponents;
   final List<_GeneratedContainerMember> containerMembers;
+  final List<_ExternalProviderRequirement> externalProviderRequirements;
 }
