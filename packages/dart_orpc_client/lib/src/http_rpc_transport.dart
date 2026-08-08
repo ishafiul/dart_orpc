@@ -5,38 +5,47 @@ import 'package:http/http.dart' as http;
 
 import 'http_rpc_interceptor.dart';
 import 'rpc_client_exception.dart';
+import 'rpc_call_options.dart';
 import 'rpc_transport.dart';
 
-final class HttpRpcTransport implements RpcUnaryTransport {
+final class HttpRpcTransport implements RpcUnaryTransportWithOptions {
   HttpRpcTransport({
     required String baseUrl,
     String endpointPath = '/rpc',
     http.Client? client,
     List<RpcInterceptorCore> interceptors = const [],
+    Map<String, String> headers = const {},
+    this.bearerTokenProvider,
   }) : _baseUri = Uri.parse(baseUrl),
        _endpointPath = _normalizeEndpointPath(endpointPath),
        _client = client ?? http.Client(),
        _interceptors = List.unmodifiable(interceptors),
+       _headers = Map.unmodifiable(headers),
        _ownsClient = client == null;
 
   final Uri _baseUri;
   final String _endpointPath;
   final http.Client _client;
   final List<RpcInterceptorCore> _interceptors;
+  final Map<String, String> _headers;
+  final RpcBearerTokenProvider? bearerTokenProvider;
   final bool _ownsClient;
 
   Uri get endpointUri => _baseUri.resolve(_endpointPath);
 
   @override
-  Future<Object?> send(RpcRequest request) async {
+  Future<Object?> send(RpcRequest request) => sendWithOptions(request);
+
+  @override
+  Future<Object?> sendWithOptions(
+    RpcRequest request, {
+    RpcCallOptions? options,
+  }) async {
     final body = _encodeRequest(request);
     final httpRequest = HttpRpcRequest(
       method: 'POST',
       uri: endpointUri,
-      headers: const {
-        'content-type': 'application/json; charset=utf-8',
-        'accept': 'application/json',
-      },
+      headers: await _buildHeaders(options),
       body: body,
       rpcRequest: request,
     );
@@ -56,6 +65,50 @@ final class HttpRpcTransport implements RpcUnaryTransport {
     }
 
     return _parseResponse(response);
+  }
+
+  Future<Map<String, String>> _buildHeaders(RpcCallOptions? options) async {
+    final headers = <String, String>{
+      'content-type': 'application/json; charset=utf-8',
+      'accept': 'application/json',
+      ..._headers,
+      if (bearerTokenProvider != null)
+        ..._authorizationHeader(await bearerTokenProvider!()),
+      ...?options?.headers,
+    };
+    final bearerToken = options?.bearerToken;
+    if (bearerToken != null) {
+      headers['authorization'] = _formatBearerToken(bearerToken);
+    }
+    return _normalizeHeaderNames(headers);
+  }
+
+  static String _formatBearerToken(String token) => 'Bearer $token';
+
+  static Map<String, String> _authorizationHeader(String? token) {
+    return token == null
+        ? const {}
+        : {'authorization': _formatBearerToken(token)};
+  }
+
+  static Map<String, String> _normalizeHeaderNames(
+    Map<String, String> headers,
+  ) {
+    final normalized = <String, String>{};
+    for (final entry in headers.entries) {
+      String? existingKey;
+      for (final key in normalized.keys) {
+        if (key.toLowerCase() == entry.key.toLowerCase()) {
+          existingKey = key;
+          break;
+        }
+      }
+      if (existingKey != null) {
+        normalized.remove(existingKey);
+      }
+      normalized[entry.key] = entry.value;
+    }
+    return Map.unmodifiable(normalized);
   }
 
   Future<HttpRpcResponse> _sendHttpRequest(HttpRpcRequest request) async {
