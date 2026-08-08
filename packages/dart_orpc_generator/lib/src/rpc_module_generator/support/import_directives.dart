@@ -44,8 +44,11 @@ Future<Set<String>> _collectImportDirectivesForModule(
     await addElementImport(requirement.typeElement);
   }
 
-  for (final controller in rootModule.controllerBindings) {
+  for (final controller in rootModule.allControllers) {
     await addElementImport(controller.controllerElement);
+  }
+
+  for (final controller in rootModule.controllerBindings) {
     for (final procedure in controller.procedures) {
       await addElementImport(procedure.inputTypeElement);
       await addElementImport(procedure.outputTypeElement);
