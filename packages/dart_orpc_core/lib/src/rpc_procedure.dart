@@ -6,6 +6,9 @@ import 'rpc_context.dart';
 import 'rpc_exception.dart';
 import 'rpc_guard.dart';
 
+// Preserve the asynchronous setup boundary without an empty guard pipeline.
+final Future<void> _invocationReady = Future<void>.value();
+
 typedef RpcInputDecoder<I> = I Function(Object? rawInput);
 typedef RpcOutputEncoder<O> = Object? Function(O output);
 typedef RpcHandler<I, O> = FutureOr<O> Function(RpcContext context, I input);
@@ -67,15 +70,20 @@ final class RpcUnaryProcedure<I, O> implements RpcCallableProcedure {
     context.cancellation.throwIfCancelled();
     final input = _decode(rawInput);
 
-    await runRpcGuards(
-      guards,
-      rpcContext: context,
-      procedure: metadata,
-      input: input,
-    );
+    if (guards.isEmpty) {
+      await _invocationReady;
+    } else {
+      await runRpcGuards(
+        guards,
+        rpcContext: context,
+        procedure: metadata,
+        input: input,
+      );
+    }
 
     context.cancellation.throwIfCancelled();
-    await beforeInvoke?.call(context, input);
+    final before = beforeInvoke;
+    if (before != null) await before(context, input);
     context.cancellation.throwIfCancelled();
     final output = await handler(context, input);
     context.cancellation.throwIfCancelled();
@@ -135,10 +143,13 @@ final class RpcStreamProcedure<I, O> implements RpcCallableStreamProcedure {
   Stream<Object?> invokeStream(RpcContext context, Object? rawInput) {
     late StreamController<Object?> controller;
     StreamSubscription<O>? source;
+    RpcCancellationRegistration? cancellationRegistration;
     var consumerCancelled = false;
     var terminated = false;
 
     Future<void> close() async {
+      cancellationRegistration?.dispose();
+      cancellationRegistration = null;
       if (!controller.isClosed) {
         await controller.close();
       }
@@ -149,9 +160,14 @@ final class RpcStreamProcedure<I, O> implements RpcCallableStreamProcedure {
         return;
       }
       terminated = true;
+      cancellationRegistration?.dispose();
+      cancellationRegistration = null;
       controller.addError(error, stackTrace);
-      await source?.cancel();
-      await close();
+      try {
+        await source?.cancel();
+      } finally {
+        await close();
+      }
     }
 
     Future<void> cancelFromSignal() async {
@@ -166,15 +182,20 @@ final class RpcStreamProcedure<I, O> implements RpcCallableStreamProcedure {
         context.cancellation.throwIfCancelled();
         final input = _decode(rawInput);
 
-        await runRpcGuards(
-          guards,
-          rpcContext: context,
-          procedure: metadata,
-          input: input,
-        );
+        if (guards.isEmpty) {
+          await _invocationReady;
+        } else {
+          await runRpcGuards(
+            guards,
+            rpcContext: context,
+            procedure: metadata,
+            input: input,
+          );
+        }
 
         context.cancellation.throwIfCancelled();
-        await beforeInvoke?.call(context, input);
+        final before = beforeInvoke;
+        if (before != null) await before(context, input);
         context.cancellation.throwIfCancelled();
         if (consumerCancelled) {
           return;
@@ -203,7 +224,7 @@ final class RpcStreamProcedure<I, O> implements RpcCallableStreamProcedure {
           },
           cancelOnError: false,
         );
-        if (consumerCancelled) {
+        if (consumerCancelled || terminated) {
           await source?.cancel();
         } else if (controller.isPaused) {
           source?.pause();
@@ -215,11 +236,9 @@ final class RpcStreamProcedure<I, O> implements RpcCallableStreamProcedure {
 
     controller = StreamController<Object?>(
       onListen: () {
-        if (!identical(context.cancellation, RpcCancellationSignal.none)) {
-          unawaited(
-            context.cancellation.cancelled.then((_) => cancelFromSignal()),
-          );
-        }
+        cancellationRegistration = context.cancellation.onCancel(
+          () => unawaited(cancelFromSignal()),
+        );
         unawaited(start());
       },
       onPause: () => source?.pause(),
@@ -227,6 +246,8 @@ final class RpcStreamProcedure<I, O> implements RpcCallableStreamProcedure {
       onCancel: () async {
         consumerCancelled = true;
         terminated = true;
+        cancellationRegistration?.dispose();
+        cancellationRegistration = null;
         await source?.cancel();
       },
     );

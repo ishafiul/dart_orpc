@@ -25,12 +25,14 @@ Future<void> runRpcGuards(
   required ProcedureMetadata procedure,
   Object? input,
 }) async {
+  final iterator = guards.iterator;
+  if (!iterator.moveNext()) return;
   final guardContext = RpcGuardContext(
     rpcContext: rpcContext,
     procedure: procedure,
     input: input,
   );
-  for (final guard in guards) {
-    await guard.canActivate(guardContext);
-  }
+  do {
+    await iterator.current.canActivate(guardContext);
+  } while (iterator.moveNext());
 }

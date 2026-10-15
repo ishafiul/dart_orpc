@@ -38,6 +38,15 @@ final class RpcException implements Exception {
     return RpcException(code: RpcErrorCode.internalError, message: message);
   }
 
+  factory RpcException.requestTimeout(String message) =>
+      RpcException(code: RpcErrorCode.requestTimeout, message: message);
+  factory RpcException.payloadTooLarge(String message) =>
+      RpcException(code: RpcErrorCode.payloadTooLarge, message: message);
+  factory RpcException.unavailable(String message) =>
+      RpcException(code: RpcErrorCode.unavailable, message: message);
+  factory RpcException.deadlineExceeded(String message) =>
+      RpcException(code: RpcErrorCode.deadlineExceeded, message: message);
+
   final RpcErrorCode code;
   final String message;
 

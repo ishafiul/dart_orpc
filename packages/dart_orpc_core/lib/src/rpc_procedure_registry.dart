@@ -8,16 +8,18 @@ final class RpcProcedureRegistry {
   RpcProcedureRegistry(Iterable<RegisteredRpcProcedure> procedures)
     : _procedures = _indexProcedures(procedures);
 
-  final Map<String, RegisteredRpcProcedure> _procedures;
+  final Map<String, _CompiledProcedure> _procedures;
 
   Iterable<String> get methods => _procedures.keys;
-  Iterable<RegisteredRpcProcedure> get procedures => _procedures.values;
+  Iterable<RegisteredRpcProcedure> get procedures =>
+      _procedures.values.map((entry) => entry.procedure);
 
   Future<Object?> dispatchUnary(RpcContext context, RpcRequest request) async {
-    final procedure = _procedures[request.method];
-    if (procedure == null) {
+    final compiled = _procedures[request.method];
+    if (compiled == null) {
       throw _notFound(request.method);
     }
+    final procedure = compiled.procedure;
     if (procedure is! RpcCallableProcedure) {
       throw RpcException.badRequest(
         'RPC procedure "${request.method}" is a server stream.',
@@ -26,7 +28,7 @@ final class RpcProcedureRegistry {
 
     return procedure.invoke(
       context,
-      _bindHeaders(context, procedure.metadata, request.input),
+      _bindHeaders(context, compiled.headerBindings, request.input),
     );
   }
 
@@ -34,10 +36,11 @@ final class RpcProcedureRegistry {
     RpcContext context,
     RpcRequest request,
   ) async* {
-    final procedure = _procedures[request.method];
-    if (procedure == null) {
+    final compiled = _procedures[request.method];
+    if (compiled == null) {
       throw _notFound(request.method);
     }
+    final procedure = compiled.procedure;
     if (procedure is! RpcCallableStreamProcedure) {
       throw RpcException.badRequest(
         'RPC procedure "${request.method}" is unary.',
@@ -46,7 +49,7 @@ final class RpcProcedureRegistry {
 
     yield* procedure.invokeStream(
       context,
-      _bindHeaders(context, procedure.metadata, request.input),
+      _bindHeaders(context, compiled.headerBindings, request.input),
     );
   }
 
@@ -60,52 +63,46 @@ final class RpcProcedureRegistry {
 
   static Object? _bindHeaders(
     RpcContext context,
-    ProcedureMetadata metadata,
+    List<({String parameterName, String wireName})> headerBindings,
     Object? input,
   ) {
-    final headerParameters = metadata.parameters.where(
-      (parameter) => parameter.source == ProcedureParameterSourceKind.header,
-    );
-    if (headerParameters.isEmpty) {
-      return input;
-    }
-
-    if (input is! Map) {
-      return input;
-    }
-
+    if (headerBindings.isEmpty || input is! Map) return input;
+    context.prepareHeaderLookup(headerBindings.length);
     final boundInput = <Object?, Object?>{...input};
-    for (final parameter in headerParameters) {
-      final value = _headerValue(context.headers, parameter.wireName);
-      if (value != null) {
-        boundInput[parameter.parameterName] = value;
-      }
+    for (final binding in headerBindings) {
+      final value = context.headerValue(binding.wireName);
+      if (value != null) boundInput[binding.parameterName] = value;
     }
     return boundInput;
   }
 
-  static String? _headerValue(Map<String, String> headers, String name) {
-    for (final entry in headers.entries) {
-      if (entry.key.toLowerCase() == name.toLowerCase()) {
-        return entry.value;
-      }
-    }
-    return null;
-  }
-
-  static Map<String, RegisteredRpcProcedure> _indexProcedures(
+  static Map<String, _CompiledProcedure> _indexProcedures(
     Iterable<RegisteredRpcProcedure> procedures,
   ) {
-    final indexed = <String, RegisteredRpcProcedure>{};
+    final indexed = <String, _CompiledProcedure>{};
 
     for (final procedure in procedures) {
       if (indexed.containsKey(procedure.method)) {
         throw StateError('Duplicate RPC procedure "${procedure.method}".');
       }
 
-      indexed[procedure.method] = procedure;
+      indexed[procedure.method] = _CompiledProcedure(procedure);
     }
 
     return Map.unmodifiable(indexed);
   }
+}
+
+final class _CompiledProcedure {
+  _CompiledProcedure(this.procedure)
+    : headerBindings = [
+        for (final parameter in procedure.metadata.parameters)
+          if (parameter.source == ProcedureParameterSourceKind.header)
+            (
+              parameterName: parameter.parameterName,
+              wireName: parameter.wireName.toLowerCase(),
+            ),
+      ];
+  final RegisteredRpcProcedure procedure;
+  final List<({String parameterName, String wireName})> headerBindings;
 }

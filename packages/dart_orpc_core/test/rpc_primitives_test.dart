@@ -250,11 +250,33 @@ void main() {
         final copied = context.copyWith();
 
         expect(copied.headers, context.headers);
+        expect(copied.headers, same(context.headers));
         expect(copied.httpMethod, context.httpMethod);
         expect(copied.path, context.path);
         expect(copied.attributes, context.attributes);
+        expect(copied.attributes, same(context.attributes));
         expect(copied.bindings, context.bindings);
         expect(copied.cancellation, same(cancellation.signal));
+      },
+    );
+
+    test(
+      'When replacing context maps then copyWith snapshots caller ownership',
+      () {
+        final original = RpcContext(headers: const {'original': 'yes'});
+        final headers = {'new': 'value'};
+        final attributes = <String, Object?>{'tenant': 'new'};
+        final copy = original.copyWith(
+          headers: headers,
+          attributes: attributes,
+        );
+        headers['new'] = 'changed';
+        attributes['tenant'] = 'changed';
+        expect(copy.headers, {'new': 'value'});
+        expect(copy.attributes, {'tenant': 'new'});
+        expect(() => copy.headers.clear(), throwsUnsupportedError);
+        expect(() => copy.attributes.clear(), throwsUnsupportedError);
+        expect(original.headers, {'original': 'yes'});
       },
     );
 

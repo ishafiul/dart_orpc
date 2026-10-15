@@ -32,11 +32,15 @@ final class RestProcedureMetadata {
     required this.method,
     required this.path,
     this.responseKind = RestResponseKind.json,
+    this.statusCode,
+    this.headers = const {},
   });
 
   final String method;
   final String path;
   final RestResponseKind responseKind;
+  final int? statusCode;
+  final Map<String, String> headers;
 }
 
 final class ProcedureCustomMetadata {
@@ -59,9 +63,10 @@ final class ProcedureMetadata {
     this.tags = const [],
     this.guardTypes = const [],
     this.securityRequirements = const [],
-    this.customMetadata = const [],
-    this.parameters = const [],
-  });
+    List<ProcedureCustomMetadata> customMetadata = const [],
+    List<ProcedureParameterMetadata> parameters = const [],
+  }) : _customMetadata = customMetadata,
+       _parameters = parameters;
 
   final String rpcMethod;
   final String controllerNamespace;
@@ -74,32 +79,29 @@ final class ProcedureMetadata {
   final List<String> tags;
   final List<String> guardTypes;
   final List<ProcedureSecurityRequirement> securityRequirements;
-  final List<ProcedureCustomMetadata> customMetadata;
-  final List<ProcedureParameterMetadata> parameters;
+  final List<ProcedureCustomMetadata> _customMetadata;
+  final List<ProcedureParameterMetadata> _parameters;
 
-  Iterable<ProcedureCustomMetadata> metadataEntries(String key) sync* {
-    for (final metadata in customMetadata) {
-      if (metadata.key == key) {
-        yield metadata;
-      }
-    }
+  // Weak keys retain const construction without a permanent global cache.
+  static final _prepared = Expando<_PreparedProcedureMetadata>();
+  _PreparedProcedureMetadata get _index => _prepared[this] ??=
+      _PreparedProcedureMetadata(_parameters, _customMetadata);
+
+  /// Collections become immutable snapshots on preparation or first use.
+  List<ProcedureCustomMetadata> get customMetadata => _index.customMetadata;
+  List<ProcedureParameterMetadata> get parameters => _index.parameters;
+
+  void prepare() {
+    _index;
   }
 
-  Iterable<JsonObject> metadataValues(String key) sync* {
-    for (final metadata in metadataEntries(key)) {
-      yield metadata.value;
-    }
-  }
+  Iterable<ProcedureCustomMetadata> metadataEntries(String key) =>
+      _index.byKey[key] ?? const [];
 
-  JsonObject? firstMetadataValue(String key) {
-    for (final metadata in customMetadata) {
-      if (metadata.key == key) {
-        return metadata.value;
-      }
-    }
+  Iterable<JsonObject> metadataValues(String key) =>
+      metadataEntries(key).map((metadata) => metadata.value);
 
-    return null;
-  }
+  JsonObject? firstMetadataValue(String key) => _index.byKey[key]?.first.value;
 }
 
 final class ProcedureMetadataRegistry {
@@ -125,9 +127,30 @@ final class ProcedureMetadataRegistry {
         );
       }
 
+      procedure.prepare();
       indexed[procedure.rpcMethod] = procedure;
     }
 
     return Map.unmodifiable(indexed);
   }
+}
+
+final class _PreparedProcedureMetadata {
+  _PreparedProcedureMetadata(
+    List<ProcedureParameterMetadata> parameters,
+    List<ProcedureCustomMetadata> customMetadata,
+  ) : parameters = List.unmodifiable(parameters),
+      customMetadata = List.unmodifiable(customMetadata) {
+    final grouped = <String, List<ProcedureCustomMetadata>>{};
+    for (final metadata in this.customMetadata) {
+      grouped.putIfAbsent(metadata.key, () => []).add(metadata);
+    }
+    byKey = {
+      for (final entry in grouped.entries)
+        entry.key: List<ProcedureCustomMetadata>.unmodifiable(entry.value),
+    };
+  }
+  final List<ProcedureParameterMetadata> parameters;
+  final List<ProcedureCustomMetadata> customMetadata;
+  late final Map<String, List<ProcedureCustomMetadata>> byKey;
 }
