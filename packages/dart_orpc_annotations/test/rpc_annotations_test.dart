@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
 import 'package:test/test.dart';
 
@@ -10,12 +12,19 @@ void main() {
           imports: [Uri],
           controllers: [String],
           providers: [int],
+          bindings: [
+            RpcProviderBinding.useClass(provide: Set, useClass: HashSet),
+            RpcProviderBinding.useFactory(provide: List, factory: _createList),
+          ],
           exports: [double],
         );
 
         expect(module.imports, [Uri]);
         expect(module.controllers, [String]);
         expect(module.providers, [int]);
+        expect(module.bindings, hasLength(2));
+        expect(module.bindings.first.useClass, HashSet);
+        expect(module.bindings.last.factory, _createList);
         expect(module.exports, [double]);
         expect(module.global, isFalse);
       },
@@ -156,3 +165,5 @@ void main() {
     );
   });
 }
+
+List<Object> _createList() => [];

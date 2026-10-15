@@ -3,6 +3,7 @@ final class Module {
     this.imports = const [],
     this.controllers = const [],
     this.providers = const [],
+    this.bindings = const [],
     this.exports = const [],
     this.global = false,
   });
@@ -10,11 +11,36 @@ final class Module {
   final List<Type> imports;
   final List<Type> controllers;
   final List<Type> providers;
+  final List<RpcProviderBinding> bindings;
   final List<Type> exports;
 
   /// Whether this module's explicitly exported providers are visible to every
   /// module in the reachable application graph.
   final bool global;
+}
+
+/// Binds an injectable token to a generated class or factory.
+///
+/// Providers are singletons within one generated application container.
+final class RpcProviderBinding {
+  const RpcProviderBinding.useClass({
+    required this.provide,
+    required this.useClass,
+  }) : factory = null;
+
+  const RpcProviderBinding.useFactory({
+    required this.provide,
+    required this.factory,
+  }) : useClass = null;
+
+  /// Type consumed by constructor parameters and exported by the module.
+  final Type provide;
+
+  /// Injectable class used to create [provide].
+  final Type? useClass;
+
+  /// Top-level or static synchronous factory used to create [provide].
+  final Function? factory;
 }
 
 final class Controller {
@@ -24,36 +50,47 @@ final class Controller {
 }
 
 final class RestMapping {
-  const RestMapping.get(String path)
+  const RestMapping.get(String path, {this.statusCode, this.headers = const {}})
     : method = 'GET',
       rawPath = path,
       isSse = false;
 
-  const RestMapping.post(String path)
-    : method = 'POST',
-      rawPath = path,
-      isSse = false;
+  const RestMapping.post(
+    String path, {
+    this.statusCode,
+    this.headers = const {},
+  }) : method = 'POST',
+       rawPath = path,
+       isSse = false;
 
-  const RestMapping.put(String path)
+  const RestMapping.put(String path, {this.statusCode, this.headers = const {}})
     : method = 'PUT',
       rawPath = path,
       isSse = false;
 
-  const RestMapping.patch(String path)
-    : method = 'PATCH',
-      rawPath = path,
-      isSse = false;
+  const RestMapping.patch(
+    String path, {
+    this.statusCode,
+    this.headers = const {},
+  }) : method = 'PATCH',
+       rawPath = path,
+       isSse = false;
 
-  const RestMapping.delete(String path)
-    : method = 'DELETE',
-      rawPath = path,
-      isSse = false;
+  const RestMapping.delete(
+    String path, {
+    this.statusCode,
+    this.headers = const {},
+  }) : method = 'DELETE',
+       rawPath = path,
+       isSse = false;
 
-  const RestMapping.sse(String path)
+  const RestMapping.sse(String path, {this.statusCode, this.headers = const {}})
     : method = 'GET',
       rawPath = path,
       isSse = true;
 
+  final int? statusCode;
+  final Map<String, String> headers;
   final String method;
   final String rawPath;
   final bool isSse;
