@@ -17,13 +17,14 @@ Read [`dart_rpc_framework_prd.md`](/Users/shafiulislam/Documents/dev/dart_orpc/d
 
 ## Agent Memory
 
-Use the repo-local memory store in `.agent-memory/` as the durable project context layer.
+Use the shared LLM Wiki through the Personal Agent Memory MCP gateway as the sole durable project context layer.
 
-- Read `.agent-memory/project/abstract.md`, `.agent-memory/project/overview.md`, and `.agent-memory/architecture/invariants.md` before making structural decisions.
-- Prefer the MCP server in `tools/agent_memory_mcp/bin/agent_memory_mcp.dart` for retrieving and updating memory from agents.
-- Keep memory focused on durable project facts: decisions, invariants, milestones, gotchas, and current progress.
+- Project slug: `dart-orpc`.
+- Retrieve bounded context with MCP before substantive work.
+- Store durable project facts, decisions, invariants, milestones, gotchas, and current progress in `wiki/projects/dart-orpc/` through MCP.
+- Keep canonical anchors in `overview.md`, `current-state.md`, and `instructions.md`; place focused material under `topics/` or `history/`.
+- Do not create or maintain repo-local `.agent-memory/` records.
 - Do not dump raw chat logs into memory. Compress conversations into reusable project knowledge.
-- After meaningful architecture or workflow changes, update the relevant memory files or write new ones under `.agent-memory/`.
 
 ## Product Principles
 

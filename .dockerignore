@@ -1,0 +1,11 @@
+.git
+**/.git
+**/.dart_tool
+**/build
+**/.DS_Store
+benchmarks/.challenge-cache
+benchmarks/results
+benchmarks/build
+benchmarks/apps/**/bin/server
+benchmarks/.challenge-cache
+benchmarks/results
