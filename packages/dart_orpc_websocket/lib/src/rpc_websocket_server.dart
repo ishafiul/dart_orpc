@@ -168,7 +168,7 @@ final class RpcWebSocketUpgradeHandler implements RpcHttpUpgradeHandler {
             code:
                 code ??
                 (statusCode == HttpStatus.serviceUnavailable
-                    ? RpcErrorCode.resourceExhausted
+                    ? RpcErrorCode.unavailable
                     : RpcErrorCode.badRequest),
             message: message,
           ).toResponse().toJson(),

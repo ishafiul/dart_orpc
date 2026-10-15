@@ -4,16 +4,33 @@ import 'package:luthor/luthor.dart';
 typedef LuthorSchemaValidator<T> =
     SchemaValidationResult<T> Function(Map<String, dynamic> json);
 
+/// Schema validator callback for read-only input maps.
+///
+/// The callback must not mutate [json]. Supplying it lets the bridge avoid a
+/// defensive copy when the validator only inspects input.
+typedef LuthorReadOnlySchemaValidator<T> = LuthorSchemaValidator<T>;
+
+/// Validates serialized JSON without constructing a DTO from it.
+///
+/// The callback must not mutate [json]. The map is returned as the encoded
+/// output after validation succeeds.
+typedef LuthorJsonSchemaValidator =
+    SchemaValidationResult<JsonObject> Function(Map<String, dynamic> json);
+
 T decodeRpcInputWithLuthor<T>({
   required Object? rawInput,
   required String method,
   required LuthorSchemaValidator<T> validate,
+  LuthorReadOnlySchemaValidator<T>? validateReadOnly,
 }) {
   final object = expectJsonObject(
     rawInput,
     context: 'RPC method "$method" input',
   );
-  final result = validate(Map<String, dynamic>.from(object));
+  final validationInput = validateReadOnly == null
+      ? Map<String, dynamic>.from(object)
+      : object;
+  final result = (validateReadOnly ?? validate)(validationInput);
 
   return switch (result) {
     SchemaValidationSuccess<T>(data: final data) => data,
@@ -36,17 +53,54 @@ JsonObject encodeRpcOutputWithLuthor<T>({
   );
   final result = validate(Map<String, dynamic>.from(json));
 
-  return switch (result) {
-    SchemaValidationSuccess<T>() => json,
-    SchemaValidationError<T>(errors: final errors) =>
-      throw RpcException.internalError(
-        'Invalid RPC output for "$method": ${_formatLuthorErrors(errors)}',
-      ),
-  };
+  return _validatedOutput(json, method, result);
 }
 
+/// Encodes and validates output JSON without deserializing it back into a DTO.
+///
+/// Generated schemas use this for output DTOs whose runtime type has already
+/// been checked by the handler. Custom validators must not mutate [json].
+JsonObject encodeRpcOutputJsonWithLuthor<T>({
+  required T output,
+  required String method,
+  required JsonObject Function(T output) toJson,
+  required LuthorJsonSchemaValidator validateJson,
+}) {
+  final json = normalizeJsonObject(
+    toJson(output),
+    context: 'RPC method "$method" output',
+  );
+  final result = validateJson(json);
+
+  return _validatedOutput(json, method, result);
+}
+
+JsonObject _validatedOutput<T>(
+  JsonObject json,
+  String method,
+  SchemaValidationResult<T> result,
+) => switch (result) {
+  SchemaValidationSuccess<T>() => json,
+  SchemaValidationError<T>(errors: final errors) =>
+    throw RpcException.internalError(
+      'Invalid RPC output for "$method": ${_formatLuthorErrors(errors)}',
+    ),
+};
+
 String _formatLuthorErrors(Map<String, dynamic> errors) {
-  final messages = <String>[];
+  final buffer = StringBuffer();
+  var hasMessages = false;
+
+  void writeMessage(String path, String message) {
+    if (hasMessages) buffer.write('; ');
+    if (path.isNotEmpty) {
+      buffer
+        ..write(path)
+        ..write(': ');
+    }
+    buffer.write(message);
+    hasMessages = true;
+  }
 
   void visit(String path, Object? value) {
     if (value is List) {
@@ -55,7 +109,7 @@ String _formatLuthorErrors(Map<String, dynamic> errors) {
           continue;
         }
 
-        messages.add(path.isEmpty ? item : '$path: $item');
+        writeMessage(path, item);
       }
       return;
     }
@@ -71,9 +125,5 @@ String _formatLuthorErrors(Map<String, dynamic> errors) {
 
   visit('', errors);
 
-  if (messages.isEmpty) {
-    return 'Validation failed.';
-  }
-
-  return messages.join('; ');
+  return hasMessages ? buffer.toString() : 'Validation failed.';
 }

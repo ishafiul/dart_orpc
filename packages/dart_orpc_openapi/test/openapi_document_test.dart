@@ -4,6 +4,39 @@ import 'package:luthor/luthor.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test(
+    'declared REST responses and shared transport errors appear in OpenAPI',
+    () {
+      final document = createOpenApiDocument(
+        title: 'API',
+        procedures: ProcedureMetadataRegistry([
+          const ProcedureMetadata(
+            rpcMethod: 'items.create',
+            controllerNamespace: 'items',
+            methodName: 'create',
+            outputTypeCode: 'String',
+            path: RestProcedureMetadata(
+              method: 'POST',
+              path: '/items',
+              statusCode: 201,
+              headers: {'x-version': '1'},
+            ),
+          ),
+        ]),
+      );
+      final paths = document['paths'] as Map;
+      final responses = paths['/items']['post']['responses'] as Map;
+      expect(responses.containsKey('200'), isFalse);
+      expect(responses['201']['headers']['x-version']['example'], '1');
+      expect(responses['201']['content']['application/json']['schema'], {
+        'type': 'string',
+      });
+      for (final code in RpcErrorCode.values) {
+        expect(responses['${code.statusCode}']['description'], code.wireName);
+      }
+    },
+  );
+
   group('Given createOpenApiDocument', () {
     test(
       'When passed REST procedure metadata and Luthor schemas then it builds an OpenAPI document with components',

@@ -190,17 +190,33 @@ JsonObject _buildOperation(
       .map((parameter) => _buildParameter(parameter, procedure, schemas))
       .toList(growable: false);
 
+  final successStatus =
+      procedure.path?.statusCode ??
+      (procedure.outputTypeCode == 'void' ? 204 : 200);
+  final noContent =
+      procedure.outputTypeCode == 'void' ||
+      successStatus == 204 ||
+      successStatus == 304;
+  final responseHeaders = procedure.path?.headers ?? const <String, String>{};
   final operation = <String, Object?>{
     'operationId': procedure.rpcMethod,
     'tags': procedure.tags.isNotEmpty
         ? procedure.tags
         : [procedure.controllerNamespace],
     'responses': {
-      if (procedure.outputTypeCode == 'void')
-        '204': {'description': 'Successful response with no content.'}
-      else
-        '200': {
-          'description': 'Successful response.',
+      '$successStatus': {
+        'description': noContent
+            ? 'Successful response with no content.'
+            : 'Successful response.',
+        if (responseHeaders.isNotEmpty)
+          'headers': {
+            for (final entry in responseHeaders.entries)
+              entry.key: {
+                'schema': {'type': 'string'},
+                'example': entry.value,
+              },
+          },
+        if (!noContent)
           'content': {
             if (isSse)
               'text/event-stream': {
@@ -211,7 +227,15 @@ JsonObject _buildOperation(
                 'schema': _schemaForTypeCode(procedure.outputTypeCode, schemas),
               },
           },
-        },
+      },
+      for (final code in RpcErrorCode.values)
+        if (code.statusCode != successStatus)
+          '${code.statusCode}': {
+            'description': code.wireName,
+            'content': {
+              'application/json': {'schema': _schemaRef('RpcErrorResponse')},
+            },
+          },
       'default': {
         'description': 'Error response.',
         'content': {

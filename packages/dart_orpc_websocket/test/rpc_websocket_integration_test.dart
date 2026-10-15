@@ -510,8 +510,31 @@ void main() {
 
         await expectLater(_connectRaw(fixture.server), throwsA(anything));
 
+        final rejected = await _requestUpgrade(fixture.server);
+        expect(rejected.statusCode, HttpStatus.serviceUnavailable);
+        expect(
+          jsonDecode(await utf8.decodeStream(rejected)),
+          RpcException.unavailable(
+            'WebSocket connection limit reached.',
+          ).toResponse().toJson(),
+        );
+
         await first.close();
         await fixture.server.close(force: true);
+      },
+    );
+
+    test(
+      'draining upgrades return the shared UNAVAILABLE code for HTTP 503',
+      () async {
+        final fixture = await _startRawFixture();
+        await fixture.upgradeHandler.close(gracePeriod: Duration.zero);
+        final response = await _requestUpgrade(fixture.server);
+        expect(response.statusCode, HttpStatus.serviceUnavailable);
+        expect(
+          jsonDecode(await utf8.decodeStream(response)),
+          RpcException.unavailable('Server draining.').toResponse().toJson(),
+        );
       },
     );
 
@@ -693,6 +716,21 @@ Future<WebSocket> _connectRaw(RpcHttpServer server) async {
   );
   addTearDown(socket.close);
   return socket;
+}
+
+Future<HttpClientResponse> _requestUpgrade(RpcHttpServer server) async {
+  final client = HttpClient();
+  addTearDown(() => client.close(force: true));
+  final request = await client.getUrl(
+    Uri.parse('http://${server.address.address}:${server.port}/rpc/ws'),
+  );
+  request.headers
+    ..set(HttpHeaders.connectionHeader, 'Upgrade')
+    ..set(HttpHeaders.upgradeHeader, 'websocket')
+    ..set('sec-websocket-version', '13')
+    ..set('sec-websocket-key', base64.encode(List<int>.filled(16, 1)))
+    ..set('sec-websocket-protocol', rpcWebSocketSubprotocol);
+  return request.close();
 }
 
 final class _RawFixture {
