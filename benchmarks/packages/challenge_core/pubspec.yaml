@@ -1,0 +1,11 @@
+name: challenge_core
+description: Shared SQLite workload for User Test Benchmark framework fixtures.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  dart_jsonwebtoken: ^3.4.1
+  sqlite3: ^2.9.0

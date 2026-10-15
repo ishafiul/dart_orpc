@@ -1,0 +1,26 @@
+name: dart_orpc_user_test_benchmark
+description: User Test Benchmark SQLite server for dart_orpc.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  dart_jsonwebtoken: ^3.4.1
+  dart_orpc:
+    path: ../../../packages/dart_orpc
+  sqlite3: ^2.9.0
+
+dependency_overrides:
+  dart_orpc_annotations:
+    path: ../../../packages/dart_orpc_annotations
+  dart_orpc_core:
+    path: ../../../packages/dart_orpc_core
+  dart_orpc_http:
+    path: ../../../packages/dart_orpc_http
+
+dev_dependencies:
+  build_runner: ^2.12.2
+  dart_orpc_generator:
+    path: ../../../packages/dart_orpc_generator

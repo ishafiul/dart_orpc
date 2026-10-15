@@ -1,0 +1,16 @@
+name: dart_frog_user_test_benchmark
+description: User Test Benchmark SQLite server for Dart Frog.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  challenge_core:
+    path: ../../packages/challenge_core
+  dart_frog: ^1.1.0
+
+dev_dependencies:
+  dart_frog_cli: 1.2.14
+

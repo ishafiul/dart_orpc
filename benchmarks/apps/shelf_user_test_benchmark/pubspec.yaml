@@ -1,0 +1,14 @@
+name: shelf_user_test_benchmark
+description: User Test Benchmark SQLite server for Shelf.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  challenge_core:
+    path: ../../packages/challenge_core
+  shelf: ^1.4.2
+  shelf_router: ^1.1.4
+

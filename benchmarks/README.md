@@ -1,5 +1,41 @@
 # Framework benchmarks
 
+## User Test Benchmark
+
+Run same SQLite feed API, correctness suite, and k6 user flow against
+`dart_orpc`, Dart Frog, or Shelf, with server limited to 1 vCPU and 2 GiB RAM.
+Frog and Shelf share SQLite queries, auth, and validation through
+`benchmarks/packages/challenge_core`; `dart_orpc` keeps its own implementation.
+Each adapter has native routing and HTTP handling.
+
+```bash
+FRAMEWORK=dart_orpc bash benchmarks/user_test_benchmark/run.sh
+FRAMEWORK=dart_frog bash benchmarks/user_test_benchmark/run.sh
+FRAMEWORK=shelf bash benchmarks/user_test_benchmark/run.sh
+```
+
+Run each framework with same environment settings for comparable results.
+Each run saves its own report and raw k6/resource files under
+`benchmarks/results/`.
+
+Choose the first scored VU level with `START_VUS`, and set Enter-key step size
+with `VU_INCREMENT`:
+
+```bash
+FRAMEWORK=shelf START_VUS=10000 VU_INCREMENT=1000 \
+  bash benchmarks/user_test_benchmark/run.sh
+```
+
+Current defaults: 11,000 VUs for a 5-minute warm-up, then a 60-second ramp to
+the first scored run at 11,000 VUs with a 1-minute hold. Override
+`WARMUP_VUS`, `WARMUP_DURATION`, `START_VUS`, `RAMP_UP`, or `HOLD_DURATION` to
+change the profile.
+
+After each scored run, press Enter to add the increment, enter an exact next VU
+count (or `+500` to add 500), or enter `q` to finish. Optional `MAX_VUS` sets a
+ceiling. The live k6 dashboard opens at `http://127.0.0.1:5665`; each phase's
+HTML dashboard is saved in its result directory.
+
 This suite compares `dart_orpc`, Shelf, Dart Frog, and Serverpod using
 equivalent HTTP workloads ranging from transport microbenchmarks to realistic
 API reads and writes. It is deliberately separate from the root Melos workspace

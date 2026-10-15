@@ -1,4 +1,11 @@
 build/
-results/*.json
+results/
+.challenge-cache/
 apps/**/.dart_tool/
 apps/**/build/
+apps/dart_orpc_user_test_benchmark/bin/server
+apps/dart_frog_user_test_benchmark/bin/server
+apps/shelf_user_test_benchmark/bin/server
+!apps/dart_orpc_user_test_benchmark/pubspec.lock
+!apps/dart_frog_user_test_benchmark/pubspec.lock
+!apps/shelf_user_test_benchmark/pubspec.lock
