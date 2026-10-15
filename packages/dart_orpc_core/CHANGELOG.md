@@ -1,3 +1,7 @@
+## 0.1.0-dev.5
+
+ - **FEAT**(core): Add disposable lifecycle, json bytes optimization, and enhanced cancellation.
+
 ## 0.1.0-dev.4
 
  - **FEAT**: Add contract-driven headers and bearer security (#13).

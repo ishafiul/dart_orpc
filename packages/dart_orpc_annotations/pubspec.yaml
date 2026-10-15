@@ -1,6 +1,6 @@
 name: dart_orpc_annotations
 description: Public annotations for dart_orpc code generation.
-version: 0.1.0-dev.3
+version: 0.1.0-dev.4
 repository: https://github.com/ishafiul/dart_orpc/tree/main/packages/dart_orpc_annotations
 issue_tracker: https://github.com/ishafiul/dart_orpc/issues
 resolution: workspace

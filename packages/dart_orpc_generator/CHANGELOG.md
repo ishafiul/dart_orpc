@@ -1,3 +1,7 @@
+## 0.1.0-dev.6
+
+ - **FEAT**(generator): Support provider bindings and custom REST status and headers.
+
 ## 0.1.0-dev.5
 
  - **FEAT**: Add root-scoped global modules (#14).

@@ -1,3 +1,7 @@
+## 0.1.0-dev.6
+
+ - **FEAT**(http): Add isolate server, runtime metrics, CORS policies, and server options.
+
 ## 0.1.0-dev.5
 
  - Update a dependency to the latest release.

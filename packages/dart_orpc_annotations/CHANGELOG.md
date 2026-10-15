@@ -1,3 +1,7 @@
+## 0.1.0-dev.4
+
+ - **FEAT**(annotations): Add provider bindings and custom REST status and headers.
+
 ## 0.1.0-dev.3
 
  - **FEAT**: Add root-scoped global modules (#14).

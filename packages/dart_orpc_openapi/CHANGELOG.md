@@ -1,3 +1,7 @@
+## 0.1.0-dev.6
+
+ - **FEAT**(ecosystem): Update Luthor validation, OpenAPI docs, and transport tests.
+
 ## 0.1.0-dev.5
 
  - **FEAT**: Add contract-driven headers and bearer security (#13).
