@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dart_orpc_core/dart_orpc_core.dart';
+import 'rpc_http_metrics.dart';
 
 typedef RpcHttpHandler =
     Future<RpcHttpResponse> Function(RpcHttpRequest request);
@@ -21,6 +23,49 @@ typedef RestStreamRouteHandler =
     );
 typedef RpcContextFactory =
     FutureOr<RpcContext> Function(RpcHttpRequest request);
+
+/// Optional HTTP response control for an otherwise transport-neutral procedure.
+/// Use context.binding(rpcHttpResponseKey) so WebSocket calls remain valid.
+const rpcHttpResponseKey = RpcContextKey<RpcHttpResponseControl>(
+  'dart_orpc.http.response',
+);
+
+final class RpcHttpResponseControl {
+  int? statusCode;
+  final Map<String, String> headers = {};
+  final List<Cookie> cookies = [];
+
+  RpcHttpResponse apply(RpcHttpResponse response) {
+    final status = statusCode ?? response.statusCode;
+    if (status < 200 || status > 599)
+      throw StateError('Invalid HTTP response status.');
+    final copy = response.copyWith(
+      statusCode: status,
+      headers: {...response.headers, ...headers},
+      content: status == 204 || status == 304
+          ? const RpcBufferedHttpBody(null)
+          : null,
+    );
+    return switch (copy.content) {
+      RpcBufferedHttpBody(:final value) => RpcHttpResponse(
+        statusCode: copy.statusCode,
+        headers: copy.headers,
+        headerValues: copy.headerValues,
+        cookies: [...copy.cookies, ...cookies],
+        body: value,
+      ),
+      RpcStreamingHttpBody(:final chunks, :final flushEachChunk) =>
+        RpcHttpResponse.streaming(
+          statusCode: copy.statusCode,
+          headers: copy.headers,
+          headerValues: copy.headerValues,
+          cookies: [...copy.cookies, ...cookies],
+          body: chunks,
+          flushEachChunk: flushEachChunk,
+        ),
+    };
+  }
+}
 
 final class RpcHttpBasicAuth {
   const RpcHttpBasicAuth({
@@ -55,18 +100,33 @@ final class RpcHttpStaticOptions {
     this.path = '/',
     required this.directory,
     this.defaultDocument = 'index.html',
+    this.cacheControl = 'no-cache',
   });
 
   final String path;
   final String directory;
   final String defaultDocument;
+
+  /// Browser cache policy. Validators are checked on every request.
+  final String cacheControl;
 }
 
 final class RpcHttpHealthOptions {
-  const RpcHttpHealthOptions({this.path = '/health', this.check});
+  const RpcHttpHealthOptions({
+    this.path = '/health',
+    this.check,
+    this.livenessPath,
+    this.readinessPath,
+    this.readinessCheck,
+    this.checkTimeout = const Duration(seconds: 5),
+  });
 
   final String path;
   final FutureOr<bool> Function()? check;
+  final String? livenessPath;
+  final String? readinessPath;
+  final FutureOr<bool> Function()? readinessCheck;
+  final Duration checkTimeout;
 }
 
 final class RpcHttpMetricsOptions {
@@ -81,16 +141,100 @@ final class RpcHttpRequest {
     required this.path,
     this.headers = const {},
     this.queryParameters = const {},
-    this.body = '',
+    String body = '',
+    List<int>? bodyBytes,
+    this.queryParametersAll = const {},
+    this.uri,
+    this.remoteAddress,
+    this.requestId,
+    this.onError,
     this.cancellation = RpcCancellationSignal.none,
-  });
+  }) : _body = body,
+       _bodyBytes = bodyBytes,
+       _restRouting = null;
+
+  RpcHttpRequest._withRouting(
+    this._restRouting, {
+    required RpcHttpRequest request,
+    String? method,
+    String? path,
+    Map<String, String>? headers,
+    Map<String, String>? queryParameters,
+    Map<String, List<String>>? queryParametersAll,
+    String? body,
+    List<int>? bodyBytes,
+  }) : method = method ?? request.method,
+       path = path ?? request.path,
+       headers = headers ?? request.headers,
+       queryParameters = queryParameters ?? request.queryParameters,
+       queryParametersAll = queryParametersAll ?? request.queryParametersAll,
+       _body = body ?? request._body,
+       _bodyBytes = body != null ? null : bodyBytes ?? request._bodyBytes,
+       uri = request.uri,
+       remoteAddress = request.remoteAddress,
+       requestId = request.requestId,
+       onError = request.onError,
+       cancellation = request.cancellation;
+
+  final _ResolvedRestRequest? _restRouting;
 
   final String method;
   final String path;
   final Map<String, String> headers;
   final Map<String, String> queryParameters;
-  final String body;
+  final String _body;
+  final List<int>? _bodyBytes;
+
+  /// UTF-8 text decoded on demand. Binary handlers can use [bodyBytes] directly.
+  String get body {
+    if (_bodyBytes == null) return _body;
+    try {
+      return utf8.decode(_bodyBytes);
+    } on FormatException {
+      throw RpcException.badRequest('Request body must be valid UTF-8.');
+    }
+  }
+
+  List<int> get bodyBytes =>
+      _bodyBytes ?? Uint8List.fromList(utf8.encode(_body)).asUnmodifiableView();
+  final Map<String, List<String>> queryParametersAll;
+  final Uri? uri;
+  final String? remoteAddress;
+  final String? requestId;
+
+  /// Error observer supplied by the server. Middleware should preserve it when
+  /// constructing replacement requests.
+  final void Function(Object error, StackTrace stackTrace)? onError;
+  Map<String, String> get cookies => Map.unmodifiable({
+    for (final pair in (lookupRestHeader(headers, 'cookie') ?? '').split(';'))
+      if (pair.indexOf('=') case final index when index > 0)
+        pair.substring(0, index).trim(): pair.substring(index + 1).trim(),
+  });
   final RpcCancellationSignal cancellation;
+
+  /// Preserve transport metadata and observers when middleware rewrites a request.
+  RpcHttpRequest copyWith({
+    String? method,
+    String? path,
+    Map<String, String>? headers,
+    Map<String, String>? queryParameters,
+    Map<String, List<String>>? queryParametersAll,
+    String? body,
+    List<int>? bodyBytes,
+  }) => RpcHttpRequest._withRouting(
+    (method == null || method == this.method) &&
+            (path == null || path == this.path)
+        ? _restRouting
+        : null,
+    request: this,
+    method: method,
+    path: path,
+    headers: headers,
+    queryParameters: queryParameters,
+    queryParametersAll: queryParametersAll,
+    body: body,
+    bodyBytes: bodyBytes,
+  );
 }
 
 sealed class RpcHttpBody {
@@ -104,34 +248,83 @@ final class RpcBufferedHttpBody extends RpcHttpBody {
 }
 
 final class RpcStreamingHttpBody extends RpcHttpBody {
-  const RpcStreamingHttpBody(this.chunks);
+  const RpcStreamingHttpBody(this.chunks, {this.flushEachChunk = true});
 
   final Stream<List<int>> chunks;
+
+  /// Flush each chunk for low latency, or use HTTP buffering for throughput.
+  final bool flushEachChunk;
 }
 
 final class RpcHttpResponse {
   const RpcHttpResponse({
     required this.statusCode,
     this.headers = const {},
+    this.headerValues = const {},
+    this.cookies = const [],
     Object? body,
   }) : _body = body,
-       _stream = null;
+       _stream = null,
+       _flushEachChunk = true;
 
   RpcHttpResponse.streaming({
     required this.statusCode,
     this.headers = const {},
+    this.headerValues = const {},
+    this.cookies = const [],
     required Stream<List<int>> body,
+    bool flushEachChunk = true,
   }) : _body = null,
-       _stream = body;
+       _stream = body,
+       _flushEachChunk = flushEachChunk;
 
   final int statusCode;
   final Map<String, String> headers;
+
+  /// Repeated headers such as Set-Cookie, kept separate instead of comma-joined.
+  final Map<String, List<String>> headerValues;
+  final List<Cookie> cookies;
+
+  factory RpcHttpResponse.redirect(
+    Uri location, {
+    int statusCode = HttpStatus.found,
+  }) {
+    if (statusCode < 300 || statusCode > 399 || statusCode == 304)
+      throw ArgumentError.value(statusCode, 'statusCode');
+    return RpcHttpResponse(
+      statusCode: statusCode,
+      headers: {'location': location.toString()},
+    );
+  }
+
+  static Future<RpcHttpResponse> download(
+    File file, {
+    String? filename,
+    String contentType = 'application/octet-stream',
+  }) async {
+    final name = filename ?? file.uri.pathSegments.last;
+    if (name.contains(RegExp(r'[\r\n]')))
+      throw ArgumentError.value(filename, 'filename');
+    final escaped = name.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+    return RpcHttpResponse.streaming(
+      statusCode: HttpStatus.ok,
+      headers: {
+        'content-type': contentType,
+        'content-length': '${await file.length()}',
+        'content-disposition': 'attachment; filename="$escaped"',
+      },
+      body: file.openRead(),
+      flushEachChunk: false,
+    );
+  }
+
   final Object? _body;
   final Stream<List<int>>? _stream;
+  final bool _flushEachChunk;
 
   RpcHttpBody get content => _stream == null
       ? RpcBufferedHttpBody(_body)
-      : RpcStreamingHttpBody(_stream);
+      : RpcStreamingHttpBody(_stream, flushEachChunk: _flushEachChunk);
 
   Object? get body => _stream ?? _body;
 
@@ -140,6 +333,8 @@ final class RpcHttpResponse {
   RpcHttpResponse copyWith({
     int? statusCode,
     Map<String, String>? headers,
+    Map<String, List<String>>? headerValues,
+    List<Cookie>? cookies,
     RpcHttpBody? content,
   }) {
     final effectiveContent = content ?? this.content;
@@ -147,13 +342,19 @@ final class RpcHttpResponse {
       RpcBufferedHttpBody(:final value) => RpcHttpResponse(
         statusCode: statusCode ?? this.statusCode,
         headers: headers ?? this.headers,
+        headerValues: headerValues ?? this.headerValues,
+        cookies: cookies ?? this.cookies,
         body: value,
       ),
-      RpcStreamingHttpBody(:final chunks) => RpcHttpResponse.streaming(
-        statusCode: statusCode ?? this.statusCode,
-        headers: headers ?? this.headers,
-        body: chunks,
-      ),
+      RpcStreamingHttpBody(:final chunks, :final flushEachChunk) =>
+        RpcHttpResponse.streaming(
+          statusCode: statusCode ?? this.statusCode,
+          headers: headers ?? this.headers,
+          headerValues: headerValues ?? this.headerValues,
+          cookies: cookies ?? this.cookies,
+          body: chunks,
+          flushEachChunk: flushEachChunk,
+        ),
     };
   }
 }
@@ -204,42 +405,180 @@ final class RestRouteMatch {
   final Map<String, String> pathParameters;
 }
 
+final class _IndexedRestRoute {
+  const _IndexedRestRoute({
+    required this.route,
+    required this.registrationIndex,
+    required this.parameterSlots,
+  });
+
+  final RegisteredRestRoute route;
+  final int registrationIndex;
+  final List<({int index, String name})> parameterSlots;
+  bool get hasPathParameters => parameterSlots.isNotEmpty;
+}
+
+final class _RestRouteTrieNode {
+  final Map<String, _RestRouteTrieNode> literalChildren = {};
+  final Map<String, _IndexedRestRoute> routesByMethod = {};
+  _RestRouteTrieNode? parameterChild;
+  final Map<String, int> firstRegistrationByMethod = {};
+
+  int firstRegistrationFor(String method) =>
+      firstRegistrationByMethod[method] ?? 1 << 62;
+
+  void includeRoute(String method, int registrationIndex) {
+    firstRegistrationByMethod.putIfAbsent(method, () => registrationIndex);
+  }
+}
+
+final class _RestRequestPath {
+  _RestRequestPath(String path) : normalized = _normalizePath(path);
+
+  final String normalized;
+  late final List<String> segments = _splitPathSegments(normalized);
+  late final String canonical =
+      normalized.contains('//') ||
+          (normalized.length > 1 && normalized.endsWith('/'))
+      ? _canonicalPathForSegments(segments)
+      : normalized;
+}
+
+final class _ResolvedRestRequest {
+  _ResolvedRestRequest(this.registry, RpcHttpRequest request)
+    : path = _RestRequestPath(request.path) {
+    match =
+        registry._match(request.method, path) ??
+        (request.method.toUpperCase() == 'HEAD'
+            ? registry._match('GET', path)
+            : null);
+  }
+
+  final RestRouteRegistry registry;
+  final _RestRequestPath path;
+  late final RestRouteMatch? match;
+  late final List<String> allowedMethods = registry._allowedMethodsFor(path);
+}
+
 final class RestRouteRegistry {
   RestRouteRegistry(Iterable<RegisteredRestRoute> routes)
     : _routes = List<RegisteredRestRoute>.unmodifiable(routes) {
     _ensureUniqueRoutes(_routes);
-  }
 
-  final List<RegisteredRestRoute> _routes;
+    for (var index = 0; index < _routes.length; index++) {
+      final route = _routes[index];
+      final method = route.method.toUpperCase();
+      final segments = _splitPathSegments(route.path);
+      final indexedRoute = _IndexedRestRoute(
+        route: route,
+        registrationIndex: index,
+        parameterSlots: [
+          for (var index = 0; index < segments.length; index++)
+            if (segments[index].startsWith(':'))
+              (index: index, name: segments[index].substring(1)),
+        ],
+      );
 
-  Iterable<RegisteredRestRoute> get routes => _routes;
-
-  RestRouteMatch? match({required String method, required String path}) {
-    final normalizedMethod = method.toUpperCase();
-    final normalizedPath = _normalizePath(path);
-
-    for (final route in _routes) {
-      if (route.method.toUpperCase() != normalizedMethod) {
+      if (!indexedRoute.hasPathParameters) {
+        final canonicalPath = _canonicalPathForSegments(segments);
+        _exactRoutes.putIfAbsent(method, () => {})[canonicalPath] =
+            indexedRoute;
+        _exactMethodsByPath.putIfAbsent(canonicalPath, () => {}).add(method);
         continue;
       }
 
-      final pathParameters = _matchPathPattern(route.path, normalizedPath);
-      if (pathParameters != null) {
-        return RestRouteMatch(route: route, pathParameters: pathParameters);
+      var node = _parameterizedRouteRoot;
+      node.includeRoute(method, index);
+      for (final segment in segments) {
+        if (segment.startsWith(':')) {
+          final parameterChild = node.parameterChild ??= _RestRouteTrieNode();
+          node = parameterChild;
+        } else {
+          node = node.literalChildren.putIfAbsent(
+            segment,
+            _RestRouteTrieNode.new,
+          );
+        }
+        node.includeRoute(method, index);
       }
+      node.routesByMethod[method] = indexedRoute;
+    }
+  }
+
+  final List<RegisteredRestRoute> _routes;
+  final Map<String, Map<String, _IndexedRestRoute>> _exactRoutes = {};
+  final Map<String, Set<String>> _exactMethodsByPath = {};
+  final _RestRouteTrieNode _parameterizedRouteRoot = _RestRouteTrieNode();
+
+  Iterable<RegisteredRestRoute> get routes => _routes;
+
+  /// Retains one resolution through body/header copies of this request.
+  /// Rewriting method/path or using another registry invalidates the result.
+  RpcHttpRequest prepareRequest(RpcHttpRequest request) {
+    if (identical(request._restRouting?.registry, this)) return request;
+    return RpcHttpRequest._withRouting(
+      _ResolvedRestRequest(this, request),
+      request: request,
+    );
+  }
+
+  /// Resolves explicit HEAD routes before falling back to GET.
+  RestRouteMatch? matchRequest(RpcHttpRequest request) =>
+      _resolve(request).match;
+
+  _ResolvedRestRequest _resolve(RpcHttpRequest request) {
+    final cached = request._restRouting;
+    return cached != null && identical(cached.registry, this)
+        ? cached
+        : _ResolvedRestRequest(this, request);
+  }
+
+  RestRouteMatch? match({required String method, required String path}) {
+    return _match(method, _RestRequestPath(path));
+  }
+
+  RestRouteMatch? _match(String method, _RestRequestPath path) {
+    final normalizedMethod = method.toUpperCase();
+    final exactRoute = _exactRoutes[normalizedMethod]?[path.canonical];
+    final needsTrieSearch =
+        _parameterizedRouteRoot.firstRegistrationFor(normalizedMethod) <
+        (exactRoute?.registrationIndex ?? 1 << 62);
+    final matchedRoute = needsTrieSearch
+        ? _findParameterizedRestRoute(
+            node: _parameterizedRouteRoot,
+            pathSegments: path.segments,
+            pathIndex: 0,
+            method: normalizedMethod,
+            bestMatch: exactRoute,
+          )
+        : exactRoute;
+
+    if (matchedRoute == null) {
+      return null;
     }
 
-    return null;
+    final pathParameters = matchedRoute.hasPathParameters
+        ? _pathParametersFor(matchedRoute.parameterSlots, path.segments)
+        : const <String, String>{};
+    return RestRouteMatch(
+      route: matchedRoute.route,
+      pathParameters: pathParameters,
+    );
   }
 
   List<String> allowedMethodsFor(String path) {
-    final normalizedPath = _normalizePath(path);
-    final methods = <String>{};
+    return _allowedMethodsFor(_RestRequestPath(path));
+  }
 
-    for (final route in _routes) {
-      if (_matchPathPattern(route.path, normalizedPath) != null) {
-        methods.add(route.method.toUpperCase());
-      }
+  List<String> _allowedMethodsFor(_RestRequestPath path) {
+    final methods = <String>{...?_exactMethodsByPath[path.canonical]};
+    if (_parameterizedRouteRoot.firstRegistrationByMethod.isNotEmpty) {
+      _collectParameterizedRestMethods(
+        node: _parameterizedRouteRoot,
+        pathSegments: path.segments,
+        pathIndex: 0,
+        methods: methods,
+      );
     }
 
     final sorted = methods.toList(growable: false)..sort();
@@ -259,6 +598,10 @@ final class RestRouteRegistry {
   }
 }
 
+/// Creates a handler with string JSON bodies by default. [encodeJsonToBytes]
+/// opts into UTF-8 bodies for successful RPC/REST calls and OpenAPI output.
+/// [openApiDocument] is serialized once at construction as a startup snapshot.
+/// Disabling [sseFlushEachChunk] trades immediate SSE delivery for buffering.
 RpcHttpHandler createRpcHttpHandler({
   required RpcProcedureRegistry procedures,
   RestRouteRegistry? restRoutes,
@@ -270,9 +613,13 @@ RpcHttpHandler createRpcHttpHandler({
   RpcHttpStaticOptions? staticAssets,
   RpcHttpHealthOptions? health,
   RpcHttpMetricsOptions? metrics,
+  RpcHttpMetricsCollector? metricsCollector,
+  bool Function()? isReady,
   RpcContextBindings bindings = const RpcContextBindings.empty(),
   RpcContextFactory? contextFactory,
   Duration sseHeartbeatInterval = const Duration(seconds: 15),
+  bool sseFlushEachChunk = true,
+  bool encodeJsonToBytes = false,
   Iterable<RpcHttpMiddleware> middleware = const [],
 }) {
   final effectiveRestRoutes = restRoutes ?? RestRouteRegistry(const []);
@@ -287,6 +634,16 @@ RpcHttpHandler createRpcHttpHandler({
   final normalizedMetricsPath = metrics != null
       ? _normalizePath(metrics.path)
       : null;
+  final Object Function(Object?) encodeJson = encodeJsonToBytes
+      ? JsonUtf8Encoder().convert
+      : jsonEncode;
+  // The generated document is a startup snapshot, shared by all requests.
+  final encodedDocument = openApiDocument == null
+      ? null
+      : encodeJson(openApiDocument);
+  final encodedOpenApiDocument = encodedDocument is List<int>
+      ? Uint8List.fromList(encodedDocument).asUnmodifiableView()
+      : encodedDocument;
 
   final baseHandler = (RpcHttpRequest request) async {
     final path = _normalizePath(request.path);
@@ -304,13 +661,36 @@ RpcHttpHandler createRpcHttpHandler({
     if (normalizedHealthPath != null && path == normalizedHealthPath) {
       return _handleHealthRequest(request, options: health!);
     }
+    if (health?.livenessPath != null &&
+        path == _normalizePath(health!.livenessPath!)) {
+      return _handleHealthRequest(request, options: health, check: () => true);
+    }
+    if (health?.readinessPath != null &&
+        path == _normalizePath(health!.readinessPath!)) {
+      return _handleHealthRequest(
+        request,
+        options: health,
+        check: () async =>
+            (isReady?.call() ?? true) &&
+            await (health.readinessCheck?.call() ??
+                health.check?.call() ??
+                true),
+      );
+    }
 
     if (normalizedMetricsPath != null && path == normalizedMetricsPath) {
-      return _handleMetricsRequest(request, options: metrics!);
+      return _handleMetricsRequest(
+        request,
+        options: metrics!,
+        collector: metricsCollector,
+      );
     }
 
     if (path == normalizedOpenApiPath) {
-      return _handleOpenApiRequest(request, openApiDocument: openApiDocument);
+      return _handleOpenApiRequest(
+        request,
+        encodedDocument: encodedOpenApiDocument,
+      );
     }
 
     if (path == normalizedDocsPath) {
@@ -324,13 +704,12 @@ RpcHttpHandler createRpcHttpHandler({
         procedures: procedures,
         bindings: bindings,
         contextFactory: contextFactory,
+        encodeJson: encodeJson,
       );
     }
 
-    final restMatch = effectiveRestRoutes.match(
-      method: request.method,
-      path: path,
-    );
+    final restResolution = effectiveRestRoutes._resolve(request);
+    final restMatch = restResolution.match;
     if (restMatch != null) {
       return _handleRestRequest(
         request,
@@ -339,10 +718,16 @@ RpcHttpHandler createRpcHttpHandler({
         bindings: bindings,
         contextFactory: contextFactory,
         sseHeartbeatInterval: sseHeartbeatInterval,
+        sseFlushEachChunk: sseFlushEachChunk,
+        encodeJson: encodeJson,
       );
     }
 
-    final allowedMethods = effectiveRestRoutes.allowedMethodsFor(path);
+    final allowedMethods = restResolution.allowedMethods.toList();
+    if (allowedMethods.contains('GET') && !allowedMethods.contains('HEAD')) {
+      allowedMethods.add('HEAD');
+      allowedMethods.sort();
+    }
     if (allowedMethods.isNotEmpty) {
       final allowHeader = allowedMethods.join(', ');
       return _jsonResponse(
@@ -465,6 +850,7 @@ Future<RpcHttpResponse> _handleRpcRequest(
   required RpcProcedureRegistry procedures,
   required RpcContextBindings bindings,
   RpcContextFactory? contextFactory,
+  required Object Function(Object?) encodeJson,
 }) async {
   if (request.method != 'POST') {
     return _jsonResponse(
@@ -480,7 +866,27 @@ Future<RpcHttpResponse> _handleRpcRequest(
   }
 
   try {
-    final jsonBody = jsonDecode(request.body);
+    final contentType = lookupRestHeader(
+      request.headers,
+      'content-type',
+    )?.split(';').first.trim().toLowerCase();
+    if (contentType != null &&
+        contentType != 'application/json' &&
+        !contentType.endsWith('+json')) {
+      throw const RpcException(
+        code: RpcErrorCode.unsupportedMediaType,
+        message: 'RPC requests require a JSON content type.',
+      );
+    }
+    final Object? jsonBody;
+    try {
+      jsonBody = jsonDecode(request.body);
+    } on FormatException catch (error, stack) {
+      request.onError?.call(error, stack);
+      return _rpcErrorResponse(
+        RpcException.badRequest('RPC request body must be valid JSON.'),
+      );
+    }
     final rpcRequest = RpcRequest.fromJson(jsonBody);
     final context = await _buildContext(
       request,
@@ -490,17 +896,24 @@ Future<RpcHttpResponse> _handleRpcRequest(
     );
 
     final data = await procedures.dispatchUnary(context, rpcRequest);
-    return _jsonResponse(
+    final response = _jsonResponse(
       HttpStatus.ok,
       RpcSuccessResponse(data: data).toJson(),
+      encodeJson: encodeJson,
     );
-  } on FormatException {
-    return _rpcErrorResponse(
-      RpcException.badRequest('RPC request body must be valid JSON.'),
-    );
-  } on RpcException catch (error) {
+    final control = context.binding(rpcHttpResponseKey);
+    // REST-specific status changes must not remove or change the RPC envelope.
+    return control == null
+        ? response
+        : response.copyWith(
+            headers: {...response.headers, ...control.headers},
+            cookies: [...response.cookies, ...control.cookies],
+          );
+  } on RpcException catch (error, stack) {
+    request.onError?.call(error, stack);
     return _rpcErrorResponse(error);
-  } catch (_) {
+  } catch (error, stack) {
+    request.onError?.call(error, stack);
     return _rpcErrorResponse(RpcException.internalError());
   }
 }
@@ -512,6 +925,8 @@ Future<RpcHttpResponse> _handleRestRequest(
   required RpcContextBindings bindings,
   RpcContextFactory? contextFactory,
   required Duration sseHeartbeatInterval,
+  required bool sseFlushEachChunk,
+  required Object Function(Object?) encodeJson,
 }) async {
   try {
     final context = await _buildContext(
@@ -522,7 +937,7 @@ Future<RpcHttpResponse> _handleRestRequest(
     );
 
     final metadata = match.route.metadata;
-    if (metadata != null) {
+    if (metadata != null && match.route.guards.isNotEmpty) {
       await runRpcGuards(
         match.route.guards,
         rpcContext: context,
@@ -530,31 +945,38 @@ Future<RpcHttpResponse> _handleRestRequest(
       );
     }
 
-    return switch (match.route) {
+    final response = switch (match.route) {
       RestUnaryRoute() => await _handleRestUnaryRoute(
         match.route as RestUnaryRoute,
         context,
         request,
         match.pathParameters,
+        encodeJson,
       ),
       RestStreamRoute(:final handler) => RpcHttpResponse.streaming(
-        statusCode: HttpStatus.ok,
-        headers: const {
+        statusCode: metadata?.path?.statusCode ?? HttpStatus.ok,
+        headers: {
           'content-type': 'text/event-stream; charset=utf-8',
           'cache-control': 'no-cache',
           'connection': 'keep-alive',
           'x-accel-buffering': 'no',
+          ...?metadata?.path?.headers,
         },
         body: encodeSseResponseBody(
           handler(context, request, match.pathParameters),
           heartbeatInterval: sseHeartbeatInterval,
           cancellation: context.cancellation,
+          onError: request.onError,
         ),
+        flushEachChunk: sseFlushEachChunk,
       ),
     };
-  } on RpcException catch (error) {
+    return context.binding(rpcHttpResponseKey)?.apply(response) ?? response;
+  } on RpcException catch (error, stack) {
+    request.onError?.call(error, stack);
     return _rpcErrorResponse(error);
-  } catch (_) {
+  } catch (error, stack) {
+    request.onError?.call(error, stack);
     return _rpcErrorResponse(RpcException.internalError());
   }
 }
@@ -564,23 +986,32 @@ Future<RpcHttpResponse> _handleRestUnaryRoute(
   RpcContext context,
   RpcHttpRequest request,
   Map<String, String> pathParameters,
+  Object Function(Object?) encodeJson,
 ) async {
   final output = await route.handler(context, request, pathParameters);
+  if (output is RpcHttpResponse) return output;
+  final status = route.metadata?.path?.statusCode;
+  final headers = route.metadata?.path?.headers ?? const <String, String>{};
   if (route.metadata?.outputTypeCode == 'void') {
-    return const RpcHttpResponse(statusCode: HttpStatus.noContent);
+    return RpcHttpResponse(
+      statusCode: status ?? HttpStatus.noContent,
+      headers: headers,
+    );
   }
+  if (status == 204 || status == 304)
+    return RpcHttpResponse(statusCode: status!, headers: headers);
   return RpcHttpResponse(
-    statusCode: HttpStatus.ok,
-    headers: const {'content-type': 'application/json; charset=utf-8'},
-    body: jsonEncode(output),
+    statusCode: status ?? HttpStatus.ok,
+    headers: {'content-type': 'application/json; charset=utf-8', ...headers},
+    body: output is RpcJsonBytes ? output.toJsonBytes() : encodeJson(output),
   );
 }
 
 Future<RpcHttpResponse> _handleOpenApiRequest(
   RpcHttpRequest request, {
-  required JsonObject? openApiDocument,
+  required Object? encodedDocument,
 }) async {
-  if (openApiDocument == null) {
+  if (encodedDocument == null) {
     return const RpcHttpResponse(
       statusCode: HttpStatus.notFound,
       headers: {'content-type': 'text/plain; charset=utf-8'},
@@ -598,7 +1029,11 @@ Future<RpcHttpResponse> _handleOpenApiRequest(
     );
   }
 
-  return _jsonResponse(HttpStatus.ok, openApiDocument);
+  return RpcHttpResponse(
+    statusCode: HttpStatus.ok,
+    headers: const {'content-type': 'application/json; charset=utf-8'},
+    body: encodedDocument,
+  );
 }
 
 Future<RpcHttpResponse> _handleDocsRequest(
@@ -692,7 +1127,7 @@ Future<RpcHttpResponse> _handleStaticRequest(
           return const RpcHttpResponse(statusCode: HttpStatus.notFound);
         }
 
-        return _serveFile(indexFile, request.method == 'HEAD');
+        return _serveFile(indexFile, request, options);
       }
     }
 
@@ -705,7 +1140,7 @@ Future<RpcHttpResponse> _handleStaticRequest(
     return const RpcHttpResponse(statusCode: HttpStatus.notFound);
   }
 
-  return _serveFile(file, request.method == 'HEAD');
+  return _serveFile(file, request, options);
 }
 
 Future<String?> _resolveExistingEntityPath(FileSystemEntity entity) async {
@@ -739,20 +1174,125 @@ String _trimTrailingSeparator(String path, {required String separator}) {
   return path;
 }
 
-Future<RpcHttpResponse> _serveFile(File file, bool isHead) async {
+Future<RpcHttpResponse> _serveFile(
+  File file,
+  RpcHttpRequest request,
+  RpcHttpStaticOptions options,
+) async {
+  final stat = await file.stat();
+  if (stat.type != FileSystemEntityType.file) {
+    return const RpcHttpResponse(statusCode: HttpStatus.notFound);
+  }
   final contentType = _getContentType(file.path);
-  final headers = {'content-type': contentType};
+  final etag =
+      'W/"${stat.modified.microsecondsSinceEpoch.toRadixString(16)}-${stat.size.toRadixString(16)}"';
+  final headers = {
+    'content-type': contentType,
+    'cache-control': options.cacheControl,
+    'etag': etag,
+    'last-modified': HttpDate.format(stat.modified),
+    'accept-ranges': 'bytes',
+  };
 
-  if (isHead) {
+  if (_isFileNotModified(request, etag, stat.modified)) {
+    return RpcHttpResponse(
+      statusCode: HttpStatus.notModified,
+      headers: headers,
+    );
+  }
+
+  final range = lookupRestHeader(request.headers, 'range');
+  final ifRange = lookupRestHeader(request.headers, 'if-range');
+  var canRange = ifRange == null;
+  if (ifRange != null &&
+      !ifRange.startsWith('W/') &&
+      !ifRange.startsWith('"')) {
+    try {
+      canRange =
+          stat.modified.millisecondsSinceEpoch ~/ 1000 <=
+          HttpDate.parse(ifRange).millisecondsSinceEpoch ~/ 1000;
+    } on HttpException {
+      canRange = false;
+    }
+  }
+  if (request.method == 'GET' &&
+      range != null &&
+      canRange &&
+      range.startsWith('bytes=') &&
+      !range.contains(',')) {
+    final match = RegExp(r'^bytes=(\d*)-(\d*)$').firstMatch(range);
+    if (match != null && (match[1]!.isNotEmpty || match[2]!.isNotEmpty)) {
+      final suffix = match[1]!.isEmpty;
+      final first = int.tryParse(match[1]!);
+      final last = int.tryParse(match[2]!);
+      final start = suffix ? stat.size - (last ?? 0) : first ?? stat.size;
+      final end = suffix || match[2]!.isEmpty ? stat.size - 1 : last ?? -1;
+      if (stat.size == 0 ||
+          (!suffix && start >= stat.size) ||
+          end < 0 ||
+          (!suffix && start > end) ||
+          (suffix && (last ?? 0) <= 0)) {
+        return RpcHttpResponse(
+          statusCode: HttpStatus.requestedRangeNotSatisfiable,
+          headers: {...headers, 'content-range': 'bytes */${stat.size}'},
+        );
+      }
+      final boundedStart = start < 0 ? 0 : start;
+      final boundedEnd = end >= stat.size ? stat.size - 1 : end;
+      return RpcHttpResponse.streaming(
+        statusCode: HttpStatus.partialContent,
+        headers: {
+          ...headers,
+          'content-range': 'bytes $boundedStart-$boundedEnd/${stat.size}',
+          'content-length': '${boundedEnd - boundedStart + 1}',
+        },
+        body: file.openRead(boundedStart, boundedEnd + 1),
+        flushEachChunk: false,
+      );
+    }
+  }
+  headers['content-length'] = '${stat.size}';
+  if (request.method == 'HEAD') {
     return RpcHttpResponse(statusCode: HttpStatus.ok, headers: headers);
   }
 
-  final body = await file.readAsBytes();
-  return RpcHttpResponse(
+  return RpcHttpResponse.streaming(
     statusCode: HttpStatus.ok,
     headers: headers,
-    body: body,
+    body: file.openRead(),
+    flushEachChunk: false,
   );
+}
+
+bool _isFileNotModified(
+  RpcHttpRequest request,
+  String etag,
+  DateTime modified,
+) {
+  final ifNoneMatch = lookupRestHeader(request.headers, 'if-none-match');
+  if (ifNoneMatch != null) {
+    return ifNoneMatch.split(',').any((value) {
+      final candidate = value.trim();
+      return candidate == '*' ||
+          candidate == etag ||
+          candidate == etag.substring(2);
+    });
+  }
+
+  final ifModifiedSince = lookupRestHeader(
+    request.headers,
+    'if-modified-since',
+  );
+  if (ifModifiedSince == null) {
+    return false;
+  }
+  try {
+    final since = HttpDate.parse(ifModifiedSince);
+    return modified.millisecondsSinceEpoch ~/ 1000 <=
+        since.millisecondsSinceEpoch ~/ 1000;
+  } on HttpException {
+    return false;
+  }
 }
 
 String _getContentType(String path) {
@@ -787,6 +1327,7 @@ String _getContentType(String path) {
 Future<RpcHttpResponse> _handleHealthRequest(
   RpcHttpRequest request, {
   required RpcHttpHealthOptions options,
+  FutureOr<bool> Function()? check,
 }) async {
   if (request.method != 'GET') {
     return _jsonResponse(
@@ -800,7 +1341,10 @@ Future<RpcHttpResponse> _handleHealthRequest(
 
   var isHealthy = true;
   try {
-    isHealthy = options.check == null || await options.check!();
+    final evaluate = check ?? options.check;
+    isHealthy =
+        evaluate == null ||
+        await Future<bool>.sync(evaluate).timeout(options.checkTimeout);
   } catch (_) {
     isHealthy = false;
   }
@@ -817,6 +1361,7 @@ Future<RpcHttpResponse> _handleHealthRequest(
 Future<RpcHttpResponse> _handleMetricsRequest(
   RpcHttpRequest request, {
   required RpcHttpMetricsOptions options,
+  RpcHttpMetricsCollector? collector,
 }) async {
   if (request.method != 'GET') {
     return _jsonResponse(
@@ -828,13 +1373,12 @@ Future<RpcHttpResponse> _handleMetricsRequest(
     );
   }
 
-  // TODO: Implement actual metrics collection.
-  // For now, return basic info.
   return _jsonResponse(HttpStatus.ok, {
     'pid': pid,
     'memory_usage': ProcessInfo.currentRss,
     'uptime_seconds':
         (DateTime.now().millisecondsSinceEpoch - _startTime) ~/ 1000,
+    ...?collector?.snapshot(),
   });
 }
 
@@ -846,19 +1390,24 @@ Future<RpcContext> _buildContext(
   required RpcContextBindings bindings,
   RpcContextFactory? contextFactory,
 }) async {
+  final localBindings = bindings.toBuilder()
+    ..set(rpcHttpResponseKey, RpcHttpResponseControl());
+  if (request.requestId case final id?) {
+    localBindings.set(rpcRequestIdKey, id);
+  }
   if (contextFactory != null) {
     final context = await contextFactory(request);
     return context.copyWith(
-      bindings: bindings.merge(context.bindings),
+      bindings: (localBindings..addAll(context.bindings)).build(),
       cancellation: request.cancellation,
     );
   }
 
   return RpcContext(
-    headers: Map<String, String>.unmodifiable(request.headers),
+    headers: request.headers,
     httpMethod: request.method,
     path: path,
-    bindings: bindings,
+    bindings: localBindings.build(),
     cancellation: request.cancellation,
   );
 }
@@ -867,10 +1416,12 @@ Stream<List<int>> encodeSseResponseBody(
   Stream<Object?> events, {
   Duration heartbeatInterval = const Duration(seconds: 15),
   RpcCancellationSignal cancellation = RpcCancellationSignal.none,
+  void Function(Object error, StackTrace stackTrace)? onError,
 }) {
   late StreamController<List<int>> controller;
   StreamSubscription<Object?>? subscription;
   Timer? heartbeat;
+  RpcCancellationRegistration? cancellationRegistration;
   var terminated = false;
 
   void addText(String value) {
@@ -879,11 +1430,14 @@ Stream<List<int>> encodeSseResponseBody(
     }
   }
 
-  Future<void> terminateWithError(Object error) async {
+  Future<void> terminateWithError(Object error, StackTrace stack) async {
     if (terminated) {
       return;
     }
     terminated = true;
+    cancellationRegistration?.dispose();
+    cancellationRegistration = null;
+    onError?.call(error, stack);
     final rpcError = error is RpcException
         ? error
         : RpcException.internalError();
@@ -901,6 +1455,8 @@ Stream<List<int>> encodeSseResponseBody(
       return;
     }
     terminated = true;
+    cancellationRegistration?.dispose();
+    cancellationRegistration = null;
     addText('event: dart-orpc-complete\ndata: {}\n\n');
     heartbeat?.cancel();
     await controller.close();
@@ -911,6 +1467,8 @@ Stream<List<int>> encodeSseResponseBody(
       return;
     }
     terminated = true;
+    cancellationRegistration?.dispose();
+    cancellationRegistration = null;
     heartbeat?.cancel();
     await subscription?.cancel();
     if (!controller.isClosed) {
@@ -920,9 +1478,9 @@ Stream<List<int>> encodeSseResponseBody(
 
   controller = StreamController<List<int>>(
     onListen: () {
-      if (!identical(cancellation, RpcCancellationSignal.none)) {
-        unawaited(cancellation.cancelled.then((_) => cancelFromSignal()));
-      }
+      cancellationRegistration = cancellation.onCancel(
+        () => unawaited(cancelFromSignal()),
+      );
       subscription = events.listen(
         (event) {
           if (terminated) {
@@ -930,12 +1488,12 @@ Stream<List<int>> encodeSseResponseBody(
           }
           try {
             addText('data: ${jsonEncode(event)}\n\n');
-          } catch (error) {
-            unawaited(terminateWithError(error));
+          } catch (error, stack) {
+            unawaited(terminateWithError(error, stack));
           }
         },
         onError: (Object error, StackTrace stackTrace) {
-          unawaited(terminateWithError(error));
+          unawaited(terminateWithError(error, stackTrace));
         },
         onDone: () {
           unawaited(complete());
@@ -954,6 +1512,8 @@ Stream<List<int>> encodeSseResponseBody(
     onResume: () => subscription?.resume(),
     onCancel: () async {
       terminated = true;
+      cancellationRegistration?.dispose();
+      cancellationRegistration = null;
       heartbeat?.cancel();
       await subscription?.cancel();
     },
@@ -962,32 +1522,128 @@ Stream<List<int>> encodeSseResponseBody(
   return controller.stream;
 }
 
-Map<String, String>? _matchPathPattern(String pattern, String actualPath) {
-  final normalizedPattern = _normalizePath(pattern);
-  final normalizedPath = _normalizePath(actualPath);
-  final patternSegments = _splitPathSegments(normalizedPattern);
-  final pathSegments = _splitPathSegments(normalizedPath);
-
-  if (patternSegments.length != pathSegments.length) {
-    return null;
+_IndexedRestRoute? _findParameterizedRestRoute({
+  required _RestRouteTrieNode node,
+  required List<String> pathSegments,
+  required int pathIndex,
+  required String method,
+  required _IndexedRestRoute? bestMatch,
+}) {
+  if (node.firstRegistrationFor(method) >=
+      (bestMatch?.registrationIndex ?? 1 << 62)) {
+    return bestMatch;
   }
 
-  final pathParameters = <String, String>{};
-
-  for (var index = 0; index < patternSegments.length; index++) {
-    final patternSegment = patternSegments[index];
-    final pathSegment = pathSegments[index];
-    if (patternSegment.startsWith(':')) {
-      pathParameters[patternSegment.substring(1)] = pathSegment;
-      continue;
+  if (pathIndex == pathSegments.length) {
+    final candidate = node.routesByMethod[method];
+    if (candidate != null &&
+        (bestMatch == null ||
+            candidate.registrationIndex < bestMatch.registrationIndex)) {
+      return candidate;
     }
-
-    if (patternSegment != pathSegment) {
-      return null;
-    }
+    return bestMatch;
   }
 
-  return Map<String, String>.unmodifiable(pathParameters);
+  final segment = pathSegments[pathIndex];
+  final literalChild = node.literalChildren[segment];
+  final parameterChild = node.parameterChild;
+  if (literalChild == null) {
+    if (parameterChild == null) {
+      return bestMatch;
+    }
+    return _findParameterizedRestRoute(
+      node: parameterChild,
+      pathSegments: pathSegments,
+      pathIndex: pathIndex + 1,
+      method: method,
+      bestMatch: bestMatch,
+    );
+  }
+  if (parameterChild == null) {
+    return _findParameterizedRestRoute(
+      node: literalChild,
+      pathSegments: pathSegments,
+      pathIndex: pathIndex + 1,
+      method: method,
+      bestMatch: bestMatch,
+    );
+  }
+
+  if (literalChild.firstRegistrationFor(method) <=
+      parameterChild.firstRegistrationFor(method)) {
+    bestMatch = _findParameterizedRestRoute(
+      node: literalChild,
+      pathSegments: pathSegments,
+      pathIndex: pathIndex + 1,
+      method: method,
+      bestMatch: bestMatch,
+    );
+    return _findParameterizedRestRoute(
+      node: parameterChild,
+      pathSegments: pathSegments,
+      pathIndex: pathIndex + 1,
+      method: method,
+      bestMatch: bestMatch,
+    );
+  }
+
+  bestMatch = _findParameterizedRestRoute(
+    node: parameterChild,
+    pathSegments: pathSegments,
+    pathIndex: pathIndex + 1,
+    method: method,
+    bestMatch: bestMatch,
+  );
+  return _findParameterizedRestRoute(
+    node: literalChild,
+    pathSegments: pathSegments,
+    pathIndex: pathIndex + 1,
+    method: method,
+    bestMatch: bestMatch,
+  );
+}
+
+void _collectParameterizedRestMethods({
+  required _RestRouteTrieNode node,
+  required List<String> pathSegments,
+  required int pathIndex,
+  required Set<String> methods,
+}) {
+  if (pathIndex == pathSegments.length) {
+    methods.addAll(node.routesByMethod.keys);
+    return;
+  }
+
+  final literalChild = node.literalChildren[pathSegments[pathIndex]];
+  if (literalChild != null) {
+    _collectParameterizedRestMethods(
+      node: literalChild,
+      pathSegments: pathSegments,
+      pathIndex: pathIndex + 1,
+      methods: methods,
+    );
+  }
+
+  final parameterChild = node.parameterChild;
+  if (parameterChild != null) {
+    _collectParameterizedRestMethods(
+      node: parameterChild,
+      pathSegments: pathSegments,
+      pathIndex: pathIndex + 1,
+      methods: methods,
+    );
+  }
+}
+
+Map<String, String> _pathParametersFor(
+  List<({int index, String name})> parameterSlots,
+  List<String> pathSegments,
+) => Map<String, String>.unmodifiable({
+  for (final slot in parameterSlots) slot.name: pathSegments[slot.index],
+});
+
+String _canonicalPathForSegments(List<String> segments) {
+  return segments.isEmpty ? '/' : '/${segments.join('/')}';
 }
 
 List<String> _splitPathSegments(String path) {
@@ -1015,6 +1671,11 @@ String _normalizeRouteSignature(String path) {
 
 String? lookupRestHeader(Map<String, String> headers, String name) {
   final normalizedName = name.toLowerCase();
+
+  final direct = headers[normalizedName];
+  if (direct != null) {
+    return direct;
+  }
 
   for (final entry in headers.entries) {
     if (entry.key.toLowerCase() == normalizedName) {
@@ -1179,14 +1840,25 @@ RpcHttpResponse _rpcErrorResponse(RpcException error) {
   return _jsonResponse(error.statusCode, error.toResponse().toJson());
 }
 
+/// Shared adapter error encoding; the wire code always comes from core.
+RpcHttpResponse rpcHttpErrorResponse(
+  RpcException error, {
+  Map<String, String> headers = const {},
+}) => _jsonResponse(
+  error.statusCode,
+  error.toResponse().toJson(),
+  extraHeaders: headers,
+);
+
 RpcHttpResponse _jsonResponse(
   int statusCode,
   Map<String, Object?> body, {
   Map<String, String> extraHeaders = const {},
+  Object Function(Object?) encodeJson = jsonEncode,
 }) {
   return RpcHttpResponse(
     statusCode: statusCode,
-    body: jsonEncode(body),
+    body: encodeJson(body),
     headers: {
       'content-type': 'application/json; charset=utf-8',
       ...extraHeaders,

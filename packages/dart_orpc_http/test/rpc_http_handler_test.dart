@@ -195,11 +195,11 @@ void main() {
         );
 
         expect(response.statusCode, HttpStatus.methodNotAllowed);
-        expect(response.headers['allow'], 'GET');
+        expect(response.headers['allow'], 'GET, HEAD');
         expect(jsonDecode(response.body as String), {
           'error': {
             'code': 'BAD_REQUEST',
-            'message': 'REST endpoint only accepts GET requests.',
+            'message': 'REST endpoint only accepts GET, HEAD requests.',
           },
         });
       },
@@ -354,7 +354,12 @@ void main() {
         );
 
         expect(response.statusCode, HttpStatus.ok);
-        expect(utf8.decode(response.body as List<int>), '<h1>Hello Root</h1>');
+        expect(
+          await utf8.decodeStream(
+            (response.content as RpcStreamingHttpBody).chunks,
+          ),
+          '<h1>Hello Root</h1>',
+        );
         expect(response.headers['content-type'], contains('text/html'));
 
         // Test fallback to index.html
@@ -363,7 +368,9 @@ void main() {
         );
         expect(rootResponse.statusCode, HttpStatus.ok);
         expect(
-          utf8.decode(rootResponse.body as List<int>),
+          await utf8.decodeStream(
+            (rootResponse.content as RpcStreamingHttpBody).chunks,
+          ),
           '<h1>Hello Root</h1>',
         );
       } finally {

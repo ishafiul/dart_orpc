@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dart_orpc_http/dart_orpc_http.dart';
@@ -5,6 +6,67 @@ import 'package:test/test.dart';
 
 void main() {
   group('CORS Middleware', () {
+    test('preserves streamed responses and their buffering policy', () async {
+      for (final flushEachChunk in [true, false]) {
+        final handler = createCorsMiddleware()(
+          (_) async => RpcHttpResponse.streaming(
+            statusCode: HttpStatus.accepted,
+            headers: const {'content-type': 'text/event-stream'},
+            body: Stream.value(utf8.encode('data: ready\n\n')),
+            flushEachChunk: flushEachChunk,
+          ),
+        );
+        final response = await handler(
+          const RpcHttpRequest(method: 'GET', path: '/events'),
+        );
+        expect(response.statusCode, HttpStatus.accepted);
+        expect(response.isStreaming, isTrue);
+        expect(response.headers['content-type'], 'text/event-stream');
+        expect(response.headers['access-control-allow-origin'], '*');
+        final content = response.content as RpcStreamingHttpBody;
+        expect(content.flushEachChunk, flushEachChunk);
+        expect(await utf8.decodeStream(content.chunks), 'data: ready\n\n');
+      }
+    });
+
+    test(
+      'credential origins remain isolated across cached preflight headers',
+      () async {
+        final handler = createCorsMiddleware(
+          const CorsOptions(
+            allowCredentials: true,
+            allowedOrigins: [
+              'https://example.com',
+              'https://one.example',
+              'https://two.example',
+            ],
+          ),
+        )((_) async => const RpcHttpResponse(statusCode: HttpStatus.ok));
+        for (final origin in [
+          'https://one.example',
+          'https://two.example',
+          null,
+        ]) {
+          final response = await handler(
+            RpcHttpRequest(
+              method: 'OPTIONS',
+              path: '/',
+              headers: {if (origin != null) 'Origin': origin},
+            ),
+          );
+          expect(response.headers['access-control-allow-origin'], origin);
+          expect(
+            response.headers['access-control-allow-credentials'],
+            origin == null ? null : 'true',
+          );
+          expect(
+            response.headers['access-control-allow-methods'],
+            contains('GET'),
+          );
+        }
+      },
+    );
+
     final next = (RpcHttpRequest request) async {
       return const RpcHttpResponse(
         statusCode: HttpStatus.ok,
@@ -63,7 +125,14 @@ void main() {
 
     test('supports allowCredentials with specific origin', () async {
       final middleware = createCorsMiddleware(
-        const CorsOptions(allowCredentials: true),
+        const CorsOptions(
+          allowCredentials: true,
+          allowedOrigins: [
+            'https://example.com',
+            'https://one.example',
+            'https://two.example',
+          ],
+        ),
       );
       final handler = middleware(next);
 
@@ -86,7 +155,14 @@ void main() {
       'does not add allow-credentials if origin is missing even if requested',
       () async {
         final middleware = createCorsMiddleware(
-          const CorsOptions(allowCredentials: true),
+          const CorsOptions(
+            allowCredentials: true,
+            allowedOrigins: [
+              'https://example.com',
+              'https://one.example',
+              'https://two.example',
+            ],
+          ),
         );
         final handler = middleware(next);
 

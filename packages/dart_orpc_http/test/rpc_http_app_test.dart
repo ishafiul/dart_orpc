@@ -172,11 +172,11 @@ void main() {
         );
 
         expect(response.statusCode, HttpStatus.methodNotAllowed);
-        expect(response.headers.value('allow'), 'GET');
+        expect(response.headers.value('allow'), 'GET, HEAD');
         expect(jsonDecode(response.body), {
           'error': {
             'code': 'BAD_REQUEST',
-            'message': 'REST endpoint only accepts GET requests.',
+            'message': 'REST endpoint only accepts GET, HEAD requests.',
           },
         });
       },

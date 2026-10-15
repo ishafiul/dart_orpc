@@ -249,12 +249,23 @@ void main() {
           );
           expect(response.statusCode, HttpStatus.ok);
           expect(response.headers['content-type'], contains(entry.value));
+          expect(
+            await utf8.decodeStream(
+              (response.content as RpcStreamingHttpBody).chunks,
+            ),
+            'content',
+          );
         }
         final indexResponse = await handler(
           const RpcHttpRequest(method: 'GET', path: '/assets/nested'),
         );
         expect(indexResponse.statusCode, HttpStatus.ok);
-        expect(utf8.decode(indexResponse.body! as List<int>), 'nested');
+        expect(
+          await utf8.decodeStream(
+            (indexResponse.content as RpcStreamingHttpBody).chunks,
+          ),
+          'nested',
+        );
       },
     );
   });

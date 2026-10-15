@@ -8,6 +8,54 @@ import 'package:test/test.dart';
 
 void main() {
   group('Given a generated SSE REST route', () {
+    test(
+      'declared SSE headers override defaults and survive middleware copies',
+      () async {
+        const metadata = ProcedureMetadata(
+          rpcMethod: 'events.watch',
+          controllerNamespace: 'events',
+          methodName: 'watch',
+          outputTypeCode: 'JsonObject',
+          kind: RpcProcedureKind.serverStream,
+          path: RestProcedureMetadata(
+            method: 'GET',
+            path: '/events',
+            statusCode: 200,
+            responseKind: RestResponseKind.sse,
+            headers: {'x-event-version': '2', 'cache-control': 'no-store'},
+          ),
+        );
+        final handler = createRpcHttpHandler(
+          procedures: RpcProcedureRegistry(const []),
+          restRoutes: RestRouteRegistry([
+            RestStreamRoute(
+              path: '/events',
+              metadata: metadata,
+              handler: (_, _, _) => Stream<Object?>.value({'id': 1}),
+            ),
+          ]),
+          sseHeartbeatInterval: Duration.zero,
+          middleware: [
+            (next) =>
+                (request) async => (await next(request)).copyWith(),
+          ],
+        );
+        final response = await handler(
+          const RpcHttpRequest(method: 'GET', path: '/events'),
+        );
+        expect(response.statusCode, metadata.path!.statusCode);
+        for (final header in metadata.path!.headers.entries) {
+          expect(response.headers[header.key], header.value);
+        }
+        expect(
+          response.headers['content-type'],
+          'text/event-stream; charset=utf-8',
+        );
+        expect(response.headers['x-accel-buffering'], 'no');
+        expect(await _readBody(response), contains('data: {"id":1}\n\n'));
+      },
+    );
+
     late RpcHttpHandler handler;
 
     setUp(() {

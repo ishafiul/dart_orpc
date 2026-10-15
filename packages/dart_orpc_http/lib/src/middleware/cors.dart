@@ -1,12 +1,11 @@
-import 'dart:io';
-
+import 'cors_policy.dart';
 import '../rpc_http_handler.dart';
 
-/// Options for configuring CORS middleware.
 final class CorsOptions {
-  /// Creates a new [CorsOptions] instance.
   const CorsOptions({
     this.allowOrigin = '*',
+    this.allowedOrigins = const [],
+    this.allowOriginPredicate,
     this.allowMethods = const [
       'GET',
       'POST',
@@ -14,6 +13,7 @@ final class CorsOptions {
       'DELETE',
       'PATCH',
       'OPTIONS',
+      'HEAD',
     ],
     this.allowHeaders = const [
       'Content-Type',
@@ -25,90 +25,36 @@ final class CorsOptions {
     this.maxAge,
   });
 
-  /// The value for the `Access-Control-Allow-Origin` header.
-  ///
-  /// If [allowCredentials] is true, this value is ignored and the request's
-  /// `Origin` header is used instead.
+  /// A wildcard is supported only without credentials. Credentialed requests
+  /// require an exact origin, [allowedOrigins], or [allowOriginPredicate].
   final String allowOrigin;
-
-  /// The values for the `Access-Control-Allow-Methods` header.
+  final List<String> allowedOrigins;
+  final bool Function(String origin)? allowOriginPredicate;
   final List<String> allowMethods;
-
-  /// The values for the `Access-Control-Allow-Headers` header.
   final List<String> allowHeaders;
-
-  /// Whether to allow credentials (e.g. cookies, authorization headers).
-  ///
-  /// If true, `Access-Control-Allow-Credentials: true` is added to the response,
-  /// and `Access-Control-Allow-Origin` is set to the request's `Origin` header.
   final bool allowCredentials;
-
-  /// The values for the `Access-Control-Expose-Headers` header.
   final List<String> exposeHeaders;
-
-  /// The value for the `Access-Control-Max-Age` header (in seconds).
   final int? maxAge;
 }
 
-/// Creates a CORS middleware with the given [options].
+/// Use RpcHttpServerOptions.cors when policies must also cover adapter failures.
 RpcHttpMiddleware createCorsMiddleware([
   CorsOptions options = const CorsOptions(),
 ]) {
+  final policy = CompiledCorsPolicy(options);
   return (next) => (request) async {
-    final isOptions = request.method.toUpperCase() == 'OPTIONS';
-    final origin = lookupRestHeader(request.headers, 'origin');
-
-    if (isOptions) {
-      final headers = <String, String>{};
-      _addCorsHeaders(headers, options, origin);
-
-      // Preflight responses typically have no body and 204 No Content.
-      return RpcHttpResponse(
-        statusCode: HttpStatus.noContent,
-        headers: headers,
-      );
-    }
-
-    final response = await next(request);
-
-    final headers = Map<String, String>.from(response.headers);
-    _addCorsHeaders(headers, options, origin);
-
-    return RpcHttpResponse(
-      statusCode: response.statusCode,
-      headers: Map<String, String>.unmodifiable(headers),
-      body: response.body,
-    );
+    final preflight = policy.preflightResponse(request);
+    return policy.applyResponse(request, preflight ?? await next(request));
   };
 }
 
-void _addCorsHeaders(
-  Map<String, String> headers,
+RpcHttpResponse? corsPreflightResponse(
+  RpcHttpRequest request,
   CorsOptions options,
-  String? origin,
-) {
-  if (options.allowCredentials) {
-    if (origin != null) {
-      headers['access-control-allow-origin'] = origin;
-      headers['access-control-allow-credentials'] = 'true';
-    }
-  } else {
-    headers['access-control-allow-origin'] = options.allowOrigin;
-  }
+) => CompiledCorsPolicy(options).preflightResponse(request);
 
-  if (options.allowMethods.isNotEmpty) {
-    headers['access-control-allow-methods'] = options.allowMethods.join(', ');
-  }
-
-  if (options.allowHeaders.isNotEmpty) {
-    headers['access-control-allow-headers'] = options.allowHeaders.join(', ');
-  }
-
-  if (options.exposeHeaders.isNotEmpty) {
-    headers['access-control-expose-headers'] = options.exposeHeaders.join(', ');
-  }
-
-  if (options.maxAge != null) {
-    headers['access-control-max-age'] = options.maxAge.toString();
-  }
-}
+RpcHttpResponse applyCorsResponse(
+  RpcHttpRequest request,
+  RpcHttpResponse response,
+  CorsOptions options,
+) => CompiledCorsPolicy(options).applyResponse(request, response);
