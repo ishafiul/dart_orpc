@@ -34,11 +34,15 @@ final class _ResolvedPathMapping {
     required this.method,
     required this.path,
     required this.isSse,
+    this.statusCode,
+    this.headers = const {},
   });
 
   final String method;
   final String path;
   final bool isSse;
+  final int? statusCode;
+  final Map<String, String> headers;
 }
 
 final class _ResolvedOpenApiSchemaComponent {

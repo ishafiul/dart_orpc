@@ -204,9 +204,7 @@ _ResolvedProcedure _buildMethodBinding(
     outputTypeElement: outputType.element,
     outputUsesLuthor: _usesLuthorValidation(outputType),
     outputCodecKind: outputCodecKind,
-    returnsFutureVoid:
-        outputCodecKind == _OutputCodecKind.voidValue &&
-        _isFutureType(declaredReturnType),
+    returnsFuture: _isFutureType(declaredReturnType),
     isStream: isStream,
     supportsRpcGeneration: invocationDetails.supportsRpcGeneration,
     serverInvocationArguments: invocationDetails.invocationArguments.join(', '),
@@ -457,7 +455,34 @@ _ResolvedPathMapping? _readPathMapping(ConstantReader annotationReader) {
   if (pathReader == null || pathReader.isNull) {
     return null;
   }
+  final status = pathReader.peek('statusCode')?.isNull == false
+      ? pathReader.read('statusCode').intValue
+      : null;
+  final headers = <String, String>{
+    for (final entry in (pathReader.peek('headers')?.mapValue ?? {}).entries)
+      entry.key!.toStringValue()!: entry.value!.toStringValue()!,
+  };
+  if (status != null && (status < 200 || status > 599)) {
+    throw InvalidGenerationSourceError(
+      'REST response status must be between 200 and 599.',
+    );
+  }
+  if (headers.entries.any(
+    (entry) =>
+        entry.key.isEmpty ||
+        entry.key.contains(RegExp(r"[^!#$%&'*+.^_`|~0-9A-Za-z-]")) ||
+        entry.value.contains(RegExp(r'[\r\n]')),
+  )) {
+    throw InvalidGenerationSourceError(
+      'REST response headers must be valid HTTP headers.',
+    );
+  }
+  if (pathReader.read('isSse').boolValue && status != null && status != 200) {
+    throw InvalidGenerationSourceError('SSE response status must be 200.');
+  }
   return _ResolvedPathMapping(
+    statusCode: status,
+    headers: headers,
     method: pathReader.read('method').stringValue,
     path: _normalizeRestPath(pathReader.read('rawPath').stringValue),
     isSse: pathReader.read('isSse').boolValue,

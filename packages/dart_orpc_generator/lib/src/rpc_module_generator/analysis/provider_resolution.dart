@@ -67,7 +67,7 @@ void _recordProviderBinding(
 }
 
 List<_ResolvedInstantiation> _resolveProviderInstantiations(
-  List<InterfaceElement> providers, {
+  List<_ProviderDefinition> providers, {
   required Map<String, _ResolvedProviderBinding> importedProviders,
   Map<String, String> externalProviders = const {},
   Map<String, String> forcedVariableNames = const {},
@@ -84,30 +84,29 @@ List<_ResolvedInstantiation> _resolveProviderInstantiations(
   final remainingProviders = [...providers];
 
   for (final provider in providers) {
-    final typeKey = _typeKeyFor(provider.thisType);
-    if (!declaredProviderNames.add(typeKey)) {
+    if (!declaredProviderNames.add(provider.typeKey)) {
       throw InvalidGenerationSourceError(
-        'Module "${moduleElement.displayName}" declares provider "${provider.displayName}" more than once.',
-        element: moduleElement,
+        'Module "${moduleElement.displayName}" declares provider "${provider.typeName}" more than once.',
+        element: provider.providerElement,
       );
     }
-    final conflictingImportedProvider = importedProviders[typeKey];
+    final conflictingImportedProvider = importedProviders[provider.typeKey];
     if (conflictingImportedProvider != null) {
       throw InvalidGenerationSourceError(
-        'Module "${moduleElement.displayName}" declares provider "${provider.displayName}" that conflicts with ${conflictingImportedProvider.sourceLabel}.',
-        element: moduleElement,
+        'Module "${moduleElement.displayName}" declares provider "${provider.typeName}" that conflicts with ${conflictingImportedProvider.sourceLabel}.',
+        element: provider.providerElement,
       );
     }
   }
 
   while (remainingProviders.isNotEmpty) {
     var progressed = false;
-    for (final provider in List<InterfaceElement>.from(remainingProviders)) {
+    for (final provider in List<_ProviderDefinition>.from(remainingProviders)) {
       final instantiation = _tryBuildInstantiation(
         provider,
         availableProviders: availableProviders,
         usedNames: usedNames,
-        forcedVariableName: forcedVariableNames[_typeKeyFor(provider.thisType)],
+        forcedVariableName: forcedVariableNames[provider.typeKey],
       );
       if (instantiation == null) {
         continue;
@@ -128,7 +127,7 @@ List<_ResolvedInstantiation> _resolveProviderInstantiations(
       );
     }
     throw InvalidGenerationSourceError(
-      'Unable to resolve provider constructor dependencies for: ${remainingProviders.map((provider) => provider.displayName).join(', ')}.',
+      'Unable to resolve provider dependencies for: ${remainingProviders.map((provider) => provider.typeName).join(', ')}.',
       element: moduleElement,
     );
   }
@@ -136,26 +135,31 @@ List<_ResolvedInstantiation> _resolveProviderInstantiations(
   return resolved;
 }
 
-List<String>? _findProviderDependencyCycle(List<InterfaceElement> providers) {
+List<String>? _findProviderDependencyCycle(
+  List<_ProviderDefinition> providers,
+) {
   final providersByType = {
-    for (final provider in providers) _typeKeyFor(provider.thisType): provider,
+    for (final provider in providers) provider.typeKey: provider,
   };
 
-  List<String>? walk(InterfaceElement provider, List<String> path) {
-    final typeKey = _typeKeyFor(provider.thisType);
+  List<String>? walk(_ProviderDefinition provider, List<String> path) {
+    final typeKey = provider.typeKey;
     final cycleStart = path.indexOf(typeKey);
     if (cycleStart != -1) {
       return [
         ...path.skip(cycleStart).map(_providerNameForTypeKey),
-        provider.displayName,
+        provider.typeName,
       ];
     }
-    final next = _selectUnnamedConstructor(provider).formalParameters
-        .map((parameter) => providersByType[_typeKeyFor(parameter.type)])
-        .whereType<InterfaceElement>()
-        .firstOrNull;
-    if (next == null) return null;
-    return walk(next, [...path, typeKey]);
+    final nextPath = [...path, typeKey];
+    for (final parameter in provider.parameters) {
+      if (parameter.isOptional) continue;
+      final next = providersByType[_dependencyTypeKeyFor(parameter.type)];
+      if (next == null) continue;
+      final cycle = walk(next, nextPath);
+      if (cycle != null) return cycle;
+    }
+    return null;
   }
 
   for (final provider in providers) {

@@ -21,7 +21,7 @@ String _decodeInputExpression(_ResolvedProcedure procedure) {
     return '(rawInput) => expectNoRpcInput(rawInput, context: \'RPC method "${procedure.rpcMethod}"\')';
   }
   if (procedure.inputUsesLuthor) {
-    return '(rawInput) => decodeRpcInputWithLuthor<${procedure.inputTypeCode!}>(rawInput: rawInput, method: \'${procedure.rpcMethod}\', validate: \$${procedure.inputTypeName!}Validate)';
+    return '(rawInput) => decodeRpcInputWithLuthor<${procedure.inputTypeCode!}>(rawInput: rawInput, method: \'${procedure.rpcMethod}\', validate: \$${procedure.inputTypeName!}Validate, validateReadOnly: \$${procedure.inputTypeName!}Validate)';
   }
   return '(rawInput) => ${procedure.inputTypeCode!}.fromJson(Map<String, dynamic>.from(expectJsonObject(rawInput, context: \'RPC method "${procedure.rpcMethod}" input\')))';
 }
@@ -34,9 +34,18 @@ String _encodeOutputExpression(_ResolvedProcedure procedure) {
     return '(output) => output';
   }
   if (procedure.outputUsesLuthor) {
-    return '(output) => encodeRpcOutputWithLuthor<${procedure.outputTypeCode}>(output: output, method: \'${procedure.rpcMethod}\', toJson: (output) => output.toJson(), validate: \$${procedure.outputTypeName}Validate)';
+    return '(output) => encodeRpcOutputJsonWithLuthor<${procedure.outputTypeCode}>(output: output, method: \'${procedure.rpcMethod}\', toJson: (output) => output.toJson(), validateJson: (json) => \$${procedure.outputTypeName}Schema.validateSchema(json))';
   }
   return '(output) => output.toJson()';
+}
+
+String _encodeRestOutputExpression(_ResolvedProcedure procedure) {
+  if (procedure.outputCodecKind != _OutputCodecKind.dto ||
+      procedure.outputUsesLuthor) {
+    return _encodeOutputExpression(procedure);
+  }
+
+  return '(output) => output is RpcJsonBytes ? output : output.toJson()';
 }
 
 String _serverHandlerExpression(
@@ -46,10 +55,11 @@ String _serverHandlerExpression(
   if (!procedure.isVoid) {
     return '(context, input) => $invocationExpression';
   }
-  final invocation = procedure.returnsFutureVoid
+  final invocation = procedure.returnsFuture
       ? 'await $invocationExpression;'
       : '$invocationExpression;';
-  return '(context, input) async { $invocation return null; }';
+  final asyncModifier = procedure.returnsFuture ? 'async ' : '';
+  return '(context, input) $asyncModifier{ $invocation return null; }';
 }
 
 String? _restParameterDeclaration(

@@ -51,7 +51,7 @@ void _writeRestRouteRegistries(
       buffer
         ..writeln("      path: '${procedure.path!.path}',")
         ..writeln(
-          '      handler: (context, request, pathParameters) ${procedure.isStream ? '{' : 'async {'}',
+          '      handler: (context, request, pathParameters) ${procedure.isStream || !procedure.returnsFuture ? '{' : 'async {'}',
         );
       if (procedure.restRpcInput != null) {
         for (final declaration in _restRpcInputDeclarations(
@@ -82,19 +82,20 @@ void _writeRestRouteRegistries(
           );
       } else {
         if (procedure.isVoid) {
-          final awaitPrefix = procedure.returnsFutureVoid ? 'await ' : '';
+          final awaitPrefix = procedure.returnsFuture ? 'await ' : '';
           buffer
             ..writeln(
               '        ${awaitPrefix}container.${controller.instanceName}.${procedure.methodName}($invocationArguments);',
             )
             ..writeln('        return null;');
         } else {
+          final awaitPrefix = procedure.returnsFuture ? 'await ' : '';
           buffer
             ..writeln(
-              '        final output = await container.${controller.instanceName}.${procedure.methodName}($invocationArguments);',
+              '        final output = ${awaitPrefix}container.${controller.instanceName}.${procedure.methodName}($invocationArguments);',
             )
             ..writeln(
-              '        return (${_encodeOutputExpression(procedure)})(output);',
+              '        return (${_encodeRestOutputExpression(procedure)})(output);',
             );
         }
       }
@@ -174,7 +175,7 @@ void _writeProcedureMetadata(
   }
   if (procedure.path != null) {
     buffer.writeln(
-      "      path: RestProcedureMetadata(method: '${procedure.path!.method}', path: '${procedure.path!.path}'${procedure.path!.isSse ? ', responseKind: RestResponseKind.sse' : ''}),",
+      "      path: RestProcedureMetadata(method: '${procedure.path!.method}', path: '${procedure.path!.path}'${procedure.path!.isSse ? ', responseKind: RestResponseKind.sse' : ''}${procedure.path!.statusCode == null ? '' : ', statusCode: ${procedure.path!.statusCode}'}${procedure.path!.headers.isEmpty ? '' : ', headers: ${_metadataValueExpression(procedure.path!.headers)}'}),",
     );
   }
   if (procedure.inputTypeCode != null) {

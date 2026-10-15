@@ -36,19 +36,25 @@ String _nonNullableTypeCode(String typeCode) {
 }
 
 _ResolvedInstantiation? _tryBuildInstantiation(
-  InterfaceElement element, {
+  _ProviderDefinition provider, {
   required Map<String, String> availableProviders,
   required Set<String> usedNames,
   String? forcedVariableName,
 }) {
-  final constructor = _selectUnnamedConstructor(element);
   final positionalArguments = <String>[];
   final namedArguments = <String>[];
+  var optionalPositionalGap = false;
 
-  for (final parameter in constructor.formalParameters) {
-    final dependency = availableProviders[_typeKeyFor(parameter.type)];
+  for (final parameter in provider.parameters) {
+    final dependency =
+        availableProviders[_dependencyTypeKeyFor(parameter.type)];
     if (dependency == null) {
-      return null;
+      if (!parameter.isOptional) return null;
+      if (parameter.isOptionalPositional) optionalPositionalGap = true;
+      continue;
+    }
+    if (parameter.isOptionalPositional && optionalPositionalGap) {
+      continue;
     }
     if (parameter.isNamed) {
       namedArguments.add('${parameter.name}: $dependency');
@@ -58,15 +64,16 @@ _ResolvedInstantiation? _tryBuildInstantiation(
   }
 
   final variableName = forcedVariableName == null
-      ? _uniqueName(_lowerCamel(element.displayName), usedNames)
+      ? _uniqueName(_lowerCamel(provider.tokenElement.displayName), usedNames)
       : forcedVariableName;
   return _ResolvedInstantiation(
-    typeKey: _typeKeyFor(element.thisType),
-    typeName: element.displayName,
+    typeKey: provider.typeKey,
+    typeName: provider.typeName,
     variableName: variableName,
-    providerElement: element,
+    providerElement: provider.providerElement,
+    tokenElement: provider.tokenElement,
     code:
-        'final $variableName = ${element.displayName}(${[...positionalArguments, ...namedArguments].join(', ')});',
+        'final $variableName = ${provider.creationTarget}(${[...positionalArguments, ...namedArguments].join(', ')});',
   );
 }
 
@@ -185,3 +192,12 @@ bool _supportsGeneratedOutputCodec(DartType type) {
 }
 
 String _typeKeyFor(DartType type) => type.getDisplayString();
+
+String _dependencyTypeKeyFor(DartType type) {
+  final display = type.getDisplayString();
+  final suffixLength = switch (type.nullabilitySuffix) {
+    NullabilitySuffix.none => 0,
+    NullabilitySuffix.question || NullabilitySuffix.star => 1,
+  };
+  return suffixLength == 0 ? display : display.substring(0, display.length - 1);
+}

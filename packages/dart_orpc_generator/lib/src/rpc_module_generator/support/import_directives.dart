@@ -39,6 +39,7 @@ Future<Set<String>> _collectImportDirectivesForModule(
     ...rootModule.providerInstantiations,
   ]) {
     await addElementImport(instantiation.providerElement);
+    await addElementImport(instantiation.tokenElement);
   }
   for (final requirement in externalProviderRequirements) {
     await addElementImport(requirement.typeElement);

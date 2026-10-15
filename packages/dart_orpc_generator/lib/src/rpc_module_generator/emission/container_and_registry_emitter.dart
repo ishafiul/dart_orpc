@@ -32,7 +32,15 @@ void _writeContainerClass(StringBuffer buffer, _ModuleGenerationPlan context) {
       }
     }
   }
-  buffer.writeln('}');
+  buffer
+    ..writeln()
+    ..writeln('  Future<void> dispose() => disposeRpcProviders([');
+  for (final member in context.containerMembers.reversed) {
+    buffer.writeln('    ${member.name},');
+  }
+  buffer
+    ..writeln('  ]);')
+    ..writeln('}');
 }
 
 void _writeContainerFactory(

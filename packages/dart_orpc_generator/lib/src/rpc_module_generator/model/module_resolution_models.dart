@@ -17,9 +17,27 @@ final class _ModuleDeclaration {
   final InterfaceElement moduleElement;
   final List<_ModuleDeclaration> importedModules;
   final List<InterfaceElement> controllers;
-  final List<InterfaceElement> providers;
+  final List<_ProviderDefinition> providers;
   final List<InterfaceElement> exports;
   final bool isGlobal;
+}
+
+final class _ProviderDefinition {
+  const _ProviderDefinition({
+    required this.typeKey,
+    required this.typeName,
+    required this.tokenElement,
+    required this.providerElement,
+    required this.creationTarget,
+    required this.parameters,
+  });
+
+  final String typeKey;
+  final String typeName;
+  final InterfaceElement tokenElement;
+  final Element providerElement;
+  final String creationTarget;
+  final List<FormalParameterElement> parameters;
 }
 
 final class _ResolvedInstantiation {
@@ -28,13 +46,15 @@ final class _ResolvedInstantiation {
     required this.typeName,
     required this.variableName,
     required this.providerElement,
+    required this.tokenElement,
     required this.code,
   });
 
   final String typeKey;
   final String typeName;
   final String variableName;
-  final InterfaceElement providerElement;
+  final Element providerElement;
+  final InterfaceElement tokenElement;
   final String code;
 }
 

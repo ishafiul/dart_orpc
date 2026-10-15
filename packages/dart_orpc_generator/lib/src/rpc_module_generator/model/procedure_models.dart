@@ -87,7 +87,7 @@ final class _ResolvedProcedure {
     required this.outputTypeElement,
     required this.outputUsesLuthor,
     required this.outputCodecKind,
-    required this.returnsFutureVoid,
+    required this.returnsFuture,
     required this.isStream,
     required this.supportsRpcGeneration,
     required this.serverInvocationArguments,
@@ -116,7 +116,7 @@ final class _ResolvedProcedure {
   final Element? outputTypeElement;
   final bool outputUsesLuthor;
   final _OutputCodecKind outputCodecKind;
-  final bool returnsFutureVoid;
+  final bool returnsFuture;
   final bool isStream;
   final bool supportsRpcGeneration;
   final String serverInvocationArguments;

@@ -5,6 +5,14 @@ _ControllerBinding _buildControllerBinding(
   required Map<String, String> availableProviders,
   required Set<String> usedNames,
 }) {
+  if (controllerElement is! ClassElement ||
+      controllerElement.isAbstract ||
+      controllerElement.displayName.startsWith('_')) {
+    throw InvalidGenerationSourceError(
+      'Controller "${controllerElement.displayName}" must be a public, concrete class because generated code instantiates it from another library.',
+      element: controllerElement,
+    );
+  }
   final controllerAnnotation = _controllerChecker.firstAnnotationOfExact(
     controllerElement,
   );
@@ -32,7 +40,11 @@ _ControllerBinding _buildControllerBinding(
     ownerLabel: 'controller "${controllerElement.displayName}"',
   );
   final controllerInstantiation = _tryBuildInstantiation(
-    controllerElement,
+    _classProviderDefinition(
+      controllerElement.thisType,
+      controllerElement.thisType,
+      element: controllerElement,
+    ),
     availableProviders: availableProviders,
     usedNames: usedNames,
   );

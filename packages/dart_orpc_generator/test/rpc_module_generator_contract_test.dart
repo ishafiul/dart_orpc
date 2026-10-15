@@ -47,6 +47,20 @@ void main() {
       expect(run.generatedOutput, contains(r'validator: $ChildDtoSchema'));
       expect(run.generatedOutput, contains("name: 'ParentDto'"));
       expect(run.generatedOutput, contains(r'validator: $ParentDtoSchema'));
+      expect(
+        run.generatedOutput,
+        contains('encodeRpcOutputJsonWithLuthor<ParentDto>'),
+      );
+      expect(
+        run.generatedOutput,
+        contains(
+          r'validateJson: (json) => $ParentDtoSchema.validateSchema(json)',
+        ),
+      );
+      expect(
+        run.generatedOutput,
+        contains(r'validateReadOnly: $ParentDtoValidate'),
+      );
     });
 
     test('explicit REST body procedures generate body decoding', () async {

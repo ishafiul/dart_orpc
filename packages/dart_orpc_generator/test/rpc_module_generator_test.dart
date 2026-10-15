@@ -7,6 +7,29 @@ import 'support/generator_test_harness.dart';
 void main() {
   group('Given RpcModuleGenerator', () {
     test(
+      'declared REST response metadata is generated and invalid statuses fail',
+      () async {
+        final source = _validRpcModuleSource.replaceFirst(
+          "@RpcMethod(name: 'status')",
+          "@RpcMethod(name: 'status', path: RestMapping.get('/status', statusCode: 201, headers: {'x-version': '1'}))",
+        );
+        expect(source, isNot(_validRpcModuleSource));
+        final run = await runModuleBuilder(source);
+        expect(run.succeeded, isTrue);
+        expect(run.generatedOutput, contains('statusCode: 201'));
+        expect(run.generatedOutput, contains("headers: {'x-version': '1'}"));
+        final invalid = await runModuleBuilder(
+          source.replaceFirst('statusCode: 201', 'statusCode: 99'),
+        );
+        expect(invalid.succeeded, isFalse);
+        expect(
+          invalid.errors.join(),
+          contains('REST response status must be between 200 and 599'),
+        );
+      },
+    );
+
+    test(
       'When the builder runs for a valid module then it emits registry, metadata, app, and client code',
       () async {
         final run = await runModuleBuilder(_validRpcModuleSource);
@@ -81,6 +104,25 @@ void main() {
           contains('extension DartOrpcAppModuleGenerated on AppModule {'),
         );
         expect(generatedOutput, contains('RpcHttpApp buildRpcApp({'));
+        for (final option in [
+          'bool sseFlushEachChunk = true',
+          'bool encodeJsonToBytes = false',
+          'int? maxConcurrentRequests',
+          'Duration? requestBodyIdleTimeout',
+          'RpcHttpServerOptions serverOptions = const RpcHttpServerOptions()',
+        ]) {
+          // Private builder, public function, and module extension expose options.
+          expect(option.allMatches(generatedOutput), hasLength(3));
+        }
+        for (final option in [
+          'sseFlushEachChunk',
+          'encodeJsonToBytes',
+          'maxConcurrentRequests',
+          'requestBodyIdleTimeout',
+          'serverOptions',
+        ]) {
+          expect('$option: $option'.allMatches(generatedOutput), hasLength(3));
+        }
         expect(generatedOutput, contains('dartOrpcBuildAppModuleRpcApp('));
         expect(
           generatedOutput,
@@ -94,10 +136,11 @@ void main() {
         );
         expect(
           generatedOutput,
-          contains('final runtime = _\$createAppModuleRuntime();'),
+          contains('final container = _\$createAppModuleContainer();'),
         );
-        expect(generatedOutput, contains('procedures: runtime.procedures'));
-        expect(generatedOutput, contains('restRoutes: runtime.restRoutes'));
+        expect(generatedOutput, contains('procedures: procedures'));
+        expect(generatedOutput, contains('restRoutes: restRoutes'));
+        expect(generatedOutput, contains('onClose: container.dispose'));
         expect(
           generatedOutput,
           contains(
@@ -510,6 +553,82 @@ void main() {
     );
 
     test(
+      'When provider bindings map interfaces and factories then constructor dependencies are injected and optional ones stay optional',
+      () async {
+        final run = await runModuleBuilder(_providerBindingsSource);
+
+        expect(run.succeeded, isTrue, reason: run.errors.join('\n'));
+        expect(
+          run.generatedOutput,
+          contains('final userRepository = MemoryUserRepository();'),
+        );
+        expect(
+          run.generatedOutput,
+          contains('final genericRepository = MemoryGenericRepository();'),
+        );
+        expect(
+          run.generatedOutput,
+          contains('final searchClient = createSearchClient(userRepository);'),
+        );
+        expect(
+          run.generatedOutput,
+          contains('final optionalService = OptionalService();'),
+        );
+        expect(
+          run.generatedOutput,
+          matches(
+            RegExp(
+              r'final repositoryService = RepositoryService\(\s*userRepository,\s*searchClient: searchClient,\s*\);',
+            ),
+          ),
+          reason: run.generatedOutput
+              .split('\n')
+              .where(
+                (line) =>
+                    line.contains('repositoryService') ||
+                    line.contains('searchClient'),
+              )
+              .join('\n'),
+        );
+        expect(
+          run.generatedOutput,
+          contains('Future<void> dispose() => disposeRpcProviders(['),
+        );
+        expect(
+          run.generatedOutput,
+          matches(
+            RegExp(
+              r'disposeRpcProviders\(\[\s*repositoryService,\s*searchClient,\s*genericRepository,\s*userRepository,\s*optionalService,\s*\]\);',
+            ),
+          ),
+        );
+        expect(run.generatedOutput, contains('onClose: container.dispose,'));
+        expect(run.generatedOutput, isNot(contains('required Logger logger')));
+        expect(parseString(content: run.generatedOutput).errors, isEmpty);
+      },
+    );
+
+    test(
+      'When a class binding targets an abstract class then generation fails',
+      () async {
+        final run = await runModuleBuilder(_abstractProviderBindingSource);
+
+        expect(run.succeeded, isFalse);
+        expect(run.errors.join('\n'), contains('must be concrete'));
+      },
+    );
+
+    test(
+      'When a provider is private then generation reports inaccessible DI type',
+      () async {
+        final run = await runModuleBuilder(_privateProviderSource);
+
+        expect(run.succeeded, isFalse);
+        expect(run.errors.join('\n'), contains('must be public'));
+      },
+    );
+
+    test(
       'When a reachable global module exports a provider then feature modules consume one application instance',
       () async {
         final run = await runModuleBuilder(_globalModuleSource);
@@ -553,6 +672,16 @@ void main() {
 
         expect(run.succeeded, isFalse);
         expect(run.errors.join('\n'), contains('Global provider "Database"'));
+      },
+    );
+
+    test(
+      'When a global module privately redeclares an exported global provider then generation reports the conflict',
+      () async {
+        final run = await runModuleBuilder(_privateGlobalShadowSource);
+
+        expect(run.succeeded, isFalse);
+        expect(run.errors.join('\n'), contains('shadows a global provider'));
       },
     );
 
@@ -2085,6 +2214,102 @@ final class SecondService {
 }
 ''';
 
+const _providerBindingsSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+part 'example.g.dart';
+
+@Module(
+  providers: [RepositoryService, OptionalService],
+  bindings: [
+    RpcProviderBinding.useClass(
+      provide: UserRepository,
+      useClass: MemoryUserRepository,
+    ),
+    RpcProviderBinding.useClass(
+      provide: GenericRepository<int>,
+      useClass: MemoryGenericRepository,
+    ),
+    RpcProviderBinding.useFactory(
+      provide: SearchClient,
+      factory: createSearchClient,
+    ),
+  ],
+)
+final class AppModule {
+  const AppModule();
+}
+
+abstract interface class UserRepository {}
+
+final class MemoryUserRepository implements UserRepository {}
+
+abstract interface class GenericRepository<T> {}
+
+final class MemoryGenericRepository implements GenericRepository<int> {}
+
+final class SearchClient {
+  const SearchClient(this.repository);
+
+  final UserRepository repository;
+}
+
+SearchClient createSearchClient(UserRepository repository) =>
+    SearchClient(repository);
+
+final class RepositoryService {
+  const RepositoryService(
+    this.repository, {
+    SearchClient? searchClient,
+  });
+
+  final UserRepository repository;
+}
+
+final class OptionalService {
+  const OptionalService({Logger? logger});
+}
+
+final class Logger {}
+''';
+
+const _abstractProviderBindingSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+@Module(
+  bindings: [
+    RpcProviderBinding.useClass(
+      provide: UserRepository,
+      useClass: MemoryUserRepository,
+    ),
+  ],
+)
+final class AppModule {
+  const AppModule();
+}
+
+abstract interface class UserRepository {}
+
+abstract class MemoryUserRepository implements UserRepository {}
+''';
+
+const _privateProviderSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+@Module(providers: [_PrivateService])
+final class AppModule {
+  const AppModule();
+}
+
+final class _PrivateService {}
+''';
+
 const _globalModuleSource = r'''
 library example;
 
@@ -2183,6 +2408,33 @@ final class FirstModule {
 @Module(global: true, providers: [Database], exports: [Database])
 final class SecondModule {
   const SecondModule();
+}
+
+final class Database {
+  const Database();
+}
+''';
+
+const _privateGlobalShadowSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+part 'example.g.dart';
+
+@Module(imports: [SharedModule, FeatureModule])
+final class AppModule {
+  const AppModule();
+}
+
+@Module(global: true, providers: [Database], exports: [Database])
+final class SharedModule {
+  const SharedModule();
+}
+
+@Module(global: true, providers: [Database])
+final class FeatureModule {
+  const FeatureModule();
 }
 
 final class Database {
