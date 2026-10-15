@@ -9,3 +9,15 @@ class Todos extends Table {
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
+
+class Users extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get name => text().withLength(min: 3, max: 200)();
+
+  TextColumn get email => text().withLength(max: 254).unique()();
+
+  TextColumn get passwordHash => text()();
+
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}

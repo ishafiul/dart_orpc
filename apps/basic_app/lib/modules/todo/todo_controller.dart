@@ -3,10 +3,12 @@ import 'package:basic_app/utils/require_permissions.dart';
 import 'package:dart_orpc/dart_orpc.dart';
 
 import '../../guard/logger_guard.dart';
+import '../../guard/jwt_auth_guard.dart';
 import 'todo_dtos.dart';
 import 'todo_service.dart';
 
-@UseGuards([TodoRouteLoggerGuard, TodoPermissionGuard])
+@BearerAuth(guard: BasicAppJwtAuthGuard)
+@UseGuards([BasicAppJwtAuthGuard, TodoRouteLoggerGuard, TodoPermissionGuard])
 @Controller('todo')
 final class TodoController {
   TodoController(this.todoService);

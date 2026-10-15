@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:basic_app/basic_app.dart';
 import 'package:basic_app/database/database_open.dart';
+import 'package:basic_app/environment/app_env.dart';
+import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:dart_orpc/dart_orpc.dart';
 import 'package:test/test.dart';
 
@@ -14,11 +16,18 @@ void main() {
         'dart-orpc-acceptance',
       );
       databasePathOverride = '${temporaryDirectory.path}/todos.db';
+      final env = AppEnv.fromMap({
+        'JWT_SECRET': 'acceptance-secret',
+        'JWT_ISSUER': 'basic_app_acceptance',
+        'JWT_EXPIRES_IN_SECONDS': '3600',
+      });
+      final accessToken = _createAccessToken(env);
       final app = const TodoModule().buildRpcApp(
         openApi: const OpenApiDocumentOptions(title: 'Acceptance API'),
         webSocket: const RpcWebSocketServerOptions(),
         sseHeartbeatInterval: Duration.zero,
         contextFactory: _permissionContext,
+        bindings: RpcContextBindings.empty().withValue(appEnvKey, env),
       );
       final server = await app.listen(
         0,
@@ -30,11 +39,14 @@ void main() {
       final httpClient = HttpClient();
       final authorizedHttp = HttpRpcTransport(
         baseUrl: baseUri.toString(),
-        interceptors: const [_PermissionInterceptor(_allPermissions)],
+        interceptors: [_PermissionInterceptor(_allPermissions, accessToken)],
       );
       final authorizedWebSocket = await WebSocketRpcTransport.connect(
         Uri.parse('ws://${server.address.address}:${server.port}/rpc/ws'),
-        headers: const {'x-permissions': _allPermissions},
+        headers: {
+          'x-permissions': _allPermissions,
+          'authorization': 'Bearer $accessToken',
+        },
       );
       final splitClient = const TodoModule().createClient(
         transports: RpcClientTransports.split(
@@ -81,11 +93,13 @@ void main() {
         httpClient,
         baseUri.resolve('/todos/${created.id}'),
         permissions: _allPermissions,
+        authorization: accessToken,
       );
       final restMissing = await _get(
         httpClient,
         baseUri.resolve('/todos/999999'),
         permissions: _allPermissions,
+        authorization: accessToken,
       );
       expect(restSuccess.statusCode, HttpStatus.ok);
       expect(
@@ -101,6 +115,7 @@ void main() {
         httpClient,
         baseUri.resolve('/todos/events'),
         permissions: _allPermissions,
+        authorization: accessToken,
       );
       expect(sse.statusCode, HttpStatus.ok);
       expect(sse.contentType, contains('text/event-stream'));
@@ -115,6 +130,16 @@ void main() {
       expect(
         eventOperation['x-dart-orpc-stream'],
         containsPair('kind', 'server-stream'),
+      );
+      expect(
+        (document['components'] as Map<String, Object?>)['securitySchemes'],
+        containsPair('bearerAuth', containsPair('scheme', 'bearer')),
+      );
+      expect(
+        eventOperation['security'],
+        equals([
+          {'bearerAuth': <String>[]},
+        ]),
       );
 
       final liveChanges = duplexClient.todo.watchLive().take(3).toList();
@@ -135,7 +160,10 @@ void main() {
         everyElement(liveTodo.id),
       );
 
-      final deniedHttpTransport = HttpRpcTransport(baseUrl: baseUri.toString());
+      final deniedHttpTransport = HttpRpcTransport(
+        baseUrl: baseUri.toString(),
+        headers: {'authorization': 'Bearer $accessToken'},
+      );
       final deniedHttpClient = const TodoModule().createClient(
         transports: RpcClientTransports.unary(deniedHttpTransport),
       );
@@ -145,17 +173,41 @@ void main() {
         throwsA(_forbiddenRpcError),
       );
 
-      final deniedRest = await _get(httpClient, baseUri.resolve('/todos'));
+      final unauthenticatedHttpTransport = HttpRpcTransport(
+        baseUrl: baseUri.toString(),
+      );
+      final unauthenticatedClient = const TodoModule().createClient(
+        transports: RpcClientTransports.unary(unauthenticatedHttpTransport),
+      );
+      addTearDown(unauthenticatedHttpTransport.close);
+      await expectLater(
+        unauthenticatedClient.todo.list(),
+        throwsA(_unauthorizedRpcError),
+      );
+
+      final deniedRest = await _get(
+        httpClient,
+        baseUri.resolve('/todos'),
+        authorization: accessToken,
+      );
       final deniedSse = await _get(
         httpClient,
         baseUri.resolve('/todos/events'),
+        authorization: accessToken,
       );
       expect(deniedRest.statusCode, HttpStatus.forbidden);
       expect(deniedSse.statusCode, HttpStatus.forbidden);
       expect(deniedSse.contentType, contains('application/json'));
 
+      final unauthenticatedRest = await _get(
+        httpClient,
+        baseUri.resolve('/todos'),
+      );
+      expect(unauthenticatedRest.statusCode, HttpStatus.unauthorized);
+
       final deniedWebSocket = await WebSocketRpcTransport.connect(
         Uri.parse('ws://${server.address.address}:${server.port}/rpc/ws'),
+        headers: {'authorization': 'Bearer $accessToken'},
       );
       addTearDown(deniedWebSocket.close);
       final deniedWebSocketClient = const TodoModule().createClient(
@@ -172,10 +224,23 @@ void main() {
 
 const _allPermissions = 'todo.read,todo.write,todo.admin,tenant.active';
 
+String _createAccessToken(AppEnv env) {
+  return JWT(
+    {'sub': 'acceptance-user'},
+    issuer: env.jwtIssuer,
+  ).sign(SecretKey(env.jwtSecret), expiresIn: env.jwtLifetime);
+}
+
 final _forbiddenRpcError = isA<RpcException>().having(
   (error) => error.code,
   'code',
   RpcErrorCode.forbidden,
+);
+
+final _unauthorizedRpcError = isA<RpcException>().having(
+  (error) => error.code,
+  'code',
+  RpcErrorCode.unauthorized,
 );
 
 RpcContext _permissionContext(RpcHttpRequest request) {
@@ -194,9 +259,10 @@ RpcContext _permissionContext(RpcHttpRequest request) {
 }
 
 final class _PermissionInterceptor implements RpcInterceptorCore {
-  const _PermissionInterceptor(this.permissions);
+  const _PermissionInterceptor(this.permissions, this.accessToken);
 
   final String permissions;
+  final String accessToken;
 
   @override
   Future<HttpRpcResponse> intercept(
@@ -205,7 +271,11 @@ final class _PermissionInterceptor implements RpcInterceptorCore {
   ) {
     return next.next(
       request.copyWith(
-        headers: {...request.headers, 'x-permissions': permissions},
+        headers: {
+          ...request.headers,
+          'x-permissions': permissions,
+          'authorization': 'Bearer $accessToken',
+        },
       ),
     );
   }
@@ -215,10 +285,14 @@ Future<_HttpResult> _get(
   HttpClient client,
   Uri uri, {
   String? permissions,
+  String? authorization,
 }) async {
   final request = await client.getUrl(uri);
   if (permissions != null) {
     request.headers.set('x-permissions', permissions);
+  }
+  if (authorization != null) {
+    request.headers.set('authorization', 'Bearer $authorization');
   }
   final response = await request.close();
   return _HttpResult(
