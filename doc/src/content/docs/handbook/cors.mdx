@@ -1,0 +1,92 @@
+---
+title: 10. Configure CORS for Browser Apps
+description: Understand browser origins, preflight, credentials, allowed headers, and how to test CORS policies.
+---
+
+## Why does the browser need CORS?
+
+A browser application at `http://localhost:5173` calling an API at `http://localhost:3000` is making a cross-origin request: the port differs. Browsers require permission from the API before JavaScript can use cross-origin responses.
+
+CORS expresses that permission. It is not authentication, an application firewall, or a restriction on curl/native clients. Keep guards even when only one frontend origin is allowed.
+
+## Start with an explicit frontend origin
+
+Add or merge this into your existing buildRpcApp serverOptions:
+
+```dart
+serverOptions: const RpcHttpServerOptions(
+  cors: CorsOptions(
+    allowedOrigins: ['http://localhost:5173'],
+    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    exposeHeaders: ['X-Request-ID', 'X-App-Name'],
+    maxAge: 600,
+  ),
+),
+```
+
+The origin includes scheme, hostname, and port, with no route path. `http://127.0.0.1:5173` and `http://localhost:5173` are distinct origins. Include both only if both are intended frontends.
+
+Using serverOptions.cors makes CORS apply to adapter errors too, including rate limits, body timeouts, and admission rejection. A CORS middleware inside the handler chain cannot decorate failures that occur before that chain runs.
+
+## Understand the options
+
+| Option | Default | Purpose |
+| --- | --- | --- |
+| `allowOrigin` | `*` | Simple wildcard/noncredentialed or exact-origin configuration |
+| `allowedOrigins` | Empty | Explicit list of accepted browser origins |
+| `allowOriginPredicate` | null | App function checking dynamic origins |
+| `allowMethods` | GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD | HTTP methods accepted by preflight |
+| `allowHeaders` | Content-Type, Authorization, X-Requested-With | Request headers accepted by preflight |
+| `allowCredentials` | false | Allow browser credentialed access, such as cookies |
+| `exposeHeaders` | Empty | Response headers browser JavaScript may read |
+| `maxAge` | null | Preflight cache lifetime in seconds |
+
+Use one deliberate origin policy. For a public noncredentialed API, wildcard can be appropriate. For private browser applications, an explicit list is easier to reason about. A dynamic predicate should validate the full origin, not merely accept a string containing a company name.
+
+## What is a preflight?
+
+Before sending certain cross-origin requests, the browser sends OPTIONS with the desired method and headers. JSON POST requests with Authorization commonly need this step. The server checks origin/method/headers before the browser proceeds with the real request.
+
+Test it:
+
+```sh
+curl -i -X OPTIONS http://127.0.0.1:3000/rpc \
+  -H 'Origin: http://localhost:5173' \
+  -H 'Access-Control-Request-Method: POST' \
+  -H 'Access-Control-Request-Headers: content-type,authorization'
+```
+
+Expect a successful preflight, normally 204, with an Access-Control-Allow-Origin value matching the accepted origin and allowed methods/headers. Repeat with an unwanted origin or undeclared custom header to verify rejection. A rejected preflight returns 403 in this implementation.
+
+Curl does not enforce browser CORS; it shows the HTTP policy response. Use a browser test as well when integrating a real frontend.
+
+## Cookies and credentials
+
+If your application uses cross-origin cookies, configure explicit origins and `allowCredentials: true`:
+
+```dart
+cors: const CorsOptions(
+  allowedOrigins: ['https://app.example.com'],
+  allowCredentials: true,
+  allowHeaders: ['Content-Type', 'Authorization'],
+),
+```
+
+The browser request must also opt into credentials where its API requires that. Cookie Secure/SameSite policy and CSRF protections belong to your application's authentication design. Wildcard-only credentialed origin reflection is not supported by the framework.
+
+Bearer Authorization headers do not automatically require enabling cookie credentials; they do need an appropriate allowed-header policy and valid guard verification.
+
+## Read response headers from JavaScript
+
+`allowHeaders` permits request headers the browser sends. `exposeHeaders` permits JavaScript to read selected response headers. They solve different problems. If your middleware adds X-App-Name and the frontend needs to read it, expose it; if your request sends X-Tenant-ID, allow that request header and still validate tenant access.
+
+Responses preserve Vary: Origin where appropriate so caches can distinguish origins. Do not overwrite Vary accidentally in middleware.
+
+## When to use createCorsMiddleware
+
+`createCorsMiddleware(CorsOptions(...))` is useful when composing handler-only pipelines or testing a handler without the listening adapter. For a normal generated application, prefer serverOptions.cors when you want coverage for early adapter responses. Avoid installing two conflicting origin policies.
+
+If valid calls work but failures appear as unexplained browser CORS errors, inspect the response headers on a deliberate 401, 429, or 503. This often reveals that CORS was only configured inside a layer those failures bypass.
+
+Next: [OpenAPI and Scalar](/dart-orpc/handbook/openapi).

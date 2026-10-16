@@ -1,0 +1,118 @@
+---
+import LanguageSelect from "virtual:starlight/components/LanguageSelect";
+import Search from "virtual:starlight/components/Search";
+import SiteTitle from "virtual:starlight/components/SiteTitle";
+import SocialIcons from "virtual:starlight/components/SocialIcons";
+import ThemeSelect from "virtual:starlight/components/ThemeSelect";
+import config from "virtual:starlight/user-config";
+
+const shouldRenderSearch =
+  config.pagefind ||
+  config.components.Search !== "@astrojs/starlight/components/Search.astro";
+---
+
+<div class="header">
+  <div class="title-wrapper sl-flex">
+    <SiteTitle />
+    <a
+      class="utility-link sl-inline-flex"
+      href="https://shafi.dev/"
+      rel="noopener"
+      aria-label="Go to shafi.dev home"
+    >
+      Home
+    </a>
+    <a
+      class="utility-link sl-inline-flex"
+      href="https://pub.dev/packages/dart_orpc"
+      rel="noopener"
+      aria-label="Open dart_orpc on pub.dev"
+    >
+      pub.dev
+    </a>
+  </div>
+
+  <div class="search-slot sl-flex print:hidden">
+    {shouldRenderSearch && <Search />}
+  </div>
+
+  <div class="sl-hidden md:sl-flex print:hidden right-group">
+    <div class="sl-flex social-icons">
+      <SocialIcons />
+    </div>
+    <ThemeSelect />
+    <LanguageSelect />
+  </div>
+</div>
+
+<style>
+  @layer starlight.core {
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      height: 100%;
+    }
+
+    .title-wrapper {
+      min-width: 0;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      padding: 0.25rem;
+      margin: -0.25rem;
+    }
+
+    .utility-link {
+      border: 1px solid color-mix(in srgb, var(--sl-color-gray-4) 55%, transparent);
+      border-radius: 999px;
+      padding: 0.3rem 0.66rem;
+      color: color-mix(in srgb, var(--sl-color-gray-1) 88%, white 12%);
+      font-size: 0.69rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      line-height: 1;
+      text-transform: uppercase;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: border-color 140ms ease, background 140ms ease,
+        transform 140ms ease;
+    }
+
+    .utility-link:hover {
+      transform: translateY(-1px);
+      border-color: color-mix(in srgb, var(--sl-color-accent) 68%, transparent);
+      background: color-mix(
+        in srgb,
+        var(--sl-color-accent-low) 32%,
+        transparent
+      );
+    }
+
+    .search-slot {
+      min-width: 0;
+      flex: 1;
+      justify-content: center;
+    }
+
+    .right-group,
+    .social-icons {
+      align-items: center;
+      gap: 0.9rem;
+    }
+
+    .social-icons::after {
+      content: "";
+      height: 1.85rem;
+      border-inline-end: 1px solid var(--sl-color-gray-5);
+    }
+
+    @media (min-width: 50rem) {
+      .header {
+        display: grid;
+        grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
+      }
+    }
+  }
+</style>

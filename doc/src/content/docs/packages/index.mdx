@@ -1,0 +1,23 @@
+---
+title: Packages Overview
+description: Choose the runtime facade, build tools, and specialized packages for your application.
+---
+
+Start with `dart_orpc` for server runtime and `dart_orpc_generator`/`build_runner` for development. Specialized packages expose individual layers:
+
+| Package | Responsibility |
+| --- | --- |
+| [dart_orpc](/dart-orpc/packages/dart-orpc) | Public runtime facade |
+| [annotations](/dart-orpc/packages/annotations) | Declarative contracts and provider metadata |
+| [core](/dart-orpc/packages/core) | Transport-neutral types, errors, context, registries |
+| [generator](/dart-orpc/packages/generator) | Compile-time containers, routes, metadata, clients |
+| [HTTP](/dart-orpc/packages/http) | dart:io RPC/REST/SSE and server operations |
+| [WebSocket](/dart-orpc/packages/websocket) | Unary/server streams and VM client |
+| [client](/dart-orpc/packages/client) | Transport capabilities, HTTP client, interceptors |
+| [OpenAPI](/dart-orpc/packages/openapi) | OpenAPI 3.0.3 and Scalar HTML |
+| [Luthor](/dart-orpc/packages/luthor) | DTO schema validation bridge |
+| [CLI](/dart-orpc/packages/cli) | create, serve, watch |
+
+Compile-time DI lives in the generator. There is no separate current `dart_orpc_di` runtime package. The default HTTP client uses package:http; no Dio runtime is required.
+
+Server and bundled socket APIs use `dart:io`. Importing the facade/generated module is not a browser compatibility guarantee. Review [Client Distribution](/dart-orpc/guides/code-generation) for current packaging limits.

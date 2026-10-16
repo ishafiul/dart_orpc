@@ -1,0 +1,77 @@
+---
+title: Client and Transport API
+description: Transport capability interfaces, call options, interceptors, WebSocket limits, and client ownership.
+---
+
+## Transport capabilities
+
+| Interface/API | Contract |
+| --- | --- |
+| `RpcUnaryTransport` | `Future<Object?> send(RpcRequest request)` |
+| `RpcStreamTransport` | `Stream<Object?> subscribe(RpcRequest request)` |
+| `RpcDuplexTransport` | Unary and stream capabilities |
+| `RpcUnaryTransportWithOptions` | Adds `sendWithOptions(request, {options})` |
+| `RpcStreamTransportWithOptions` | Adds `subscribeWithOptions(request, {options})` |
+| `RpcTransport` | Alias for unary transport |
+| `RpcCaller` | Low-level typed unary invocation/decoding |
+| `RpcStreamCaller` | Low-level typed stream invocation/decoding |
+
+`RpcClientTransports.unary`, `.streaming`, `.duplex`, and `.split(unary:, streaming:)` configure generated client capabilities. Missing capability throws `RpcClientConfigurationException` when invoked.
+
+## HttpRpcTransport
+
+Constructor uses named arguments:
+
+| Argument | Default |
+| --- | --- |
+| `baseUrl` | required String |
+| `endpointPath` | `/rpc` |
+| `client` | internally owned package:http Client |
+| `interceptors` | empty list |
+| `headers` | empty map |
+| `bearerTokenProvider` | null |
+
+`endpointUri` resolves the endpoint against base URL. Because the default endpoint path starts with `/`, a path segment in `baseUrl` is not an automatic prefix; set `endpointPath` explicitly behind a proxy prefix.
+
+`send` / `sendWithOptions` serialize `{method, input}`, invoke interceptors/network, parse `{data}` or `{error}`, and return the decoded raw result. This implementation uses **package:http**, not Dio. `.close()` closes an internally created client; a supplied client remains caller-owned.
+
+`RpcCallOptions({headers = const {}, bearerToken})` carries per-invocation HTTP values. `RpcBearerTokenProvider` may return a token synchronously or asynchronously. Request construction applies transport headers, provider token, call headers, then explicit call bearer token. Avoid mixed-case duplicates of the same header; use canonical lowercase names.
+
+Generated bearer-declared methods expose `options` when no required header wrapper is needed. Required header bindings generate a typed `...RequestOptions` class with header fields and optional `call: RpcCallOptions`. Inspect emitted signatures for exact names.
+
+## Interceptors
+
+`RpcInterceptorCore.intercept(HttpRpcRequest request, HttpRpcHandler next)` can modify/copy requests, await `next.next(request)`, transform responses, short-circuit, or retry downstream work. `RpcInterceptor` is the convenience base with `onRequest`, `onResponse`, and `onError` hooks.
+
+Requests run in list order; responses unwind in reverse. `HttpRpcRequest` contains method, URI, headers, body, and the typed `rpcRequest`; response contains statusCode, headers, body, and request. Both support `copyWith`.
+
+Interceptors see HTTP responses **before** RPC envelope parsing. A server `{error}` envelope is converted to `RpcException` after the pipeline returns, so it does not automatically enter interceptor `onError`. Inspect response status/body if implementing HTTP-level recovery. Use bounded, idempotency-aware retries.
+
+## WebSocketRpcTransport
+
+Create with asynchronous static `connect(Uri, {maxFrameBytes: 1048576, headers: const {}})`. It implements `RpcDuplexTransport` using `dart:io`; it is not the bundled browser transport.
+
+`send`, `subscribe`, `pendingCalls`, and async `close` manage multiplexed calls. Cancelling a subscription sends `cancel`. Connection errors fail pending work. No automatic reconnection/replay or options-aware per-call headers are implemented.
+
+## RpcWebSocketServerOptions
+
+| Option | Default |
+| --- | --- |
+| `path` | `/rpc/ws` |
+| `maxFrameBytes` | 1 MiB |
+| `maxActiveCallsPerConnection` | 128 |
+| `maxBufferedFramesPerCall` | 64 |
+| `maxBufferedBytesPerCall` | 1 MiB |
+| `maxBufferedFramesPerConnection` | 512 |
+| `maxBufferedBytesPerConnection` | 8 MiB |
+| `maxConnections` | 10,000 |
+| `pingInterval` | 30 seconds |
+| `authorize` | null; app callback before upgrade |
+
+`RpcWebSocketUpgradeHandler` adapts a procedure registry to HTTP upgrades. `rpcWebSocketSubprotocol`, frame classes (`Call`, `Cancel`, `Result`, `Next`, `Complete`, `Error`), and `RpcWebSocketFrameCodec` support custom adapters. See [Protocol](/dart-orpc/architecture) for exact wire examples.
+
+## Failure types and ownership
+
+`RpcException` represents known server API errors. `RpcClientException` represents encoding, connection, unexpected response, and protocol failures. Unknown server error codes are not accepted as arbitrary new enum values. `RpcClientConfigurationException` identifies missing/incompatible transport capabilities.
+
+Generated clients do not own transports. Close HTTP clients/sockets and cancel subscriptions from the app/session that created them.

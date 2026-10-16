@@ -1,0 +1,28 @@
+---
+title: dart_orpc_core
+description: Transport-neutral envelopes, errors, context, metadata, cancellation, and procedure registries.
+---
+
+Most app code imports the facade. This lower-level package supplies shared runtime contracts:
+
+| Area | Public types/helpers |
+| --- | --- |
+| JSON | `JsonObject`, `expectJsonObject`, normalization and typed-field helpers |
+| Envelopes | `RpcRequest`, `RpcSuccessResponse`, `RpcErrorBody`, `RpcErrorResponse` |
+| Errors | `RpcErrorCode`, `RpcException` |
+| Context | `RpcContext`, `RpcContextKey`, `RpcContextBindings`, bindings builder, `rpcRequestIdKey` |
+| Cancellation | `RpcCancellationSignal`, `RpcCancellationSource`, listener/registration interfaces |
+| Guards | `RpcGuard`, `RpcGuardContext`, `runRpcGuards` |
+| Procedures | `RpcUnaryProcedure`, `RpcStreamProcedure`, registered/callable interfaces and decoder/encoder/handler callbacks |
+| Registries | `RpcProcedureRegistry`, `ProcedureMetadataRegistry` |
+| Metadata | `ProcedureMetadata`, parameter/custom/security/REST metadata and kind enums |
+| Lifecycle | `RpcDisposable`, `disposeRpcProviders` |
+| Advanced output | `RpcJsonBytes` |
+
+`RpcRequest(method:, input:)` supports `.fromJson` and `.toJson`. Success is `{data: ...}`; error is `{error: {code, message}}`. This is not JSON-RPC 2.0.
+
+`RpcProcedureRegistry.dispatchUnary` invokes unary procedures; `dispatchStream` subscribes to server streams. `.dispatch` is the unary compatibility method. Duplicate methods are rejected. Procedure runtimes decode input, run guards, observe cancellation, invoke handlers, then encode outputs.
+
+Metadata records namespace/name, input/output types, unary/stream kind, REST mapping, parameters, guards, security, and custom annotation values. Use generated metadata for inspection rather than separately parsing controllers at runtime.
+
+See [Errors and Context](/dart-orpc/guides/errors-and-context), [Protocol](/dart-orpc/architecture), and [API Reference](/dart-orpc/reference) for detailed usage.

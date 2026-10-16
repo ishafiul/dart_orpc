@@ -1,0 +1,107 @@
+---
+title: Errors, Context, and Cancellation
+description: Use typed request bindings, consistent framework errors, and cooperative cancellation.
+---
+
+## RpcContext API
+
+`RpcContext` is a concrete immutable request context. Construct it with required `headers`; optional fields are `httpMethod` (default `POST`), `path` (default `/rpc`), `attributes`, `bindings`, and `cancellation`.
+
+| API | Purpose |
+| --- | --- |
+| `headers` | Immutable header map |
+| `headerValue(name)` | Case-insensitive lookup |
+| `httpMethod`, `path` | Transport request method and path |
+| `attributes` | Immutable application attributes, `Map<String, Object?>` |
+| `bindings` | Typed application state |
+| `binding(key)` | Nullable lookup |
+| `requireBinding(key)` | Required lookup; throws if missing |
+| `copyWith(...)` | Produce a context preserving fields you do not replace |
+| `cancellation` | Cooperative cancellation signal |
+
+There is no built-in `context.auth`, `context.metadata`, or request-scoped DI container.
+
+## Typed bindings
+
+Define and share one key constant; key instances identify bindings:
+
+```dart
+const tenantKey = RpcContextKey<String>('app.tenant');
+
+final app = const AppModule().buildRpcApp(
+  bindings: const RpcContextBindings.empty().withValue(tenantKey, 'demo'),
+);
+```
+
+Use `context.requireBinding(tenantKey)` in code that requires it. `RpcContextBindings.withValue` and `merge` create snapshots; `toBuilder()`, `set`, `addAll`, and `build` batch updates.
+
+Application-wide bindings hold configuration and shared state. Per-request values belong in `contextFactory`:
+
+```dart
+contextFactory: (request) => RpcContext(
+  headers: request.headers,
+  httpMethod: request.method,
+  path: request.path,
+  attributes: {'clientAddress': request.remoteAddress},
+),
+```
+
+The HTTP adapter merges app bindings with factory bindings and preserves the request cancellation signal. Built-in `rpcRequestIdKey` exposes correlation ID. `rpcHttpResponseKey` exposes optional HTTP response controls; use nullable lookup in transport-neutral controllers.
+
+## Expected errors
+
+Throw `RpcException` for expected public failures:
+
+```dart
+throw RpcException.badRequest('Title must not be empty.');
+throw RpcException.notFound('Todo not found.');
+throw RpcException.conflict('Version changed; reload and retry.');
+```
+
+Factories also include `unauthorized`, `forbidden`, `cancelled`, `resourceExhausted`, `internalError`, `requestTimeout`, `payloadTooLarge`, `unavailable`, and `deadlineExceeded`. The general constructor accepts an enum:
+
+```dart
+throw const RpcException(
+  code: RpcErrorCode.unsupportedMediaType,
+  message: 'Use application/json.',
+);
+```
+
+`statusCode` comes from the code. `toResponse()` creates the public error envelope. Neither arbitrary string codes nor `details`/custom `statusCode` constructor arguments are supported.
+
+| Wire code | HTTP status |
+| --- | --- |
+| `BAD_REQUEST` | 400 |
+| `UNAUTHORIZED` | 401 |
+| `FORBIDDEN` | 403 |
+| `NOT_FOUND` | 404 |
+| `REQUEST_TIMEOUT` | 408 |
+| `CONFLICT` | 409 |
+| `PAYLOAD_TOO_LARGE` | 413 |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 |
+| `RESOURCE_EXHAUSTED` | 429 |
+| `HEADERS_TOO_LARGE` | 431 |
+| `CANCELLED` | 499 |
+| `INTERNAL_ERROR` | 500 |
+| `UNAVAILABLE` | 503 |
+| `DEADLINE_EXCEEDED` | 504 |
+
+Client code can compare `error.code == RpcErrorCode.notFound` and inspect `error.message`. Unexpected transport/protocol failures use `RpcClientException`. Log original server exceptions through `serverOptions.onError`; keep exception text, credentials, and internals out of public errors.
+
+## Cancellation
+
+`RpcCancellationSource` owns cancellation; pass its `.signal` to work and call `.cancel()` to notify listeners. The signal provides `isCancelled`, `cancelled`, `throwIfCancelled()`, and the `onCancel` extension.
+
+```dart
+final registration = context.cancellation.onCancel(cancelDownstreamWork);
+try {
+  context.cancellation.throwIfCancelled();
+  return await runWork();
+} finally {
+  registration.dispose();
+}
+```
+
+This fragment assumes application callbacks. Cancellation is cooperative: it cannot forcibly stop an arbitrary Dart `Future`. Propagate it to database/HTTP/job APIs that support cancellation, and stop stream subscriptions during cleanup.
+
+WebSocket subscription cancellation sends a cancel frame. HTTP I/O disconnects and shutdown deadlines cancel tracked work. SSE heartbeats help detect idle disconnects. `handlerTimeout` bounds response creation, not the lifetime of an already returned stream.

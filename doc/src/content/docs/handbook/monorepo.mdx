@@ -1,0 +1,94 @@
+---
+title: 13. Do I Need a Monorepo?
+description: Choose a single application package or Dart workspace and understand code sharing, Melos, and client packaging.
+---
+
+## A monorepo is optional
+
+You can build a dart_orpc application in one Dart package. Modules are framework feature boundaries; they do not require separate pub packages. Start with the tutorial layout unless you already have multiple independently managed apps/packages.
+
+The framework repository is a monorepo because it develops many runtime/build packages together. That repository layout is not a prerequisite for using the framework.
+
+## Single-package layout
+
+```text
+todo_api/
+  pubspec.yaml
+  bin/server.dart
+  bin/client.dart
+  lib/app.dart
+  lib/todo_api.dart
+  lib/modules/todo/...
+  test/...
+```
+
+This is enough for a backend, a local smoke client, and feature modules. Run pub get, build_runner, analyze, and test in that package. It has fewer moving parts than a workspace and is usually the easiest place to learn the framework.
+
+## When does a monorepo help?
+
+Use a repository with multiple packages when you maintain a backend, native client app, and shared libraries together, or when a team needs reusable domain/DTO packages. Related changes can be reviewed in one commit, and local path/workspace dependencies let consumers rebuild against matching source.
+
+It also adds responsibility: dependency direction, tooling, generation targets, release/version policy, and platform compatibility still need to be designed. A shared repository does not automatically produce a safe public SDK.
+
+## Distinguish the boundaries
+
+| Boundary | What it controls |
+| --- | --- |
+| Framework module | Provider visibility and feature composition |
+| Dart library/import | Which symbols a source file can refer to |
+| Pub package | Dependencies, distribution, and generated build scope |
+| Git repository | Source collaboration and change history |
+| Melos script | Commands over selected workspace packages |
+
+A TodoModule can live beside other features in one package. Splitting it into its own pub package is a separate decision, not a requirement of constructor injection.
+
+## Example workspace layout
+
+```text
+workspace/
+  pubspec.yaml
+  apps/
+    api_server/
+    native_client/
+  packages/
+    domain_models/
+```
+
+A minimal root pubspec shape is:
+
+```yaml
+name: todo_workspace
+publish_to: none
+environment:
+  sdk: ^3.11.0
+workspace:
+  - apps/api_server
+  - apps/native_client
+  - packages/domain_models
+```
+
+Each member also needs its own valid pubspec, SDK constraint, dependencies, and `resolution: workspace`. Include only members that actually exist. Add dependencies to the package that imports them; the workspace root is not a substitute for declaring package dependencies.
+
+Run `dart pub get` at the root. Generation still operates on the packages whose annotated source needs outputs. Run build_runner from the relevant server/contract package or define a workspace script to coordinate it.
+
+## What should be shared?
+
+Share intentional immutable DTO/domain contracts when multiple apps need them. Avoid making a client depend on database internals simply to reuse one class. Keep server secrets, persistence implementations, and application-only services behind appropriate package boundaries.
+
+The current module generator emits server wiring and clients in the same `.orpc.dart` library. The repository demonstrates a native client depending on the example server package's generated API. That is a usable current workflow, but do not assume the generator automatically separates a client-only library or makes it browser-safe.
+
+If you require independent SDK distribution, inspect generated imports, target platforms, and dependency graph before committing to a layout. Treat contract and client publishing as an explicit application design decision.
+
+## Where Melos fits
+
+Melos helps run common commands across many packages. It is useful for maintainers with multiple generation/test targets; it is unnecessary for a single small app.
+
+For example, this framework repo defines `generate`, `analyze`, and `test` scripts, so its documented commands use `dart run melos run generate`. A new repository must define its own scripts; a command such as melos run build does not exist merely because Melos is installed.
+
+## A practical choice
+
+Start with one backend package and a local typed client entrypoint. Add a separate native client package when a second executable/product needs it. Extract shared contracts when a real reuse boundary is clear. Use a workspace/Melos when coordinating those packages becomes valuable.
+
+Regardless of layout, keep one contract source and test RPC, REST, OpenAPI, and client output together.
+
+Next: [Complete Server](/dart-orpc/handbook/complete-server).

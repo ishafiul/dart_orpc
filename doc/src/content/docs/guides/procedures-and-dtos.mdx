@@ -1,0 +1,104 @@
+---
+title: Procedures, DTOs, and Validation
+description: Define stable procedure contracts, immutable DTOs, automatic validation, and explicit HTTP field binding.
+---
+
+**Learning this for the first time?** [Learn DTO validation step by step](/dart-orpc/handbook/validation) includes explanations, file-by-file examples, and verification steps.
+
+## Procedure contract
+
+A controller namespace and method name define the public RPC name. `@RpcMethod(name: ...)` overrides the Dart method name. Treat procedure names as API identifiers: renaming them can break deployed clients.
+
+```dart
+@Controller('todo')
+final class TodoController {
+  TodoController(this.service);
+  final TodoService service;
+
+  @RpcMethod(name: 'getById', path: RestMapping.get('/todos/:id'))
+  Future<TodoResponseDto> getById(
+    RpcContext context,
+    @RpcInput() GetTodoDto input,
+  ) => service.getById(input.id);
+}
+```
+
+Use `RpcContext` plus at most one `@RpcInput()` DTO for the normal shared RPC/REST/client flow. A no-input method can receive only context. Unary methods return a value or `Future<T>`; server streams return `Stream<T>`. Prefer explicit response DTOs over untyped maps so serialization and client decoding remain predictable.
+
+## DTO requirements
+
+Plain DTOs need a compatible `fromJson(Map<String, ...>)` factory and `toJson()` method. Generated clients decode output DTOs too, so a response class needs both directions. Keep fields immutable and JSON-serializable. Use Freezed/json_serializable to reduce repetitive code.
+
+For automatic schema validation, add `@luthor`, run `luthor_generator`, and ensure generated schema functions are available. See [Create an Application](/dart-orpc/guides/create-an-app) for a full Freezed + Luthor example.
+
+```dart
+@luthor
+@freezed
+abstract class CreateTodoDto with _$CreateTodoDto {
+  const factory CreateTodoDto({@HasMin(1) required String title}) =
+      _CreateTodoDto;
+
+  factory CreateTodoDto.fromJson(Map<String, dynamic> json) =>
+      _$CreateTodoDtoFromJson(json);
+}
+```
+
+Put `part 'todo_dtos.freezed.dart';` and `part 'todo_dtos.g.dart';` in the containing library. These declarations are needed by Freezed, JSON, Luthor, and the field-reference generator as appropriate. A standalone plain DTO/controller library that receives field-reference output also needs its matching `.g.dart` part.
+
+## Validation semantics
+
+- Invalid input fails as `BAD_REQUEST` before controller execution.
+- Luthor-backed output is serialized and validated; an invalid server response is an `INTERNAL_ERROR`.
+- Stream items are encoded/validated as they are emitted.
+- Plain `fromJson` decoding checks only what that decoder checks; adding `@RpcInput` alone does not create field constraints.
+- Luthor errors are formatted into `error.message`. The framework error body has no `details` array.
+
+OpenAPI schema components come from Luthor validators. A plain DTO may serialize successfully without providing the same rich documented schema. Test schema constraints and output shape together.
+
+## REST input defaults
+
+For a REST-enabled `@RpcInput` DTO:
+
+| Field category | Source |
+| --- | --- |
+| Route placeholder, e.g. `:id` | Matching DTO field, or explicit path binding |
+| Explicit query/header binding | Named query parameter/header |
+| Remaining GET or DELETE fields | Query string |
+| Remaining POST, PUT, or PATCH fields | JSON object body |
+
+Path, query, and header bindings support scalar `String`, `int`, `double`, and `bool` fields (including nullable forms where supported). Nested objects and lists belong in JSON body fields. A GET/DELETE body binding fails generation. Unknown fields, duplicate bindings, missing path fields, and conflicting sources also fail generation.
+
+Use annotations on DTO fields or Freezed constructor parameters for defaults:
+
+```dart
+const factory UpdateTodoDto({
+  @FromPath() required int id,
+  @FromHeader('x-tenant-id') required String tenantId,
+  @FromQuery('dry-run') bool? dryRun,
+  String? title,
+}) = _UpdateTodoDto;
+```
+
+On a PATCH route, `title` comes from the body; `id`, `tenantId`, and `dryRun` come from their declared sources. For RPC, the DTO remains the input contract, with header-bound fields supplied through transport headers by generated client options. A header value is request data, not proof of tenant authorization.
+
+## Per-procedure overrides
+
+Use `RpcInputBinding<T>` when the same DTO needs a different HTTP projection:
+
+```dart
+@RpcInput(binding: RpcInputBinding<GetTodoDto>(
+  path: [RpcInputField<GetTodoDto>('id', 'todoId')],
+)) GetTodoDto input
+```
+
+Use that binding with a route containing `:todoId`. `path`, `query`, `headers`, and `body` accept lists of `RpcInputField<T>`. The first argument names the DTO field; the optional second argument names the external parameter. Body aliases are not supported. Overrides replace the affected field's DTO-level source.
+
+The generator also emits typed DTO field references into `.g.dart`; inspect those constants for the exact generated names. String field references are useful for understanding the mechanism; generated constants reduce spelling mistakes.
+
+## REST-only signatures
+
+`@PathParam`, `@QueryParam`, and `@Body` on separate controller parameters support explicit REST binding. These signatures are REST-only in the current generator; they do not produce the usual RPC-compatible typed client method. Prefer one `@RpcInput` DTO when you want every output from one contract.
+
+## Contract evolution tips
+
+Keep public DTOs separate from database rows. Use separate create/update/response types when required fields differ. Define whether nullable PATCH fields mean “leave unchanged” or “clear value”; JSON omission and explicit null are different inputs. Add compatibility tests before changing defaults, names, scalar types, response schemas, or validation constraints.

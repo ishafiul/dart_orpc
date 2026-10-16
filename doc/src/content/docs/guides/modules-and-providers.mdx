@@ -1,0 +1,120 @@
+---
+title: Modules and Dependency Injection
+description: Compose features, export dependencies, bind interfaces and factories, and dispose owned providers.
+---
+
+**Learning this for the first time?** [Learn modules and dependency injection](/dart-orpc/handbook/modules) includes explanations, file-by-file examples, and verification steps.
+
+## Module API
+
+`@Module` accepts `imports`, `controllers`, `providers`, `bindings`, `exports`, and `global` (default `false`). Modules define the graph the generator traverses; there is no runtime package-wide provider discovery.
+
+```dart
+@Module(
+  controllers: [TodoController],
+  providers: [TodoRepository, TodoService],
+  exports: [TodoService],
+)
+final class TodoModule {
+  const TodoModule();
+}
+
+@Module(imports: [TodoModule], controllers: [AnalysisController])
+final class AnalysisModule {
+  const AnalysisModule();
+}
+```
+
+`AnalysisController` can inject exported `TodoService`. `TodoRepository` remains private to its module. A module can re-export imported providers or imported modules through `exports`.
+
+## Constructor injection
+
+Declare dependencies as constructor parameters. The generator determines creation order and creates providers as singletons within one generated application container. Two application roots have separate containers and instances.
+
+```dart
+final class TodoService {
+  TodoService(this.repository);
+  final TodoRepository repository;
+}
+```
+
+No service locator or `@Injectable` annotation is required. Keep construction synchronous. When dependencies need async startup, initialize them explicitly through an application-controlled startup path before accepting traffic.
+
+## Interface bindings
+
+Use `RpcProviderBinding.useClass` to bind a constructor token to an implementation:
+
+```dart
+abstract interface class Clock {
+  DateTime now();
+}
+
+final class SystemClock implements Clock {
+  @override
+  DateTime now() => DateTime.now().toUtc();
+}
+
+@Module(bindings: [
+  RpcProviderBinding.useClass(provide: Clock, useClass: SystemClock),
+], exports: [Clock])
+final class TimeModule {
+  const TimeModule();
+}
+```
+
+Consumers inject `Clock`. Export the token other modules consume. Do not register a second independent copy of the same token in `providers`.
+
+## Factory bindings
+
+`RpcProviderBinding.useFactory(provide: Token, factory: createToken)` accepts a **top-level or static synchronous factory**. Its typed parameters participate in dependency resolution.
+
+```dart
+Clock createClock() => SystemClock();
+
+@Module(bindings: [
+  RpcProviderBinding.useFactory(provide: Clock, factory: createClock),
+], exports: [Clock])
+final class TimeModule {
+  const TimeModule();
+}
+```
+
+Use either class or factory binding for this example. Factories help construct dependencies you cannot annotate or whose constructor policy belongs to the application.
+
+## Root-scoped global modules
+
+```dart
+@Module(
+  global: true,
+  providers: [PlatformConfig],
+  exports: [PlatformConfig],
+)
+final class PlatformModule {
+  const PlatformModule();
+}
+```
+
+Import `PlatformModule` into the reachable application graph. Its explicitly exported providers become visible to all reachable modules without repeated feature imports. Private providers remain private. The same binding reached through global and explicit imports is reused.
+
+Global is a visibility rule, not a process-wide singleton. A global guard provider also does not execute automatically; attach it with `@UseGuards` or `@BearerAuth`.
+
+## Generation failures
+
+Module import cycles, required provider cycles, duplicate exporters, conflicting provider registrations, and ambiguous bindings fail generation. An isolated generated module may expose typed required dependencies that root composition must supply. Inspect the generated constructor/helper signature; do not replace typed dependencies with a public dynamic map.
+
+## Resource ownership and disposal
+
+A resource-owning provider implements `RpcDisposable`:
+
+```dart
+final class EventBus implements RpcDisposable {
+  final events = StreamController<String>.broadcast();
+
+  @override
+  Future<void> dispose() => events.close();
+}
+```
+
+Import `dart:async` for `StreamController`. Generated containers dispose their owned disposable instances during app/server close. Identity duplicates are disposed once; cleanup attempts all providers before rethrowing the first failure. Keep ownership explicit for externally supplied dependencies and avoid closing the same resource from multiple owners.
+
+Prefer explicit imports/exports for feature dependencies. Reserve globals for infrastructure used across the application. This keeps feature coupling visible as the codebase grows.

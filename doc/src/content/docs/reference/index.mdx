@@ -1,0 +1,19 @@
+---
+title: API Reference
+description: Find annotations, generated APIs, HTTP options, transport contracts, and low-level runtime extension points.
+---
+
+This reference covers the public framework surface by responsibility. Examples use `package:dart_orpc/dart_orpc.dart` unless a package-specific import is shown. Generated APIs additionally require the generated module library.
+
+| Topic | APIs |
+| --- | --- |
+| [Annotations and contracts](/dart-orpc/reference/annotations) | Module, provider bindings, controller/method metadata, input sources, guards |
+| [Application and HTTP](/dart-orpc/reference/application) | Generated helpers, server policies, docs/static/health/metrics options, lifecycle |
+| [Client and transports](/dart-orpc/reference/transports) | Transport capabilities, HTTP interceptors/options, WebSocket limits |
+| [Core package](/dart-orpc/packages/core) | Envelopes, registries, procedure types, metadata, JSON helpers |
+| [Errors and context](/dart-orpc/guides/errors-and-context) | Error enum/statuses, typed bindings, cancellation |
+| [CLI](/dart-orpc/packages/cli) | create, serve, watch, supported flags |
+| [Validation bridge](/dart-orpc/packages/luthor) | Input/output callbacks and schema-validation semantics |
+| [OpenAPI](/dart-orpc/packages/openapi) | Document/schema models and Scalar HTML helper |
+
+Source is authoritative for exact emitted names in your app, especially typed external dependencies and generated request-options classes. These docs describe the current checkout; prerelease packages can differ.

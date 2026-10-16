@@ -1,0 +1,14 @@
+---
+title: dart_orpc_websocket
+description: VM WebSocket unary and server-stream transport using dart-orpc.v1.
+---
+
+This package provides `RpcWebSocketServerOptions`, `RpcWebSocketUpgradeHandler`, `WebSocketRpcTransport`, protocol frame classes, and codec utilities.
+
+Enable it through `buildRpcApp(webSocket: const RpcWebSocketServerOptions())`. Default path is `/rpc/ws`; upgrades are opt-in and require subprotocol `dart-orpc.v1`.
+
+Create the client with `await WebSocketRpcTransport.connect(uri, headers: ...)`. Configure generated clients with `RpcClientTransports.duplex(socket)` or `.split(unary: http, streaming: socket)`.
+
+Supported calls are unary and server streams. Cancellation, ping/pong, bounded output, and graceful close are implemented. Browser transport, client streaming, bidirectional RPC streams, reconnection, and replay are not implemented.
+
+See [WebSocket Guide](/dart-orpc/guides/websocket-streaming), [Protocol](/dart-orpc/architecture), and [Transport Reference](/dart-orpc/reference/transports) for complete setup/defaults.

@@ -1,0 +1,119 @@
+---
+title: 1. Create and Configure a Server
+description: Create the server executable, choose host and port, understand every generated app option, and manage shutdown.
+---
+
+## What is the server?
+
+The server is the running Dart process that accepts network requests. AppModule declares what features exist; generated buildRpcApp connects their providers, controllers, validation, routes, metadata, and docs to an HTTP application. Calling listen opens the network socket.
+
+Complete [Create an Application](/dart-orpc/guides/create-an-app) first. Its `lib/todo_api.dart` exports `app.orpc.dart`. That generated import supplies buildRpcApp and createClient; importing only the handwritten AppModule class is not enough.
+
+## Create the executable
+
+Replace `bin/server.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import 'package:todo_api/todo_api.dart';
+
+Future<void> main() async {
+  final app = const AppModule().buildRpcApp();
+  final server = await app.listen(3000, hostname: '127.0.0.1');
+  print('Server: http://127.0.0.1:${server.port}');
+  print('Docs: http://127.0.0.1:${server.port}/docs');
+}
+```
+
+From the app directory:
+
+```sh
+dart run build_runner build --delete-conflicting-outputs
+dart analyze
+dart run bin/server.dart
+```
+
+Generation writes the wiring, analysis verifies types/imports, and the last command starts the process. `dart_orpc serve` runs the app once; `dart_orpc watch` coordinates regeneration and process restart for development.
+
+## Hostname, port, and reachability
+
+The listen signature is `listen(int port, {String hostname = '0.0.0.0', bool shared = false})`.
+
+- `hostname: '127.0.0.1'` binds locally, useful for learning and tests.
+- `hostname: '0.0.0.0'` accepts IPv4 connections on available interfaces, often needed inside containers.
+- A fixed port such as 3000 fails to bind if another process already uses it.
+- Port 0 asks the OS for a free port; read server.port for integration tests.
+- `shared` is an advanced socket-sharing option; leave false for ordinary single-server apps.
+
+The address you bind is not always the address clients use. A phone's 127.0.0.1 points to the phone, so a native client on another machine needs your server's reachable hostname/address.
+
+## Every generated buildRpcApp option
+
+Configure these before calling listen. Start with the few you need, then add policies you can explain and test.
+
+| Option | Default | When/why to set it |
+| --- | --- | --- |
+| `openApi` | Generated title, version 1.0.0 | API title, description, version, server URLs |
+| `docs` | `/docs`, `/openapi.json` | Docs paths, title/HTML, docs Basic Auth |
+| `webSocket` | Disabled | Enable unary/server-stream RPC upgrades |
+| `middleware` | Empty | Common HTTP logging, headers, request/response policies |
+| `bindings` | Empty | Supply typed app configuration/state to context |
+| `contextFactory` | Default context | Add trusted per-request attributes/bindings |
+| `serverOptions` | Optional policies disabled | CORS, rate limits, deadlines, IDs, compression, observers |
+| `health` | Disabled | Health/liveness/readiness probes |
+| `metrics` | Disabled | JSON process/request metrics |
+| `staticAssets` | Disabled | Serve a filesystem directory |
+| `maxConcurrentRequests` | Unlimited | Bound active HTTP work; excess receives 503 |
+| `requestBodyIdleTimeout` | Disabled | Limit gaps between body chunks |
+| `sseHeartbeatInterval` | 15 seconds | SSE heartbeat/disconnect detection |
+| `sseFlushEachChunk` | true | Flush SSE items immediately |
+| `encodeJsonToBytes` | false | Emit successful JSON as UTF-8 bytes when middleware supports it |
+
+The low-level HTTP body limit defaults to 1 MiB. The generated helper currently does not expose maxRequestBodyBytes. See the HTTP reference if you need custom low-level adapter composition.
+
+## Every RpcHttpServerOptions option
+
+| Option | Default | Purpose |
+| --- | --- | --- |
+| `cors` | null | Browser policy across adapter responses |
+| `rateLimit` | null | Bound request counts by identity/window |
+| `bodyTimeout` | null | Deadline for total body reading |
+| `handlerTimeout` | null | Deadline for response construction |
+| `maxHeaderBytes` | null | Bound total application header bytes |
+| `compress` | false | Negotiated gzip output |
+| `requestIdFactory` | null | Supply correlation IDs |
+| `trustRequestId` | false | Accept bounded safe incoming IDs |
+| `onError` | null | Observe original exception/stack |
+| `onComplete` | null | Observe full completion/abort, including streams |
+
+A practical replacement for the minimal app construction:
+
+```dart
+final app = const AppModule().buildRpcApp(
+  openApi: const OpenApiDocumentOptions(title: 'Todo API'),
+  health: const RpcHttpHealthOptions(),
+  maxConcurrentRequests: 128,
+  serverOptions: const RpcHttpServerOptions(
+    bodyTimeout: Duration(seconds: 15),
+    handlerTimeout: Duration(seconds: 10),
+  ),
+);
+```
+
+These numbers are examples. Handler timeout bounds response creation, including context, guards, and middleware; it does not limit an already returned stream's total lifetime. Cancellation remains cooperative, so downstream work must observe it to stop promptly.
+
+## Check a request
+
+```sh
+curl http://127.0.0.1:3000/rpc \
+  -H 'content-type: application/json' \
+  -d '{"method":"todo.create","input":{"title":"First todo"}}'
+```
+
+RPC success wraps the result in data. The equivalent REST POST /todos returns its DTO directly with its declared REST status. `/docs` shows Scalar and `/openapi.json` returns the generated document.
+
+## Shutdown is part of bootstrap
+
+Call `await server.close(gracePeriod: Duration(seconds: 30))` to stop admission, drain work, cancel at the deadline, and dispose owned providers. app.close also works before listening. A closed app is not restarted by calling listen again; create a new app instance.
+
+The [complete server](/dart-orpc/handbook/complete-server) wires OS signals and all handbook policies together. Next: [Controllers](/dart-orpc/handbook/controllers).

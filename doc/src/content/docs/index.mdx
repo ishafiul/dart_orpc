@@ -1,0 +1,51 @@
+---
+title: dart_orpc
+description: An opinionated, contract-first backend framework for Dart. Learn the architecture, APIs, and application workflow.
+template: splash
+head:
+  - tag: title
+    content: dart_orpc - Opinionated Contract-First Backend Framework for Dart
+  - tag: meta
+    attrs:
+      name: description
+      content: dart_orpc is an opinionated, contract-first backend framework for Dart with generated RPC, REST/SSE, OpenAPI 3.0.3, and typed clients.
+hero:
+  title: dart_orpc
+  tagline: An opinionated, contract-first backend framework for Dart. Build structured backends with modules, controllers, services, validated DTOs, generated RPC and REST/SSE, OpenAPI, and typed Dart clients.
+  actions:
+    - text: Start in 5 minutes
+      link: /dart-orpc/quick-start
+      icon: right-arrow
+    - text: Install packages
+      link: /dart-orpc/installation
+      icon: open-book
+      variant: secondary
+    - text: pub.dev
+      link: https://pub.dev/packages/dart_orpc
+      icon: external
+      variant: minimal
+---
+
+import { DartOrpcLandingSections } from "../../components/DartOrpcLandingSections";
+
+## Install
+
+```bash
+dart pub add dart_orpc
+```
+
+Add generation tools for application contracts:
+
+```sh
+dart pub add --dev build_runner dart_orpc_generator
+```
+
+## Build your application step by step
+
+New to the framework? Read the [Build an App handbook](/dart-orpc/handbook). Its ordered chapters explain server setup, every major configuration option, controllers, providers, module imports/exports, global modules, data validation, environment, middleware, guards, rate limits, CORS, OpenAPI, typed clients, and monorepo choices. The final chapter combines them into one server.
+
+## Learn the framework
+
+Start with [philosophy and core concepts](/dart-orpc/core-concepts), follow the [working quick start](/dart-orpc/quick-start), then [build a feature-based app](/dart-orpc/guides/create-an-app). Keep the [API reference](/dart-orpc/reference) and [good practices](/dart-orpc/guides/practices-and-tips) nearby as your app grows.
+
+<DartOrpcLandingSections />

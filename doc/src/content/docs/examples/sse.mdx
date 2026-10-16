@@ -1,0 +1,32 @@
+---
+title: SSE Example
+description: Consume finite snapshots and live typed todo events with correct terminal handling.
+---
+
+Run and authenticate against the [Todo Application](/dart-orpc/examples/todo-app). Its controller exposes a finite snapshot and a live stream:
+
+```dart
+@RpcMethod(name: 'watchLive', path: RestMapping.sse('/todos/live-events'))
+Stream<TodoChangeResponseDto> watchLive(RpcContext _) {
+  return todoService.watchChanges();
+}
+```
+
+The service emits typed `created`, `updated`, and `deleted` events after successful mutations. Output DTO includes `type` and `todo`. Controller contains no duplicate event serialization protocol.
+
+## Subscribe
+
+```sh
+curl -N http://127.0.0.1:3000/todos/live-events \
+  -H "authorization: Bearer $TOKEN"
+```
+
+In another terminal, create or update a todo using the same authenticated app. The stream receives data such as:
+
+```text
+data: {"type":"created","todo":{"id":1,"title":"Read docs","completed":false,"createdAt":"2026-10-16T12:00:00.000Z"}}
+```
+
+The exact todo fields come from its current response DTO. `/todos/events` emits a finite snapshot followed by `dart-orpc-complete`. Late stream failures use `dart-orpc-error`. See [REST and SSE](/dart-orpc/guides/rest-and-sse) for browser handling and authentication constraints.
+
+Live events are not a durable queue. Reconnect/replay is not implemented; app code must define recovery and snapshot reconciliation when needed.

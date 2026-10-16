@@ -1,0 +1,69 @@
+---
+title: Philosophy and Core Concepts
+description: The opinions behind dart_orpc and how contracts connect every part of your backend.
+---
+
+**Learning this for the first time?** [Follow the application-building handbook](/dart-orpc/handbook/) includes explanations, file-by-file examples, and verification steps.
+
+**dart_orpc is an opinionated, contract-first backend framework for Dart.** It gives applications a consistent structure: modules compose features, controllers declare procedures, DTOs describe boundaries, services own business rules, and generated code connects them.
+
+## What contract-first means
+
+The contract is the combination of your controller annotations, input/output DTOs, validation schemas, and module graph. It lives in Dart source. Define that contract before deciding how consumers will call it.
+
+```text
+Modules + controllers + DTO schemas
+                 |
+          generated metadata
+          /      |       \
+      RPC     REST/SSE   OpenAPI
+                 |
+          typed Dart client
+```
+
+RPC is the canonical procedure model. Optional REST routes and OpenAPI are derived from the same model. A transport changes how a call arrives, not which business rule runs. Changing a DTO or procedure requires regenerating the affected application and distributing the corresponding client contract.
+
+## The framework's opinions
+
+| Opinion | What you do | Why it helps |
+| --- | --- | --- |
+| One contract | Annotate controllers and define DTOs once | Routing, validation, documentation, and clients stay aligned |
+| Generate at build time | Run `build_runner` after contract changes | Wiring is inspectable; no runtime mirrors or controller scanning |
+| Organize by feature | Put each feature's module, controller, service, and DTOs together | Dependencies and ownership stay visible |
+| Keep controllers thin | Accept validated data, call services, return DTOs | Business rules remain testable outside HTTP |
+| Constructor injection | Declare dependencies in constructors and module metadata | The generator can check the dependency graph |
+| Validate the boundary | Use Luthor-backed DTOs for external data | Types alone cannot validate incoming JSON |
+| Keep transports outside domain logic | Use `RpcContext` only when execution needs request state | Services can serve RPC, REST, tests, and jobs |
+| Centralize failures | Throw `RpcException` for expected API errors | HTTP, RPC, and streams share error codes |
+
+These opinions provide application structure. Database, ORM, identity provider, logging backend, deployment platform, and business model remain application choices. There is no required `@Injectable` annotation: register providers in `@Module`.
+
+## Vocabulary
+
+- **Module:** declares imports, controllers, providers, bindings, and public exports.
+- **Controller:** a namespace of externally callable procedures.
+- **Procedure:** an annotated method with typed input and output; unary or server-streaming.
+- **DTO:** a serializable input, output, or event contract.
+- **Service:** application behavior independent of routing.
+- **Provider:** a dependency constructed once within a generated application container.
+- **Registry:** generated runtime dispatch and metadata structures.
+- **Transport:** a capability that sends unary calls or subscribes to streams.
+
+## Supported transport views
+
+| View | Endpoint | Payload | Supported calls |
+| --- | --- | --- | --- |
+| HTTP RPC | `POST /rpc` | `{method, input}` → `{data}` | Unary |
+| REST | Explicit `RestMapping` path | Path/query/header/body → plain JSON result | Unary |
+| WebSocket | Opt-in `/rpc/ws`, subprotocol `dart-orpc.v1` | JSON text frames with call IDs | Unary and server streams |
+| SSE | Explicit `RestMapping.sse` GET path | `text/event-stream` | Server streams |
+
+The HTTP envelope is framework-specific, **not JSON-RPC 2.0**. Client streaming, bidirectional application streams, automatic reconnect/replay, browser WebSocket transport, and non-Dart SDK generation are not implemented. A bidirectional WebSocket connection does not imply bidirectional RPC streaming.
+
+## Request state is explicit
+
+`RpcContext` supplies headers, HTTP method/path, attributes, typed bindings, and cooperative cancellation. It does not provide a built-in `auth` or `metadata` property. Applications supply identity and configuration through typed bindings or their own services. Use `headerValue('authorization')` for case-insensitive lookup.
+
+## Where to go next
+
+Follow [Quick Start](/dart-orpc/quick-start), build a complete feature in [Create an Application](/dart-orpc/guides/create-an-app), then read [Practices and Tips](/dart-orpc/guides/practices-and-tips). The [API Reference](/dart-orpc/reference) groups public APIs by responsibility.

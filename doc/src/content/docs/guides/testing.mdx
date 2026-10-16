@@ -1,0 +1,62 @@
+---
+title: Testing Your Application
+description: Test services, generated dispatch, HTTP views, OpenAPI, and typed clients together.
+---
+
+## Test each boundary
+
+Use service tests for business rules, generator tests for contract extraction, and integration tests for transport behavior. A successful REST response alone does not prove RPC, client decoding, or docs match.
+
+## Service tests
+
+Instantiate services with fake repositories/typed dependencies. Check domain behavior without opening an HTTP port. Keep input validation tests separate from database/business-rule tests so failures identify the right boundary.
+
+## Direct generated RPC dispatch
+
+After generating and importing `app.orpc.dart`, invoke a procedure without HTTP:
+
+```dart
+final registry = const AppModule().procedureRegistry();
+final result = await registry.dispatchUnary(
+  RpcContext(headers: const {}),
+  const RpcRequest(method: 'todo.getById', input: {'id': 1}),
+);
+```
+
+Use seeded dependencies or create the item first. Protected procedures need the same trusted context/guard dependencies as production. Direct dispatch tests validation, guards, handler behavior, and encoding but does not test HTTP policy or framing. Registry helpers may construct owned resources; prefer an app/container with explicit cleanup for integration fixtures.
+
+## HTTP integration tests
+
+Start a fresh generated app on port `0` to let the OS choose a free port. Use `server.port` for requests and always await `server.close()` in teardown.
+
+For a feature, verify:
+
+1. Valid `POST /rpc` request and `{data}` response.
+2. Equivalent generated REST request and plain result.
+3. Invalid body, malformed scalar binding, and missing required values.
+4. Authentication/authorization failures on each enabled transport.
+5. Expected error code and HTTP status.
+6. Response DTO decoding through the generated client.
+7. Documented REST path, schema, response status, and security requirements.
+
+## OpenAPI and client contracts
+
+Generate `AppModule().openApiDocument()` and compare a deterministic JSON snapshot or assert important paths/components. Avoid snapshots containing unrelated runtime state. Compile and run consumer examples when DTOs/client signatures change.
+
+## Streams and shutdown
+
+Check first event, multiple events, normal completion, producer failure, client cancellation, disconnect, slow-consumer limits, and resource disposal. SSE terminal events occur inside the stream after headers; assert their names/payloads. Ensure streams and socket subscriptions do not survive test teardown.
+
+## Repository checks
+
+From this workspace root:
+
+```sh
+dart run melos run generate
+dart run melos run analyze
+dart run melos run test
+dart run melos run test:generator:coverage
+dart run melos run test:runtime:coverage
+```
+
+These are repository scripts, not commands every consumer app inherits. A standalone app normally uses `dart analyze` and `dart test` after generation.

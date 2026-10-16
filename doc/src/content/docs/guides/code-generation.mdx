@@ -1,0 +1,70 @@
+---
+title: Code Generation
+description: Understand generated files, correct builder names, module helpers, and regeneration workflows.
+---
+
+## Default setup
+
+Add `dart_orpc_generator` and `build_runner` as development dependencies. Builders auto-apply; a custom `build.yaml` is unnecessary for the normal app layout.
+
+```sh
+dart run build_runner build --delete-conflicting-outputs
+```
+
+Run after changing modules, provider constructors, controller annotations, DTOs, field sources, guards, or metadata annotations. Do not edit generated output by hand.
+
+## Generated files
+
+| File | Purpose | How to use it |
+| --- | --- | --- |
+| `*.orpc.dart` | Standalone generated module library: container, registries, metadata, OpenAPI helpers, typed clients | Import/export this library |
+| `*.g.dart` | Combined part output including DTO field references and serialization/schema output where configured | Matching `part` in source |
+| `*.freezed.dart` | Freezed data class implementation | Matching `part` in DTO library |
+
+The generator does not emit separate `*.client.g.dart` or `*.module.g.dart` files in this implementation. A missing generated extension often means you imported `app.dart` instead of `app.orpc.dart`.
+
+## Generated module helpers
+
+For an `AppModule`, import `app.orpc.dart` and call:
+
+- `buildRpcApp(...)`: construct the application using one owned container.
+- `createClient(transports: ...)`: construct the generated `AppClient`.
+- `procedureRegistry()`: RPC registry for direct dispatch/testing.
+- `restRouteRegistry()`: generated REST routes.
+- `procedureMetadata()`: inspect contract metadata.
+- `openApiSchemaRegistry()`: schema components.
+- `openApiDocument(options: ...)`: generate a document without listening.
+
+Generated top-level functions/container APIs are also inspectable in the output. Some isolated module helpers require typed external dependencies. Use the actual emitted signature rather than assuming a dynamic override mechanism.
+
+## Optional builder filtering
+
+Actual builder keys are `dart_orpc_generator:dart_orpc` and `dart_orpc_generator:dart_orpc_module`. The first contributes combined part output; the second writes `.orpc.dart`. Restrict generation only when you understand which DTO libraries and modules need output. Do not use the nonexistent `module_builder` key.
+
+## Watch and restart
+
+```sh
+dart run dart_orpc_cli:dart_orpc watch --project .
+```
+
+CLI watch coordinates generation and server restart. If you use standalone `build_runner watch`, manage server restart separately. Avoid two watchers mutating the same outputs.
+
+## Workspace commands
+
+This repository defines:
+
+```sh
+dart run melos run generate
+dart run melos run analyze
+dart run melos run test
+```
+
+A separate app can run build_runner directly. Melos scripts are project-defined; do not assume `melos run build` exists.
+
+## Client distribution
+
+The current module generator emits server helpers and clients together in the module library. Sharing that generated library with a native Dart consumer is the simplest current path, as demonstrated by `apps/client_app`. Do not assume a standalone client-only output or browser-safe library splitting is generated automatically. Design package boundaries explicitly, and test the actual consumer target.
+
+## Generated diagnostics are design feedback
+
+Duplicate RPC names, duplicate REST route shapes, module/provider cycles, unresolved dependencies, invalid exports, conflicting field sources, and unsupported stream mappings should fail at build time. Fix the source graph or contract, then regenerate. Removing the generated error without changing its cause only hides a problem until the next build.

@@ -1,0 +1,75 @@
+---
+title: Todo Application Walkthrough
+description: Run the repository acceptance app and understand its actual feature boundaries and routes.
+---
+
+For a small complete app you can build file by file, follow [Create an Application](/dart-orpc/guides/create-an-app). This page explains the larger repository acceptance app.
+
+## Feature responsibilities
+
+| Source area | Responsibility |
+| --- | --- |
+| `lib/app.dart` | Compose AuthModule, TodoModule, TodoAnalysisModule |
+| `lib/modules/todo/todo_dtos.dart` | Validated create/get/update/response/event DTOs |
+| `todo_controller.dart` | Declare RPC/REST/SSE contracts and guard metadata |
+| `todo_service.dart` | CRUD behavior and live change publication |
+| `todo_module.dart` | Register service/database/guards and export TodoService |
+| `lib/modules/todo_analysis` | Consume exported TodoService across a module boundary |
+| `lib/modules/auth` | Application-owned signup/login and JWT issuance |
+| `bin/server.dart` | Configure docs, middleware, static assets, probes, metrics, WebSocket, bindings |
+
+Source: [basic_app](https://github.com/ishafiul/dart_orpc/tree/main/apps/basic_app). Docs describe the checked-out behavior; main branch may evolve.
+
+## Run it
+
+From the repository root:
+
+```sh
+dart pub get
+dart run melos run generate
+dart run melos run serve:basic-app
+```
+
+For automatic regeneration/restart, use `dart run melos run dev:basic-app`. Configure `PORT`, `JWT_SECRET`, `JWT_ISSUER`, and `JWT_EXPIRES_IN_SECONDS` for your environment. The current example has development fallbacks; supply a real secret before deploying it. Docs Basic Auth wiring is currently commented out in the example server; setting docs credentials alone does not enable it.
+
+## Authenticate first
+
+```sh
+curl http://127.0.0.1:3000/auth/signup \
+  -H 'content-type: application/json' \
+  -d '{"name":"Demo User","email":"demo@example.com","password":"demoPass123"}'
+```
+
+The response includes `accessToken`. Use its value as `TOKEN` in subsequent commands. Login is `POST /auth/login` with email/password. Account/token storage and validation are application behavior, not built-in framework account management.
+
+## Contract map
+
+| RPC method | HTTP view | Behavior |
+| --- | --- | --- |
+| `todo.list` | GET `/todos` | List response DTO |
+| `todo.getById` | GET `/todos/:id` | One todo |
+| `todo.create` | POST `/todos` | Create from validated title |
+| `todo.update` | PATCH `/todos/:id` | Change title/completed |
+| `todo.delete` | DELETE `/todos/:id` | Delete result DTO |
+| `todo.watch` | GET `/todos/events` (SSE) | Finite snapshot stream |
+| `todo.watchLive` | GET `/todos/live-events` (SSE) | Live typed changes |
+
+Streaming RPC methods require WebSocket; their SSE views use HTTP. Todo controller has bearer and guard declarations. Supply authenticated credentials to protected routes.
+
+```sh
+curl http://127.0.0.1:3000/todos \
+  -H "authorization: Bearer $TOKEN" \
+  -H 'content-type: application/json' -d '{"title":"Read framework docs"}'
+curl http://127.0.0.1:3000/rpc \
+  -H "authorization: Bearer $TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"method":"todo.getById","input":{"id":1}}'
+```
+
+Use the actual created ID rather than assuming a fresh database. Inspect `/docs` for mapped routes and schema details.
+
+## What to learn from it
+
+Follow one mutation from DTO validation through controller → service → database → event publication. Then inspect `app.orpc.dart`: the same generated contract drives RPC, REST, OpenAPI, and clients. Add tests for cross-transport consistency before modifying it.
+
+The example permission guard currently skips permission evaluation when its permission attribute is absent; treat that as example behavior to review, not a production authorization policy. Real permission checks should fail closed when required trusted identity/permissions are missing.

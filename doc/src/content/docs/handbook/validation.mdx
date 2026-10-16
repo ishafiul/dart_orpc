@@ -1,0 +1,128 @@
+---
+title: 5. DTOs and Data Validation
+description: Create immutable contracts, understand schema generation, and check invalid RPC/REST input before business logic.
+---
+
+## Why validation matters
+
+Dart types help compiled callers, but a network client can send malformed JSON, a wrong scalar type, missing required fields, or an empty title. A DTO describes the public shape; a schema checks values before your service uses them.
+
+A persistence model may include internal flags or secrets consumers should never see. Define input/output DTOs intentionally rather than exposing every database field.
+
+## Know the tools
+
+| Tool | Responsibility |
+| --- | --- |
+| Freezed / @freezed | Immutable implementations and value/copy behavior |
+| json_serializable | JSON encode/decode support |
+| Luthor / @luthor | Runtime schema validation and validator metadata |
+| dart_orpc_generator | Connect schemas/serializers to procedures, clients, routes, metadata |
+| build_runner | Execute the generators together |
+
+A plain DTO with fromJson/toJson can work, but casts alone do not add length/email constraints. RpcInput marks the boundary; the generated Luthor schema supplies the constraints.
+
+## Install the tools
+
+```sh
+dart pub add dart_orpc freezed_annotation json_annotation
+dart pub add --dev build_runner dart_orpc_generator freezed json_serializable luthor_generator
+```
+
+The facade re-exports Luthor annotations. Keep runtime/generator versions compatible with your selected release.
+
+## Add a constraint to the tutorial
+
+In `lib/modules/todo/todo_dtos.dart`, keep imports and part declarations:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'todo_dtos.freezed.dart';
+part 'todo_dtos.g.dart';
+```
+
+Replace CreateTodoDto with:
+
+```dart
+@luthor
+@freezed
+abstract class CreateTodoDto with _$CreateTodoDto {
+  const factory CreateTodoDto({
+    @HasMin(1) @HasMax(100) required String title,
+  }) = _CreateTodoDto;
+
+  factory CreateTodoDto.fromJson(Map<String, dynamic> json) =>
+      _$CreateTodoDtoFromJson(json);
+}
+```
+
+For this string, HasMin/HasMax bound length. required String expresses presence/type; it does not imply a non-empty string. Whitespace-only input can still have length: define and test normalization/business policy instead of assuming automatic trimming.
+
+The dynamic in generated JSON signatures is a serialization-boundary convention. Keep DTO fields, services, and procedure APIs explicitly typed.
+
+## Connect validation to the public boundary
+
+The tutorial controller already uses:
+
+```dart
+@RpcMethod(name: 'create', path: RestMapping.post('/todos', statusCode: 201))
+Future<TodoResponseDto> create(
+  RpcContext _,
+  @RpcInput() CreateTodoDto input,
+) => service.create(input.title);
+```
+
+Generate/restart. The framework validates/decode input before invoking the controller. There is no need to call a validator manually in every route or create separate validators for RPC and REST.
+
+## Check valid and invalid requests
+
+```sh
+curl -i http://127.0.0.1:3000/todos \
+  -H 'content-type: application/json' -d '{"title":"Read handbook"}'
+```
+
+Expect 201 and the response DTO directly. Then send an empty title:
+
+```sh
+curl -i http://127.0.0.1:3000/todos \
+  -H 'content-type: application/json' -d '{"title":""}'
+```
+
+Expect 400 BAD_REQUEST. Equivalent invalid RPC:
+
+```sh
+curl -i http://127.0.0.1:3000/rpc \
+  -H 'content-type: application/json' \
+  -d '{"method":"todo.create","input":{"title":""}}'
+```
+
+It should produce the same error code because both projections use the same DTO/schema. After installing guards, supply valid credentials for validation-focused tests. The public error contains code and message; there is no built-in details array. Treat validator sentences as human-readable messages, not a stable machine protocol.
+
+Also test missing title, a number instead of a string, and more than 100 characters. A generated client passing types correctly does not replace these network-boundary tests.
+
+## Where URL values come from
+
+GetTodoDto declares:
+
+```dart
+const factory GetTodoDto({@FromPath() required int id}) = _GetTodoDto;
+```
+
+REST GET /todos/1 binds and converts the URL value into the scalar needed for the DTO. GET /todos/abc cannot produce an integer and returns BAD_REQUEST. RPC sends typed JSON `{"id":1}` in input; callers do not embed the REST URL into RPC.
+
+GET/DELETE remaining fields default to query parameters. POST/PUT/PATCH remaining fields default to body. FromQuery/FromHeader and RpcInputBinding supply explicit overrides. Path/query/header fields support the framework's scalar types; nested objects/lists belong in JSON body contracts.
+
+## Output validation and schema docs
+
+Luthor-backed output is serialized and checked too. Invalid server output is INTERNAL_ERROR because the server broke its contract; it is not a bad client request. Stream items are validated as emitted.
+
+Generated clients decode response DTOs using fromJson. Keep JSON names, nullability, schema, and client models aligned. OpenAPI derives rich components from validators, so constraints can be inspected alongside runtime tests.
+
+## Schema rules versus business rules
+
+Field shape, length, and email format are boundary checks. Whether an email already exists, a todo belongs to a user, or an order can be cancelled requires application behavior/data access in services or guards.
+
+Use separate create/update/response DTOs when required fields differ. For PATCH, define whether omitted and explicit null fields mean different things; a nullable Dart field alone does not express that policy. Test compatibility before renaming fields or tightening constraints used by deployed clients.
+
+Next: [Environment](/dart-orpc/handbook/environment).

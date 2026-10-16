@@ -1,0 +1,18 @@
+---
+title: dart_orpc Facade
+description: The main runtime entrypoint for opinionated contract-first Dart backends.
+---
+
+`dart_orpc` is the consumer-facing runtime facade for the framework:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+```
+
+It exports `dart_orpc_annotations`, `dart_orpc_core`, `dart_orpc_client`, `dart_orpc_http`, `dart_orpc_websocket`, `dart_orpc_openapi`, and `dart_orpc_luthor`. Generation and CLI remain separate development dependencies.
+
+`buildRpcApp` and `createClient` are generated module extension methods, not globals supplied by this import. Also import the generated `.orpc.dart` module library or your app barrel exporting it.
+
+The framework uses modules/controllers/services/DTOs, compile-time wiring, and a shared contract for RPC, REST/SSE, documentation, and clients. Read [Philosophy](/dart-orpc/core-concepts), [Quick Start](/dart-orpc/quick-start), and [API Reference](/dart-orpc/reference).
+
+Server APIs and bundled WebSocket transport use `dart:io`. This facade is not a blanket guarantee of browser compatibility.

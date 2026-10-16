@@ -1,0 +1,40 @@
+---
+title: Troubleshooting
+description: Diagnose generated imports, protocol mismatches, DI errors, authentication, streams, and stale docs.
+---
+
+| Symptom | Check and fix |
+| --- | --- |
+| `buildRpcApp` or `createClient` is undefined | Generate and import `app.orpc.dart`, or an app barrel exporting it |
+| Missing `.g.dart` / `.freezed.dart` | Install relevant builders, verify matching `part` names, run build_runner |
+| Nonexistent builder `module_builder` | Use default auto-apply or actual `dart_orpc` / `dart_orpc_module` builder keys |
+| RPC input is missing | Send `{method, input}`, not JSON-RPC `params` |
+| Client cannot parse success | RPC response is `{data: ...}`; REST is plain output |
+| Constructor dependency fails generation | Register provider/binding and import/export its token; inspect cycles and conflicts |
+| Provider isn't shared | Build one app/container; separate roots/isolates have separate singleton instances |
+| REST route fails to generate | Match all `:parameters` to scalar DTO fields; check binding sources and HTTP verb rules |
+| Procedure missing from generated client | Separate `@PathParam`/`@QueryParam`/`@Body` signatures are REST-only; use one `@RpcInput` DTO |
+| Bearer annotation fails generation | Also declare its guard in `@UseGuards` and make provider resolvable |
+| Guard allows too much | Metadata alone does not enforce permissions; verify trusted identity and fail-closed policy |
+| WebSocket upgrade fails | Enable `webSocket`, use `/rpc/ws`, negotiate `dart-orpc.v1`, inspect connection authorization |
+| Stream method throws configuration error | Configure `RpcClientTransports.streaming`, `split`, or `duplex` |
+| Per-call options fail over WebSocket | Bundled transport lacks options capability; authenticate at connection time |
+| EventSource repeatedly reconnects | Close it on `dart-orpc-complete` or `dart-orpc-error`; replay is not provided |
+| Browser CORS failure only on errors | Configure `serverOptions.cors` to cover adapter errors |
+| Credentialed CORS rejected | Configure exact allowed origins and required custom headers |
+| OpenAPI says 3.0.3 | Correct for current implementation; do not assume 3.1 |
+| RPC-only method absent from OpenAPI paths | Current document paths describe explicit REST/SSE projections |
+| Stale docs or client | Regenerate and restart app; OpenAPI handler uses startup snapshot |
+| Slow requests keep running after timeout | Cancellation is cooperative; connect downstream cancellation/limits |
+| Lost events with multiple workers | In-memory event buses are worker-local; use shared event infrastructure |
+
+## Diagnose in order
+
+1. Confirm package/runtime/generator versions and SDK constraints.
+2. Read source annotations and DTOs for the intended contract.
+3. Run generation and resolve its first diagnostic.
+4. Inspect `.orpc.dart` for emitted helpers, bindings, and client signatures.
+5. Compare direct dispatch, HTTP request/response, and OpenAPI output.
+6. Reproduce with one small feature and capture redacted request ID/error logs.
+
+Do not edit generated files or add duplicate route/schema definitions to hide drift. Report a minimal reproduction when the generated outputs disagree.

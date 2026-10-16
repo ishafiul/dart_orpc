@@ -1,0 +1,150 @@
+---
+title: 8. Create and Register Guards
+description: Implement a working token guard, register its provider, apply controller/method policy, and verify denials.
+---
+
+## What is a guard?
+
+A guard decides whether a resolved procedure invocation may continue. It receives RpcGuardContext with rpcContext, procedure metadata, and decoded input. It can verify credentials, permissions, tenant membership, or resource ownership.
+
+Implement RpcGuard.canActivate. Return normally to allow execution; throw RpcException.unauthorized or forbidden to deny it. Return void for synchronous checks or `Future<void>` for asynchronous work. It is not a boolean API.
+
+## Build an actual shared-token guard
+
+Use AppConfig and API_TOKEN from [Environment](/dart-orpc/handbook/environment). This is a shared-token policy for internal callers, not individual-user login/JWT issuance. A real identity system can sit behind the same guard interface.
+
+Create `lib/guards/api_token_guard.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import '../config/app_config.dart';
+
+final class ApiTokenGuard implements RpcGuard {
+  @override
+  void canActivate(RpcGuardContext context) {
+    final config = context.rpcContext.requireBinding(appConfigKey);
+    final authorization = context.rpcContext.headerValue('authorization');
+    if (authorization == null) {
+      throw RpcException.unauthorized('Bearer token is required.');
+    }
+    final parts = authorization.trim().split(RegExp(r'\s+'));
+    if (parts.length != 2 || parts.first.toLowerCase() != 'bearer') {
+      throw RpcException.unauthorized('Use the Bearer authorization scheme.');
+    }
+    if (parts[1] != config.apiToken) {
+      throw RpcException.unauthorized('Bearer token is invalid.');
+    }
+  }
+}
+```
+
+Header lookup is case-insensitive. Missing, malformed, and incorrect credentials fail closed. Startup must supply the config binding. Do not log tokens or reveal the configured secret in errors.
+
+For JWT or other public credentials, implement actual signature/claim/expiry/issuer/audience policy required by your identity provider. Header presence alone is not authentication.
+
+## Apply policy to the controller
+
+Replace `lib/modules/todo/todo_controller.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import '../../guards/api_token_guard.dart';
+import 'todo_dtos.dart';
+import 'todo_service.dart';
+
+@BearerAuth(guard: ApiTokenGuard)
+@UseGuards([ApiTokenGuard])
+@Controller('todo')
+final class TodoController {
+  TodoController(this.service);
+  final TodoService service;
+
+  @RpcMethod(
+    name: 'create',
+    path: RestMapping.post('/todos', statusCode: 201),
+    description: 'Create a todo with a valid bearer token.',
+    tags: ['todo'],
+  )
+  Future<TodoResponseDto> create(
+    RpcContext _,
+    @RpcInput() CreateTodoDto input,
+  ) => service.create(input.title);
+
+  @RpcMethod(
+    name: 'getById',
+    path: RestMapping.get('/todos/:id'),
+    description: 'Read a todo with a valid bearer token.',
+    tags: ['todo'],
+  )
+  Future<TodoResponseDto> getById(
+    RpcContext _,
+    @RpcInput() GetTodoDto input,
+  ) => service.getById(input.id);
+}
+```
+
+UseGuards attaches executable policy. BearerAuth declares the public security contract for OpenAPI and generated call options. Its guard must also be in UseGuards; generation verifies that relationship. BearerAuth does not verify credentials itself.
+
+## Register the guard provider
+
+Replace `lib/modules/todo/todo_module.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import '../../guards/api_token_guard.dart';
+import 'todo_controller.dart';
+import 'todo_service.dart';
+
+@Module(
+  controllers: [TodoController],
+  providers: [TodoService, ApiTokenGuard],
+  exports: [TodoService],
+)
+final class TodoModule {
+  const TodoModule();
+}
+```
+
+Generation must construct the guard, so register it or import its exported binding. Guards can inject auth/policy services through their constructors. A global guard provider is only visible, not automatically active.
+
+Any other controller exposing the same service needs its own guard declarations. Injecting a guarded controller's service does not inherit that controller's authorization policy.
+
+Regenerate, analyze, and restart with the config-enabled server. These annotation/provider changes affect generated wiring.
+
+## Verify three credential cases
+
+Without a token, send valid input:
+
+```sh
+curl -i http://127.0.0.1:3000/todos \
+  -H 'content-type: application/json' -d '{"title":"Protected item"}'
+```
+
+Expect 401 UNAUTHORIZED. Then repeat with authorization: Bearer wrong-token and expect rejection. Invalid input may fail before guards, so use valid data when specifically testing authentication.
+
+Set TOKEN to your configured API_TOKEN and call RPC:
+
+```sh
+curl -i http://127.0.0.1:3000/rpc \
+  -H "authorization: Bearer $TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"method":"todo.create","input":{"title":"Protected item"}}'
+```
+
+Expect a success data envelope. REST accepts the same Authorization header. The generated client now needs a transport token or applicable per-call options.
+
+## Method-level guards and multiple checks
+
+To keep reads public, move both BearerAuth and UseGuards from the class onto create. The provider stays registered. Controller-level declarations cover its operations; method-level declarations add policy for that procedure.
+
+UseGuards([AuthenticationGuard, PermissionGuard]) composes checks in intentional order. Authenticate before enforcing permissions that depend on identity. Controller/method guard bindings compose and duplicate types are deduplicated.
+
+Authentication identifies the caller; authorization decides whether that identity may perform this operation on this resource. A valid shared token is not per-user ownership. An authorization guard can inspect decoded input and procedure metadata, use injected repositories/policy services, and deny with forbidden.
+
+For declarative permissions, RpcMetadata can attach application annotation values to procedure metadata; a guard must actually enforce them. See [Auth and Metadata](/dart-orpc/guides/auth-and-guards).
+
+## Guard versus middleware
+
+Middleware controls HTTP delivery. Guards protect resolved procedures through shared RPC/REST/WebSocket procedure machinery. WebSocket authorize handles connection admission; per-procedure guards remain necessary for individual access rules. Do not assume an HTTP middleware protects later calls over an upgraded connection.
+
+Next: [Rate Limiting](/dart-orpc/handbook/rate-limiting).

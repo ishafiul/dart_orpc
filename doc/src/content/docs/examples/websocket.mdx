@@ -1,0 +1,39 @@
+---
+title: WebSocket Example
+description: Consume the sample live event contract with split unary and streaming transports.
+---
+
+Run the [Todo Application](/dart-orpc/examples/todo-app) with its enabled WebSocket option. Import `package:basic_app/basic_app.dart` and the facade in a VM/native client.
+
+```dart
+final http = HttpRpcTransport(
+  baseUrl: 'http://127.0.0.1:3000',
+  bearerTokenProvider: () => accessToken,
+);
+final socket = await WebSocketRpcTransport.connect(
+  Uri.parse('ws://127.0.0.1:3000/rpc/ws'),
+  headers: {'authorization': 'Bearer $accessToken'},
+);
+try {
+  final client = const AppModule().createClient(
+    transports: RpcClientTransports.split(unary: http, streaming: socket),
+  );
+  final changes = client.todo.watchLive().listen(
+    (event) => print('${event.type}: ${event.todo.title}'),
+    onError: (Object error) => print('Stream failed: $error'),
+  );
+  try {
+    await client.todo.create(CreateTodoDto(title: 'Created from Dart'));
+    // Keep listening for the application/session lifetime here.
+  } finally {
+    await changes.cancel();
+  }
+} finally {
+  http.close();
+  await socket.close();
+}
+```
+
+The token comes from app login/signup. The snippet demonstrates ownership and cleanup; insert your application lifetime where indicated. Stream cancellation sends a cancel frame. If you need to prove subscription readiness before a mutation in tests, establish it explicitly; do not rely on timing between asynchronous connections.
+
+Use `RpcClientTransports.duplex(socket)` to send unary calls through the socket too. No automatic reconnect/replay is provided. [WebSocket Guide](/dart-orpc/guides/websocket-streaming) explains lifecycle and limits.

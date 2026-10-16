@@ -1,0 +1,111 @@
+.dart-orpc-landing {
+  display: grid;
+  gap: 3rem;
+  padding-block: 2rem;
+}
+
+.dart-orpc-landing section > p,
+.landing-card p,
+.landing-contract p {
+  color: var(--sl-color-gray-2);
+  line-height: 1.7;
+}
+
+.dart-orpc-landing h2 {
+  margin-bottom: 0.7rem;
+}
+
+.landing-contract,
+.landing-stat,
+.landing-card {
+  border: 1px solid color-mix(in srgb, var(--sl-color-gray-4) 45%, transparent);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--sl-color-gray-6) 65%, transparent);
+}
+
+.landing-contract {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.2rem;
+}
+
+.landing-contract strong {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-accent-high);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.07em;
+}
+
+.landing-contract p {
+  margin: 0;
+}
+
+.landing-grid {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.landing-grid-four {
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.landing-grid-two {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+}
+
+.landing-stat,
+.landing-card {
+  padding: 1.2rem;
+}
+
+.landing-stat span {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--sl-color-gray-2);
+  font-size: 0.85rem;
+}
+
+.landing-stat strong {
+  color: var(--sl-color-white);
+}
+
+.landing-card h3 {
+  margin: 0 0 0.65rem;
+  font-family: var(--font-display);
+}
+
+.landing-card p {
+  margin: 0;
+}
+
+.landing-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 0.65rem;
+  margin-top: 1.25rem;
+}
+
+.landing-links a {
+  border: 1px solid color-mix(in srgb, var(--sl-color-gray-4) 45%, transparent);
+  border-radius: 0.7rem;
+  padding: 0.85rem 1rem;
+  background: color-mix(in srgb, var(--sl-color-gray-6) 65%, transparent);
+  text-decoration: none;
+}
+
+.landing-links a:hover {
+  border-color: var(--sl-color-accent);
+}
+
+@media (max-width: 40rem) {
+  .landing-contract {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

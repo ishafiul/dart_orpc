@@ -1,0 +1,43 @@
+---
+title: dart_orpc_cli
+description: Create, serve, and watch applications with supported command flags.
+---
+
+## Install
+
+```sh
+dart pub global activate --source path packages/dart_orpc_cli
+```
+
+Run the command from the checkout root to install local tooling. For a released CLI, use `dart pub global activate dart_orpc_cli`. If the executable is not on PATH, use `dart pub global run dart_orpc_cli:dart_orpc`.
+
+As an application dev dependency, invoke:
+
+```sh
+dart run dart_orpc_cli:dart_orpc --help
+```
+
+## create
+
+```sh
+dart_orpc create hello_app
+dart_orpc create another_app --no-pub-get
+```
+
+Requires one destination path with a valid lowercase Dart package basename. Refuses non-empty directories. Creates a minimal controller, module graph, app export, and server, then runs pub get unless disabled. Run code generation before starting it. Review template dependency constraints when using newer checkout features.
+
+## serve
+
+```sh
+dart_orpc serve --project apps/basic_app --entrypoint bin/server.dart
+```
+
+Runs the entrypoint once. Does not generate code. Options: `--project`/`-p` (default `.`), `--entrypoint`/`-e` (default `bin/server.dart`), and `--help`/`-h`. A positional project path is also supported. Server port/address are chosen by app bootstrap/configuration; there are no CLI `--port`, `--address`, or `--verbose` flags.
+
+## watch
+
+```sh
+dart_orpc watch --project apps/basic_app
+```
+
+Uses the same project/entrypoint/help options as serve. Validates required app tooling, watches relevant project/workspace inputs, regenerates, and restarts the server process. This is process restart, not in-process hot reload. Avoid running a second codegen watcher over the same output.

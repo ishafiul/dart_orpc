@@ -1,0 +1,45 @@
+---
+title: Annotations and Contract API
+description: Complete annotation options and their roles in generated contracts.
+---
+
+## Module and dependency annotations
+
+| API | Arguments | Meaning |
+| --- | --- | --- |
+| `Module` | `imports`, `controllers`, `providers`, `bindings`, `exports` (all empty lists); `global` (false) | Reachable feature graph and provider visibility |
+| `RpcProviderBinding.useClass` | required `provide`, `useClass` | Bind an injected type token to a generated implementation |
+| `RpcProviderBinding.useFactory` | required `provide`, `factory` | Bind token through top-level/static synchronous factory |
+| `Controller` | required positional `namespace` | RPC namespace; does not prefix REST paths |
+
+Providers are singleton instances per generated application container. Use [Modules and DI](/dart-orpc/guides/modules-and-providers) for export/global/ownership rules.
+
+## Procedure metadata
+
+`RpcMethod({String? name, RestMapping? path, String? description, List<String> tags = const []})` marks an exposed controller method. `name` defaults to its Dart method name. `path` is the REST mapping argument; `rest:` is not the implemented constructor name.
+
+`RestMapping.get/post/put/patch/delete/sse(String path, {int? statusCode, Map<String, String> headers = const {}})` supplies verb/path and response metadata. `sse` uses GET and must correspond to a server stream. Leading slash is normalized by `.path`. `rawPath`, `method`, `isSse`, `statusCode`, and `headers` are readable fields.
+
+## Input binding annotations
+
+| API | Placement | Role |
+| --- | --- | --- |
+| `RpcInput({binding})` | Controller DTO parameter | Shared typed RPC input and REST projection |
+| `FromPath([name])` | DTO field/constructor parameter | Default path source and optional wire name |
+| `FromQuery([name])` | DTO field/constructor parameter | Default query source |
+| `FromHeader([name])` | DTO field/constructor parameter | Header source |
+| `RpcInputBinding<T>({path, query, headers, body})` | `RpcInput.binding` | Override field sources for a procedure |
+| `RpcInputField<T>(field, [name])` | Binding lists | DTO field name and optional external name |
+| `PathParam([name])` | Separate controller parameter | REST-only path binding |
+| `QueryParam([name])` | Separate controller parameter | REST-only query binding |
+| `Body()` | Separate controller parameter | REST-only body binding |
+
+Binding lists default to empty. DTO defaults and per-method overrides are merged by field. Each field can use one source; body aliases and GET/DELETE body fields are rejected. Path/query/header inputs must use supported scalar types. Read [binding details](/dart-orpc/guides/procedures-and-dtos) before customizing them.
+
+## Guards and extension metadata
+
+`UseGuards(List<Type> guards)` attaches ordered guard types to a controller or procedure. Register their dependencies in module metadata.
+
+`BearerAuth({required Type guard})` declares bearer security. Its guard must also appear in `UseGuards`; generation checks the contract. The annotation does not implement authentication.
+
+`RpcMetadata(String key)` decorates an application-defined annotation class. Instances used on controllers/methods become custom procedure metadata. The application interprets/enforces those values through guards or other explicit behavior. See [Auth and Guards](/dart-orpc/guides/auth-and-guards).

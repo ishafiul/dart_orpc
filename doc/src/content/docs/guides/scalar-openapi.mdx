@@ -1,0 +1,62 @@
+---
+title: Scalar and OpenAPI
+description: Configure the actual OpenAPI document, schema sources, docs routes, and authentication.
+---
+
+**Learning this for the first time?** [Set up OpenAPI and Scalar step by step](/dart-orpc/handbook/openapi) includes explanations, file-by-file examples, and verification steps.
+
+## Mount documentation
+
+```dart
+final app = const AppModule().buildRpcApp(
+  openApi: const OpenApiDocumentOptions(
+    title: 'Todo API',
+    version: '1.0.0',
+    description: 'Todo procedures and their REST views.',
+    servers: [OpenApiServer(url: 'https://api.example.com')],
+  ),
+  docs: const RpcHttpDocsOptions(
+    docsPath: '/docs',
+    openApiPath: '/openapi.json',
+    title: 'Todo API Reference',
+  ),
+);
+```
+
+Paths belong to `RpcHttpDocsOptions`, not direct `docsPath`/`openApiPath` arguments on `buildRpcApp`. The lower-level `RpcHttpApp` has separate document/HTML/path fields.
+
+## Actual document behavior
+
+The current implementation emits **OpenAPI 3.0.3**. It derives REST paths, binding metadata, response status/headers, security requirements, and SSE event schema extensions from shared procedure metadata. Luthor validators supply schema components. Plain DTO serialization does not guarantee equivalent schema richness.
+
+HTTP RPC remains reachable at `/rpc`, but the current OpenAPI `paths` builder documents explicit REST/SSE mappings. Do not expect a separate OpenAPI path for every RPC-only procedure or a full WebSocket protocol specification. Use the typed Dart client and [Protocol](/dart-orpc/architecture) for those interfaces.
+
+The generated helper builds the document in memory at startup; no checked-in `openapi.json` is required. The HTTP handler serializes a startup snapshot. Rebuild the handler/app to publish changes.
+
+## Protect docs and schema
+
+```dart
+docs: RpcHttpDocsOptions(
+  basicAuth: RpcHttpBasicAuth(
+    username: env.requiredString('DOCS_USERNAME'),
+    password: env.requiredString('DOCS_PASSWORD'),
+    realm: 'API Reference',
+  ),
+),
+```
+
+This fragment assumes an `EnvReader` named `env`. Basic Auth protects both docs HTML and the OpenAPI document; use TLS in deployment. It does not protect procedure routes. Bearer procedure contracts come from `@BearerAuth` plus an actual guard.
+
+## Customize Scalar
+
+`RpcHttpDocsOptions.html` supplies custom HTML. Otherwise the app uses `createScalarHtml(title:, openApiPath:)`. The default HTML loads Scalar's script from a CDN; it is not an offline bundled UI. For controlled/offline assets, supply and maintain your own HTML/assets. Set CSP and proxy/base-path behavior for your deployment.
+
+## Export without listening
+
+```dart
+final document = const AppModule().openApiDocument(
+  options: const OpenApiDocumentOptions(title: 'Todo API'),
+);
+```
+
+Import `app.orpc.dart`; JSON-encode/write the resulting map in an application/tool script if you need a static artifact. Snapshot it in tests when contract stability matters. Review path parameters, required fields, response codes, and security metadata after contract changes.

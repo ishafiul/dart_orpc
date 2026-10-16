@@ -1,0 +1,16 @@
+---
+title: dart_orpc_generator
+description: Build-time module, provider, metadata, route, schema, and client generation.
+---
+
+Add this package and `build_runner` as dev dependencies. Normal setup auto-applies builders:
+
+```sh
+dart run build_runner build --delete-conflicting-outputs
+```
+
+Outputs include standalone `.orpc.dart` module libraries and combined `.g.dart` DTO field references. Generated module libraries contain typed containers, RPC/REST registries, procedure metadata, OpenAPI helpers, and clients.
+
+Read [Code Generation](/dart-orpc/guides/code-generation) for import/part rules, real builder keys, module helper APIs, workspace commands, and diagnostics. Read [Modules and DI](/dart-orpc/guides/modules-and-providers) for visibility, singleton scope, globals, and factories.
+
+The generator's contributor architecture is documented in `packages/dart_orpc_generator/doc/architecture.md` in the source repository.

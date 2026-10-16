@@ -1,0 +1,47 @@
+---
+title: dart_orpc_client
+description: Typed unary and streaming clients, HTTP transport, call options, errors, and interceptors.
+---
+
+**Learning this for the first time?** [Create your first typed client](/dart-orpc/handbook/client) includes explanations, file-by-file examples, and verification steps.
+
+Use this package for client runtime contracts and the default `HttpRpcTransport`. It depends on package:http rather than Dio. Use `dart_orpc_websocket` for the VM WebSocket implementation. The server facade re-exports both.
+
+## Generated client usage
+
+```dart
+final http = HttpRpcTransport(baseUrl: 'http://127.0.0.1:3000');
+try {
+  final client = const AppModule().createClient(
+    transports: RpcClientTransports.unary(http),
+  );
+  final todo = await client.todo.getById(GetTodoDto(id: 1));
+  print(todo.title);
+} on RpcException catch (error) {
+  if (error.code == RpcErrorCode.notFound) {
+    print('Todo does not exist.');
+  } else {
+    rethrow;
+  }
+} finally {
+  http.close();
+}
+```
+
+Import your generated module library alongside the runtime APIs. For shared HTTP unary + WebSocket streaming, use `RpcClientTransports.split`; for all calls on one socket, use `.duplex`.
+
+## HTTP interceptor example
+
+```dart
+final class TraceInterceptor extends RpcInterceptor {
+  @override
+  Future<HttpRpcRequest> onRequest(HttpRpcRequest request) async {
+    print('Calling ${request.rpcRequest.method}');
+    return request;
+  }
+}
+```
+
+Pass instances in `HttpRpcTransport(interceptors: [...])`. Requests run in order; responses unwind. `RpcInterceptorCore` gives direct `next.next` control for short-circuiting or bounded retries. RPC errors are parsed after the HTTP pipeline returns, so hooks do not automatically catch server error envelopes.
+
+Read [Transport API](/dart-orpc/reference/transports) for all constructor options, token precedence, typed header options, interfaces, and ownership. Browser-safe client contract packaging is not generated separately by the current module generator; verify your target instead of assuming facade/generated module imports work on web.

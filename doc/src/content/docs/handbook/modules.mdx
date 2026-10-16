@@ -1,0 +1,185 @@
+---
+title: 3. Modules, Providers, Imports, and Exports
+description: Build and share dependencies with constructor injection, module visibility, interface bindings, and factories.
+---
+
+## What is a module?
+
+A module declares one application feature's controllers, dependencies, and relationships to other features. It answers which objects belong together and which dependencies outsiders may use. The class is metadata for generation, not a request handler.
+
+A root module composes feature modules. Only modules reachable through that graph contribute to the generated app. An annotated module elsewhere in the package does not join automatically.
+
+## What is a provider?
+
+A provider is a dependency the generated container constructs for injection: a service, repository, clock, database wrapper, or guard. Classes receive providers through typed constructor parameters instead of creating them internally or looking them up from a dynamic global map.
+
+```dart
+final class TodoService {
+  TodoService(this.repository);
+  final TodoRepository repository;
+}
+```
+
+This illustrative constructor requires a TodoRepository registered in its feature. Generation builds dependencies in order and passes the service to controllers. No Injectable annotation is needed.
+
+Providers are singleton instances within one generated app container. Requests share those instances, so do not store current request/user data in shared service fields. Separate app roots and workers have separate containers.
+
+## Every Module option
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `controllers` | Empty | Controllers owned by this feature |
+| `providers` | Empty | Concrete classes constructed by DI |
+| `imports` | Empty | Modules composed/consumed by this module |
+| `exports` | Empty | Providers or imported modules available to importers |
+| `bindings` | Empty | Interface-to-class/factory registrations |
+| `global` | false | Extend explicitly exported provider visibility across the app graph |
+
+## Register and export the Todo service
+
+Replace `lib/modules/todo/todo_module.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import 'todo_controller.dart';
+import 'todo_service.dart';
+
+@Module(
+  controllers: [TodoController],
+  providers: [TodoService],
+  exports: [TodoService],
+)
+final class TodoModule {
+  const TodoModule();
+}
+```
+
+This creates TodoService, lets TodoController inject it, and allows importing modules to inject it too. It does not expose a new HTTP route. Only annotated controller procedures become API operations.
+
+Keep repository implementations private when outsiders only need the service. Exporting every dependency makes features unnecessarily coupled.
+
+## Dart import versus Module.imports
+
+`import 'todo_module.dart';` lets Dart refer to the symbol TodoModule. `@Module(imports: [TodoModule])` tells framework generation to compose it and expose its exported providers to this module. Usually you need both.
+
+Dart `export 'file.dart';` makes library symbols public. `@Module(exports: [TodoService])` controls provider visibility. A barrel export does not automatically make a provider injectable.
+
+## Create a feature that consumes TodoService
+
+Create `lib/modules/todo_preview/todo_preview_module.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import '../todo/todo_module.dart';
+import '../todo/todo_service.dart';
+
+part 'todo_preview_module.g.dart';
+
+final class GetPreviewTodoDto {
+  const GetPreviewTodoDto({required this.id});
+  factory GetPreviewTodoDto.fromJson(Map<String, Object?> json) =>
+      GetPreviewTodoDto(id: json['id']! as int);
+  @FromPath()
+  final int id;
+  Map<String, Object?> toJson() => {'id': id};
+}
+
+final class PreviewTodoDto {
+  const PreviewTodoDto({required this.id, required this.title});
+  factory PreviewTodoDto.fromJson(Map<String, Object?> json) => PreviewTodoDto(
+    id: json['id']! as int,
+    title: json['title']! as String,
+  );
+  final int id;
+  final String title;
+  Map<String, Object?> toJson() => {'id': id, 'title': title};
+}
+
+@Controller('todoPreview')
+final class TodoPreviewController {
+  TodoPreviewController(this.todos);
+  final TodoService todos;
+
+  @RpcMethod(
+    name: 'getById',
+    path: RestMapping.get('/todo-preview/:id'),
+    description: 'Read a todo using an imported service.',
+    tags: ['todo-preview'],
+  )
+  Future<PreviewTodoDto> getById(
+    RpcContext _,
+    @RpcInput() GetPreviewTodoDto input,
+  ) async {
+    final todo = await todos.getById(input.id);
+    return PreviewTodoDto(id: todo.id, title: todo.title);
+  }
+}
+
+@Module(imports: [TodoModule], controllers: [TodoPreviewController])
+final class TodoPreviewModule {
+  const TodoPreviewModule();
+}
+```
+
+Replace `lib/app.dart` with:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import 'modules/todo_preview/todo_preview_module.dart';
+
+@Module(imports: [TodoPreviewModule])
+final class AppModule {
+  const AppModule();
+}
+```
+
+The preview defines its own small public request/response contracts and adapts the shared service result. This example uses plain serializable DTOs; the validation chapter explains how to add Luthor constraints and rich schemas.
+
+The root reaches TodoModule through TodoPreviewModule. Both controllers use the same resolved TodoService. Do not register another TodoService in TodoPreviewModule: that conflicts with the imported owner rather than sharing it.
+
+Regenerate and restart. Create a todo through POST /todos, then read its actual returned ID through `/todo-preview/:id`. This verifies both feature composition and provider sharing.
+
+## Bind an interface to a class
+
+Use a binding when consumers should depend on an abstraction:
+
+```dart
+abstract interface class Clock {
+  DateTime now();
+}
+
+final class SystemClock implements Clock {
+  @override
+  DateTime now() => DateTime.now().toUtc();
+}
+
+@Module(bindings: [
+  RpcProviderBinding.useClass(provide: Clock, useClass: SystemClock),
+], exports: [Clock])
+final class ClockModule {
+  const ClockModule();
+}
+```
+
+Consumers inject Clock, and the module exports Clock because that is the token they consume. Avoid independently registering the same token in both providers and bindings.
+
+For application-controlled construction, replace the binding with useFactory and a top-level/static synchronous function:
+
+```dart
+Clock createClock() => SystemClock();
+
+// Inside @Module(bindings: [...]):
+RpcProviderBinding.useFactory(provide: Clock, factory: createClock)
+```
+
+Factory parameters can be injected. Async initialization needs an explicit startup lifecycle; the container does not await arbitrary Future-returning provider factories as service instances.
+
+## Re-export, lifetime, and failures
+
+An aggregator module can import ClockModule and list ClockModule in exports to forward its exported providers. Re-export only intended dependencies; do not duplicate registrations.
+
+Generation diagnoses import/provider cycles, conflicting owners, invalid exports, and unresolved required dependencies. Fix ownership/visibility instead of adding arbitrary registrations. An isolated module may expose typed external dependencies that a composed root can supply.
+
+Resource providers can implement RpcDisposable for owned cleanup during app close. Keep ownership explicit so one resource is not independently closed by several owners.
+
+Next: [Global Modules](/dart-orpc/handbook/global-modules).

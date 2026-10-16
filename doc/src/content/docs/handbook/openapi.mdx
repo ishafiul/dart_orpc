@@ -1,0 +1,124 @@
+---
+title: 11. Set Up OpenAPI and Scalar Docs
+description: Configure document information and routes, generate schemas from DTOs, protect docs, and inspect exported output.
+---
+
+## What are OpenAPI and Scalar?
+
+OpenAPI is a machine-readable description of HTTP operations, input/output schemas, response statuses, and security requirements. Scalar is the interactive page that lets people browse and try that description.
+
+In dart_orpc, the document is derived from procedure/REST metadata and Luthor schemas. You do not maintain a second controller parser or manually duplicate every route in a YAML specification.
+
+## Enable and name the docs
+
+Generated buildRpcApp already supplies a document and docs HTML. Configure their identity explicitly:
+
+```dart
+final app = const AppModule().buildRpcApp(
+  openApi: const OpenApiDocumentOptions(
+    title: 'Todo API',
+    version: '1.0.0',
+    description: 'Create and retrieve validated todos.',
+    servers: [
+      OpenApiServer(url: 'http://127.0.0.1:3000', description: 'Local'),
+      OpenApiServer(url: 'https://api.example.com', description: 'Production'),
+    ],
+  ),
+  docs: const RpcHttpDocsOptions(
+    title: 'Todo Developer Reference',
+    docsPath: '/docs',
+    openApiPath: '/openapi.json',
+  ),
+);
+```
+
+Use this as the buildRpcApp call in your existing server, keeping its imports and listen. Choose server URLs meaningful for the environment rather than copying example.com into a deployed reference.
+
+Open `/docs` to browse the API and `/openapi.json` to inspect the raw document. There is no required checked-in openapi.json; it is built and served in memory at startup.
+
+## Every document option
+
+| OpenApiDocumentOptions option | Default | Why to set it |
+| --- | --- | --- |
+| `title` | Generated module-based title | Give consumers a recognizable API name |
+| `version` | `1.0.0` | Publish your application's API contract version |
+| `description` | null | Explain purpose and behavior |
+| `servers` | Empty list | Supply environment/base URLs consumers can choose |
+
+Each OpenApiServer requires url and optionally description. API version is your application's version, not necessarily the framework package version.
+
+| RpcHttpDocsOptions option | Default | Purpose |
+| --- | --- | --- |
+| `docsPath` | `/docs` | Browser HTML page route |
+| `openApiPath` | `/openapi.json` | JSON schema/document route |
+| `title` | API title | HTML reference title |
+| `html` | Generated Scalar HTML | Replace UI HTML completely when you need custom assets/policy |
+| `basicAuth` | null | Protect docs HTML and JSON document |
+
+Paths are nested inside docs options, not direct buildRpcApp arguments. If your proxy adds a public URL prefix, test both the HTML route and the schema URL it loads.
+
+## Make operation documentation useful
+
+The tutorial controller declares:
+
+```dart
+@RpcMethod(
+  name: 'create',
+  path: RestMapping.post('/todos', statusCode: 201),
+  description: 'Create a todo with a title of 1 to 100 characters.',
+  tags: ['todo'],
+)
+```
+
+The route/status come from RestMapping; descriptions/tags come from RpcMethod. Constraints come from the DTO schema, not prose alone. Add `@HasMax(100)` to the actual input schema when documenting that limit.
+
+For a bearer-protected contract, `@BearerAuth(guard: ApiTokenGuard)` adds the security requirement and `@UseGuards([ApiTokenGuard])` executes the check. A security badge without a guard is not authentication.
+
+## Schema generation and current scope
+
+The current implementation emits OpenAPI **3.0.3**. Luthor validators supply rich DTO schema components. Plain DTOs can serialize successfully while providing less documented schema detail; use validated DTOs when constraints matter to consumers.
+
+The current paths describe explicit REST/SSE projections. An RPC-only procedure remains callable by the generated client but does not automatically become its own OpenAPI HTTP path. WebSocket framing is documented separately in the framework protocol guide.
+
+## Protect internal documentation
+
+Using AppConfig from the environment chapter:
+
+```dart
+docs: RpcHttpDocsOptions(
+  title: 'Todo Developer Reference',
+  basicAuth: RpcHttpBasicAuth(
+    username: config.docsUsername,
+    password: config.docsPassword,
+    realm: 'Todo API Docs',
+  ),
+),
+```
+
+This protects both `/docs` and `/openapi.json`. Browsers prompt for Basic Auth; command-line requests need matching credentials. Use TLS when credentials cross a network. This docs policy does not protect `/todos` or `/rpc`; those use procedure guards.
+
+## Export without starting a server
+
+Create `bin/export_openapi.dart`:
+
+```dart
+import 'dart:convert';
+import 'dart:io';
+import 'package:dart_orpc/dart_orpc.dart';
+import 'package:todo_api/todo_api.dart';
+
+Future<void> main() async {
+  final document = const AppModule().openApiDocument(
+    options: const OpenApiDocumentOptions(title: 'Todo API'),
+  );
+  await File('openapi.json').writeAsString(
+    const JsonEncoder.withIndent('  ').convert(document),
+  );
+}
+```
+
+Run after generation. This is useful for contract review or snapshots, but the live server still builds its own startup document. Regenerate/restart when publishing changed contracts.
+
+The default Scalar HTML loads a script from a CDN. To serve controlled/offline assets, provide custom docs.html and host/maintain those assets intentionally.
+
+Next: [Create a Client](/dart-orpc/handbook/client).

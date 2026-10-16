@@ -1,0 +1,43 @@
+---
+title: Authentication Example
+description: Use the sample auth contract and configure authenticated HTTP and WebSocket clients.
+---
+
+The repository's `basic_app` owns signup/login, password hashing, JWT issuance, and verification. Framework components provide guard execution and security metadata. See [Auth and Guards](/dart-orpc/guides/auth-and-guards) for the distinction.
+
+## HTTP client
+
+After obtaining an access token through `auth.signUp`, `auth.login`, or their REST views:
+
+```dart
+final http = HttpRpcTransport(
+  baseUrl: 'http://127.0.0.1:3000',
+  bearerTokenProvider: () => accessToken,
+);
+final client = const AppModule().createClient(
+  transports: RpcClientTransports.unary(http),
+);
+try {
+  final todos = await client.todo.list();
+  print(todos.items.length);
+} finally {
+  http.close();
+}
+```
+
+`accessToken` is the token returned by your authenticated app flow. For bearer-declared generated methods, `options: RpcCallOptions(bearerToken: anotherToken)` can override the HTTP token when that method exposes options.
+
+## WebSocket client
+
+```dart
+final socket = await WebSocketRpcTransport.connect(
+  Uri.parse('ws://127.0.0.1:3000/rpc/ws'),
+  headers: {'authorization': 'Bearer $accessToken'},
+);
+```
+
+Configure a streaming/duplex/split client with this socket, and close it when finished. Credentials are connection-scoped; changing an HTTP token provider does not update an existing socket.
+
+## Review before adapting
+
+Use application-owned JWT policy and secrets, verify identity claims appropriate to your deployment, enforce per-resource permissions, and test failures across RPC/REST/streams. Metadata and header presence do not prove authentication. Sample permission behavior is explained in the [Todo Walkthrough](/dart-orpc/examples/todo-app).

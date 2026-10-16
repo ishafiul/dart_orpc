@@ -1,0 +1,153 @@
+---
+title: 14. Put the Server Together
+description: Combine typed config, middleware, CORS, rate limiting, docs auth, probes, request deadlines, and graceful shutdown.
+---
+
+## Prerequisites
+
+Build the Todo application from [Create an Application](/dart-orpc/guides/create-an-app). Then add the files from these handbook chapters:
+
+- [Environment](/dart-orpc/handbook/environment): lib/config/app_config.dart and your .env.
+- [Middleware](/dart-orpc/handbook/middleware): lib/http/app_middleware.dart.
+- [Guards](/dart-orpc/handbook/guards): optional ApiTokenGuard plus updated TodoController/TodoModule if you want protected procedures.
+
+The server below works with the unguarded or guarded Todo contract. If guarded, supply the configured API_TOKEN when making calls. Docs Basic Auth credentials are separate from procedure bearer credentials.
+
+## Create the complete entrypoint
+
+Replace `bin/server.dart`:
+
+```dart
+import 'dart:async';
+import 'dart:io';
+
+import 'package:dart_orpc/dart_orpc.dart';
+import 'package:todo_api/config/app_config.dart';
+import 'package:todo_api/http/app_middleware.dart';
+import 'package:todo_api/todo_api.dart';
+
+Future<void> main() async {
+  final config = AppConfig(EnvReader.load());
+  final app = const AppModule().buildRpcApp(
+    bindings: const RpcContextBindings.empty().withValue(appConfigKey, config),
+    openApi: const OpenApiDocumentOptions(
+      title: 'Todo API',
+      version: '1.0.0',
+      description: 'A validated, contract-first todo backend.',
+    ),
+    docs: RpcHttpDocsOptions(
+      title: 'Todo API Reference',
+      docsPath: '/docs',
+      openApiPath: '/openapi.json',
+      basicAuth: RpcHttpBasicAuth(
+        username: config.docsUsername,
+        password: config.docsPassword,
+        realm: 'Todo API Docs',
+      ),
+    ),
+    middleware: [requestLogMiddleware, appHeadersMiddleware],
+    health: const RpcHttpHealthOptions(
+      livenessPath: '/live',
+      readinessPath: '/ready',
+    ),
+    metrics: const RpcHttpMetricsOptions(),
+    maxConcurrentRequests: 128,
+    requestBodyIdleTimeout: const Duration(seconds: 10),
+    serverOptions: RpcHttpServerOptions(
+      cors: CorsOptions(
+        allowedOrigins: [config.corsOrigin],
+        allowHeaders: const ['Content-Type', 'Authorization'],
+        exposeHeaders: const ['X-Request-ID', 'X-App-Name'],
+        maxAge: 600,
+      ),
+      rateLimit: RpcHttpRateLimitOptions(
+        maxRequests: config.rateLimitRequests,
+        window: config.rateLimitWindow,
+      ),
+      maxHeaderBytes: 16 * 1024,
+      bodyTimeout: const Duration(seconds: 15),
+      handlerTimeout: const Duration(seconds: 10),
+      onError: (event) {
+        stderr.writeln('Request ${event.request.requestId} failed: ${event.error}');
+      },
+      onComplete: (event) {
+        print(
+          '${event.request.requestId} ${event.route} ${event.statusCode} '
+          '${event.elapsed.inMilliseconds}ms',
+        );
+      },
+    ),
+  );
+
+  final stopped = Completer<void>();
+  final signals = <StreamSubscription<ProcessSignal>>[];
+  Future<void>? closing;
+  Future<void> shutdown() => closing ??= () async {
+    try {
+      await app.close(gracePeriod: const Duration(seconds: 30));
+    } catch (error, stack) {
+      stderr.writeln('Shutdown failed: $error\n$stack');
+      exitCode = 1;
+    } finally {
+      if (!stopped.isCompleted) stopped.complete();
+    }
+  }();
+
+  try {
+    final server = await app.listen(config.port, hostname: config.hostname);
+    print('Todo API listening on ${server.address.address}:${server.port}');
+    signals.add(ProcessSignal.sigint.watch().listen((_) => unawaited(shutdown())));
+    if (!Platform.isWindows) {
+      signals.add(ProcessSignal.sigterm.watch().listen((_) => unawaited(shutdown())));
+    }
+    await stopped.future;
+  } finally {
+    for (final signal in signals) {
+      await signal.cancel();
+    }
+    await shutdown();
+  }
+  exit(exitCode);
+}
+```
+
+## Understand the composition
+
+Configuration is validated before app construction. Bindings let guards/controllers read typed config. OpenAPI options describe the application contract; docs options configure how people reach its reference. HTTP middleware adds logs/common headers. ServerOptions applies browser policy, request quotas, size/deadline policies, and lifecycle observers at the adapter boundary.
+
+These settings do not create new business procedures. Those still come from AppModule's reachable controllers and DTOs. A provider is not exposed merely because bootstrap can access it.
+
+The executable calls exit only after app.close and signal-subscription cleanup finish. This makes process termination explicit even if unrelated timers remain alive; do not put process exit calls inside reusable framework services.
+
+The sample limits are deliberately visible choices, not production tuning for every app. Change them based on traffic, memory, downstream capacity, and long-lived streams. Protect operational endpoints at your deployment boundary as appropriate.
+
+## Generate, analyze, and start
+
+```sh
+dart run build_runner build --delete-conflicting-outputs
+dart analyze
+dart run bin/server.dart
+```
+
+Check that .env contains required API_TOKEN, DOCS_USERNAME, and DOCS_PASSWORD. The executable loads it relative to the app working directory.
+
+## Verify each responsibility
+
+1. Request `/live` and `/ready`: they should succeed while the server is accepting work.
+2. Request `/openapi.json` without credentials: docs Basic Auth should reject it. Repeat with your configured username/password.
+3. Make a valid Todo RPC/REST call. If guards are installed, first verify 401 without a token and then success with the correct one.
+4. Send an empty title with valid credentials: expect BAD_REQUEST. Authentication and validation are different checks.
+5. Send the preflight from the CORS chapter: the accepted frontend origin should receive the expected CORS headers.
+6. Temporarily lower the rate limit and verify 429/Retry-After as described in that chapter.
+7. Run the generated client and confirm decoded DTO values.
+8. Press Ctrl+C. Shutdown should stop admission, drain work, and dispose providers before the process ends.
+
+## Add streaming only when needed
+
+To enable WebSocket RPC on this server, add `webSocket: const RpcWebSocketServerOptions()` to buildRpcApp. That mounts `/rpc/ws`; it does not create a Stream procedure by itself. Add an annotated Stream method and optional RestMapping.sse projection as shown in the streaming guides.
+
+HTTP CORS and HTTP middleware do not replace WebSocket connection authorization or per-procedure guards. Plan credential lifetime and application recovery explicitly for long-lived connections.
+
+## What to do after the handbook
+
+Add durable repositories, service tests, contract integration tests, and deployment-specific TLS/proxy settings. Keep database choice and identity policy in your application. Use the [API reference](/dart-orpc/reference) for exact signatures and [Testing Guide](/dart-orpc/guides/testing) for checking all generated views together.

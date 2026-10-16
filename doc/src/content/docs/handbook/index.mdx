@@ -1,0 +1,57 @@
+---
+title: Build an App — Learning Path
+description: Learn the framework step by step, from creating a server to a configured, validated app and typed client.
+---
+
+**dart_orpc is an opinionated, contract-first backend framework for Dart.** This handbook teaches what its pieces mean, when to use them, how to configure them, and how to verify a working application.
+
+You do not need a monorepo, database, authentication system, or WebSocket connection to start. Begin with one generated application and add features as they become useful.
+
+## Before you begin
+
+You should know basic Dart classes, constructors, imports, Future/async, and JSON. No previous dependency injection or RPC experience is required. This checkout requires Dart `^3.11.0`.
+
+1. Follow [Installation](/dart-orpc/installation).
+2. Build the complete [Create an Application](/dart-orpc/guides/create-an-app) example. It creates package `todo_api` with every initial DTO, controller, service, module, generated import, and server file.
+3. Continue with this handbook in the same project. Chapters explicitly name files to create or replace. Configuration fragments are changes to an existing bootstrap, not standalone programs.
+
+## Read in order
+
+| Chapter | What you learn |
+| --- | --- |
+| [1. Create a server](/dart-orpc/handbook/server) | Bootstrap, generated imports, host/port, app options, shutdown |
+| [2. Controllers and RpcMethod](/dart-orpc/handbook/controllers) | Public operations, namespaces, method options, REST projections |
+| [3. Modules and providers](/dart-orpc/handbook/modules) | Constructor injection, imports, exports, bindings, visibility |
+| [4. Global modules](/dart-orpc/handbook/global-modules) | Shared infrastructure, scope, and when to use global exports |
+| [5. Data validation](/dart-orpc/handbook/validation) | Immutable DTOs, schemas, generators, bad-input tests |
+| [6. Environment](/dart-orpc/handbook/environment) | .env, typed settings, required values, context bindings |
+| [7. Middleware](/dart-orpc/handbook/middleware) | Write/register/order HTTP wrappers and short-circuit responses |
+| [8. Guards](/dart-orpc/handbook/guards) | Implement, register, and exercise a real access check |
+| [9. Rate limiting](/dart-orpc/handbook/rate-limiting) | Quotas, keys, windows, 429 responses |
+| [10. CORS](/dart-orpc/handbook/cors) | Origins, preflight, allowed headers, credentials |
+| [11. OpenAPI](/dart-orpc/handbook/openapi) | Configure schemas, routes, Scalar, and protected docs |
+| [12. Clients](/dart-orpc/handbook/client) | Typed calls, transport options, credentials, errors |
+| [13. Monorepos](/dart-orpc/handbook/monorepo) | When a workspace helps and when one package is enough |
+| [14. Complete server](/dart-orpc/handbook/complete-server) | Combine the policies into one executable |
+
+## How the pieces connect
+
+```text
+Module graph: which features and dependencies exist?
+  Controller: which operations may clients call?
+    RpcMethod: what is this public operation's metadata?
+      DTO/schema: which data is accepted and returned?
+        Service: which business behavior should run?
+
+Generation -> container + RPC/REST routes + metadata + OpenAPI + typed client
+Server options/middleware -> HTTP delivery policies
+Guards -> permission to run a resolved procedure
+```
+
+The contract is the combination of modules, controller annotations, DTOs, and schemas. RPC is the canonical procedure model. REST and documentation are generated views, so creating a todo should not require separate hand-maintained RPC, REST, schema, and client definitions.
+
+## Example conventions
+
+The handbook uses package `todo_api`, port 3000, and namespace `todo`. Replace the package name in imports for your own app. `package:todo_api/todo_api.dart` must export generated `app.orpc.dart`.
+
+Regenerate after changing annotated contracts or injected constructors. Restart after changing bootstrap/configuration. Keep the API reference for signatures; use this handbook to understand decisions and build the actual app.

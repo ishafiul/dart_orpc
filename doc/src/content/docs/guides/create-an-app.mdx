@@ -1,0 +1,238 @@
+---
+title: Create an Application
+description: Build a feature with validated DTOs, a service, controller, module, server, and generated client.
+---
+
+This walkthrough extends the quick start into a feature-based backend. Use package name `todo_api` below, or replace it with your own.
+
+## 1. Choose a feature layout
+
+```text
+bin/server.dart
+lib/
+  app.dart
+  todo_api.dart
+  modules/todo/
+    todo_dtos.dart
+    todo_service.dart
+    todo_controller.dart
+    todo_module.dart
+```
+
+Generated `.orpc.dart`, `.g.dart`, and `.freezed.dart` files appear beside source files. Keep controllers focused on transport-facing orchestration. Place persistence behind a repository when the app needs it.
+
+## 2. Install DTO tooling
+
+```sh
+dart pub add dart_orpc freezed_annotation json_annotation
+dart pub add --dev build_runner dart_orpc_generator freezed json_serializable luthor_generator
+```
+
+## 3. Define contracts
+
+Create `lib/modules/todo/todo_dtos.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'todo_dtos.freezed.dart';
+part 'todo_dtos.g.dart';
+
+@luthor
+@freezed
+abstract class CreateTodoDto with _$CreateTodoDto {
+  const factory CreateTodoDto({
+    @HasMin(1) required String title,
+  }) = _CreateTodoDto;
+
+  factory CreateTodoDto.fromJson(Map<String, dynamic> json) =>
+      _$CreateTodoDtoFromJson(json);
+}
+
+@luthor
+@freezed
+abstract class GetTodoDto with _$GetTodoDto {
+  const factory GetTodoDto({@FromPath() required int id}) = _GetTodoDto;
+
+  factory GetTodoDto.fromJson(Map<String, dynamic> json) =>
+      _$GetTodoDtoFromJson(json);
+}
+
+@luthor
+@freezed
+abstract class TodoResponseDto with _$TodoResponseDto {
+  const factory TodoResponseDto({
+    required int id,
+    @HasMin(1) required String title,
+  }) = _TodoResponseDto;
+
+  factory TodoResponseDto.fromJson(Map<String, dynamic> json) =>
+      _$TodoResponseDtoFromJson(json);
+}
+```
+
+`dynamic` here matches JSON generator signatures. Keep domain and service APIs typed. `@luthor` adds schema validation and generated schema metadata; `@freezed` supplies immutable models and serialization.
+
+## 4. Put behavior in a service
+
+Create `lib/modules/todo/todo_service.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import 'todo_dtos.dart';
+
+final class TodoService {
+  final Map<int, TodoResponseDto> _items = {};
+  int _nextId = 1;
+
+  Future<TodoResponseDto> create(String title) async {
+    final todo = TodoResponseDto(id: _nextId++, title: title);
+    _items[todo.id] = todo;
+    return todo;
+  }
+
+  Future<TodoResponseDto> getById(int id) async {
+    return _items[id] ?? (throw RpcException.notFound('Todo not found.'));
+  }
+}
+```
+
+This in-memory store makes the tutorial runnable. Data disappears on restart, and each process/isolate has a separate store. Replace it with an application repository for durable storage.
+
+## 5. Expose procedures
+
+Create `lib/modules/todo/todo_controller.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import 'todo_dtos.dart';
+import 'todo_service.dart';
+
+@Controller('todo')
+final class TodoController {
+  TodoController(this.service);
+  final TodoService service;
+
+  @RpcMethod(
+    name: 'create',
+    path: RestMapping.post('/todos', statusCode: 201),
+    description: 'Create a todo with a non-empty title.',
+    tags: ['todo'],
+  )
+  Future<TodoResponseDto> create(
+    RpcContext _,
+    @RpcInput() CreateTodoDto input,
+  ) => service.create(input.title);
+
+  @RpcMethod(
+    name: 'getById',
+    path: RestMapping.get('/todos/:id'),
+    description: 'Find a todo by its integer ID.',
+    tags: ['todo'],
+  )
+  Future<TodoResponseDto> getById(
+    RpcContext _,
+    @RpcInput() GetTodoDto input,
+  ) => service.getById(input.id);
+}
+```
+
+The service receives typed values. It does not parse HTTP bodies or choose route paths. REST create returns 201; the same RPC procedure returns its normal `{data: ...}` response.
+
+## 6. Compose modules
+
+Create `lib/modules/todo/todo_module.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import 'todo_controller.dart';
+import 'todo_service.dart';
+
+@Module(controllers: [TodoController], providers: [TodoService])
+final class TodoModule {
+  const TodoModule();
+}
+```
+
+Create `lib/app.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import 'modules/todo/todo_module.dart';
+
+@Module(imports: [TodoModule])
+final class AppModule {
+  const AppModule();
+}
+```
+
+Create `lib/todo_api.dart` as the app's public entrypoint:
+
+```dart
+export 'app.orpc.dart';
+```
+
+The generator constructs `TodoService` and injects it into `TodoController`. Export providers from feature modules only when other modules need them.
+
+## 7. Start the generated application
+
+Create `bin/server.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import 'package:todo_api/todo_api.dart';
+
+Future<void> main() async {
+  final app = const AppModule().buildRpcApp(
+    openApi: const OpenApiDocumentOptions(title: 'Todo API'),
+  );
+  final server = await app.listen(3000);
+  print('Todo API on http://127.0.0.1:${server.port}');
+}
+```
+
+```sh
+dart run build_runner build --delete-conflicting-outputs
+dart analyze
+dart run bin/server.dart
+```
+
+## 8. Verify behavior
+
+```sh
+curl -i http://127.0.0.1:3000/todos \
+  -H 'content-type: application/json' -d '{"title":"Learn dart_orpc"}'
+curl http://127.0.0.1:3000/todos/1
+curl http://127.0.0.1:3000/rpc \
+  -H 'content-type: application/json' \
+  -d '{"method":"todo.getById","input":{"id":1}}'
+```
+
+Try `{"title":""}` for a validation failure, `/todos/999` for `NOT_FOUND`, and `/todos/abc` for invalid integer binding. Inspect `/docs` and `/openapi.json` to check the same contract's REST projection.
+
+## 9. Use the typed client
+
+In another entrypoint, import the facade and `package:todo_api/todo_api.dart`:
+
+```dart
+final transport = HttpRpcTransport(baseUrl: 'http://127.0.0.1:3000');
+try {
+  final client = const AppModule().createClient(
+    transports: RpcClientTransports.unary(transport),
+  );
+  final created = await client.todo.create(CreateTodoDto(title: 'Ship docs'));
+  final fetched = await client.todo.getById(GetTodoDto(id: created.id));
+  print(fetched.title);
+} finally {
+  transport.close();
+}
+```
+
+## Grow the app deliberately
+
+Add a repository/provider before introducing database access. Add auth at the controller or procedure boundary with guards. Add streams when consumers need events. Regenerate after every contract or module change, and test RPC, REST, docs, and client behavior together. The repository's `apps/basic_app` demonstrates the larger SQLite, auth, CRUD, analysis, and live-event flow.
+
+## Continue building this application
+
+The [Build an App handbook](/dart-orpc/handbook) extends this same todo_api project with typed environment configuration, middleware, guards, rate limits, CORS, protected OpenAPI docs, and a complete server entrypoint. It also teaches modules/providers, global scope, validation, client setup, and when a monorepo is useful.

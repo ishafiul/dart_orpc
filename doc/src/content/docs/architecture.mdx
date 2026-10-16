@@ -1,0 +1,91 @@
+---
+title: Architecture and Protocol
+description: Generated application structure, actual HTTP envelopes, WebSocket frames, and supported capabilities.
+---
+
+## Build-time architecture
+
+The generator resolves the reachable module graph, constructors, DTOs, route bindings, validation callbacks, guards, and metadata. It emits a generated container, registries, OpenAPI helpers, and typed clients in `*.orpc.dart`.
+
+At runtime the generated app shares its container between RPC and REST. Avoid constructing separate registries independently when they should use the same service instance.
+
+```text
+HTTP request -> adapter policies -> HTTP middleware -> dispatch
+  RPC: envelope -> input binding/decoding -> guards -> controller
+  REST: route + field binding -> validation/guards -> controller
+  controller -> service -> output encoding/validation -> response
+WebSocket upgrade -> connection authorization -> framed calls -> registry
+```
+
+HTTP middleware and WebSocket connection authorization are different extension points. Procedure guards protect calls across transports. Input decoding occurs before guards in the RPC procedure runtime; invalid input may fail before authorization logic executes.
+
+## HTTP RPC wire contract
+
+Endpoint: `POST /rpc`. This is a framework-specific envelope, not JSON-RPC 2.0. It uses `input`, not `params`, and `data`, not `result`. There is no JSON-RPC batch or notification contract.
+
+```json
+{"method":"todo.getById","input":{"id":1}}
+```
+
+Successful response, normally HTTP 200:
+
+```json
+{"data":{"id":1,"title":"Write docs","completed":false}}
+```
+
+Failure response, with the code's mapped HTTP status:
+
+```json
+{"error":{"code":"NOT_FOUND","message":"Todo not found."}}
+```
+
+REST returns the encoded result directly on success and the same error envelope on failure. Declared REST status/headers do not change the RPC success envelope.
+
+## WebSocket handshake
+
+Explicitly enable `webSocket: const RpcWebSocketServerOptions()`. The default path is `/rpc/ws`, and clients must request `Sec-WebSocket-Protocol: dart-orpc.v1`. The bundled client negotiates it automatically.
+
+Frames are UTF-8 JSON **text** messages. Each call has a string ID. Unary calls and server streams may be multiplexed over one connection.
+
+| Direction | Frame | Meaning |
+| --- | --- | --- |
+| Client → server | `call` | Invoke with `kind: unary` or `kind: stream` |
+| Client → server | `cancel` | Cancel the invocation with the matching ID |
+| Server → client | `result` | Unary result in `data` |
+| Server → client | `next` | One stream item in `data` |
+| Server → client | `complete` | Stream ended normally |
+| Server → client | `error` | Terminal error in `error` |
+
+```json
+{"type":"call","id":"1","kind":"stream","method":"todo.watch","input":null}
+```
+
+```json
+{"type":"next","id":"1","data":{"id":1,"title":"Write docs","completed":false}}
+```
+
+```json
+{"type":"complete","id":"1"}
+```
+
+```json
+{"type":"cancel","id":"1"}
+```
+
+```json
+{"type":"error","id":"1","error":{"code":"CANCELLED","message":"RPC call was cancelled."}}
+```
+
+Limits bound frame sizes, active calls, connections, and outbound queues. Reconnection, event replay, browser adapters, client streaming, and bidirectional RPC streams are not provided.
+
+## SSE protocol
+
+SSE requires `Stream<T>` and explicit `RestMapping.sse`. Each item is an ordinary SSE data message. Framework terminal events are `dart-orpc-complete` and `dart-orpc-error`. Headers cannot be changed after streaming begins; a late failure is carried as an SSE event rather than a new HTTP status.
+
+## Error model
+
+`RpcException` uses the closed `RpcErrorCode` enum. The public envelope contains `code` and `message`; there is no built-in `details` payload or arbitrary string-code constructor. See [Errors and Context](/dart-orpc/guides/errors-and-context) for the full status table.
+
+## Package boundaries
+
+Annotations and core define low-level contracts. Generator performs static analysis. HTTP, WebSocket, client, OpenAPI, and Luthor adapt those contracts. `dart_orpc` exposes the runtime facade. Compile-time DI is implemented by the generator; no separate `dart_orpc_di` package is needed in the current workspace.

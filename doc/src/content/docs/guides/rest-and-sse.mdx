@@ -1,0 +1,88 @@
+---
+title: REST Mapping and SSE
+description: Map typed procedures to REST, configure responses, and consume server-sent event streams.
+---
+
+## REST is an explicit projection
+
+Use the `path` argument on `@RpcMethod`:
+
+```dart
+@RpcMethod(
+  name: 'create',
+  path: RestMapping.post('/todos', statusCode: 201, headers: {'X-API-Version': '1'}),
+)
+```
+
+`RestMapping` constructors are `get`, `post`, `put`, `patch`, `delete`, and `sse`. Each takes a path, optional `statusCode`, and static `headers` (default empty). Paths gain a leading slash when absent. Controller namespace affects RPC names; REST paths are declared explicitly.
+
+REST success returns the encoded output directly. RPC success remains `{data: ...}`. GET routes also support HEAD unless an explicit HEAD route exists. Duplicate route shapes are rejected by generation, including parameter-name-only differences.
+
+## Input binding
+
+Given `PATCH /todos/:id`, put `id` in the path and update fields in the JSON body. GET/DELETE unbound fields default to the query string; other supported verbs default to body fields. Explicit `@FromPath`, `@FromQuery`, `@FromHeader`, or `RpcInputBinding` override defaults. See [DTO binding rules](/dart-orpc/guides/procedures-and-dtos).
+
+```sh
+curl -X PATCH http://127.0.0.1:3000/todos/1 \
+  -H 'content-type: application/json' \
+  -d '{"title":"Updated title"}'
+```
+
+Use typed DTOs rather than manually rebuilding maps in controllers. Type conversion failures become API errors before service execution.
+
+## Per-request response controls
+
+For HTTP-specific status, headers, or cookies, read `context.binding(rpcHttpResponseKey)`. It may be absent over WebSocket.
+
+```dart
+final response = context.binding(rpcHttpResponseKey);
+response?.headers['X-Operation-ID'] = operationId;
+```
+
+`RpcHttpResponseControl` exposes `statusCode`, mutable `headers`, and `cookies`. Declare stable REST status/headers in `RestMapping` so OpenAPI matches behavior. HTTP RPC keeps its normal success status/envelope; avoid relying on REST-only response controls in services. Use custom HTTP handlers/`RpcHttpResponse` for downloads and redirects instead of turning DTO procedures into ad hoc response maps.
+
+## Define an SSE view
+
+```dart
+@RpcMethod(name: 'watch', path: RestMapping.sse('/todos/events'))
+Stream<TodoResponseDto> watch(RpcContext context) async* {
+  final snapshot = await service.list();
+  for (final todo in snapshot.items) {
+    context.cancellation.throwIfCancelled();
+    yield todo;
+  }
+}
+```
+
+This fragment assumes the app service/list DTO from the full example. The same `Stream<T>` can be called over an enabled WebSocket transport. `POST /rpc` does not stream. A stream without `RestMapping.sse` has no HTTP SSE route; an ordinary JSON REST mapping is not a substitute.
+
+```sh
+curl -N http://127.0.0.1:3000/todos/events
+```
+
+```text
+data: {"id":1,"title":"Write docs","completed":false}
+
+event: dart-orpc-complete
+data: {}
+```
+
+A late error uses `event: dart-orpc-error` with the standard error envelope in `data`. After headers are sent, HTTP status cannot change.
+
+## Browser consumption
+
+```javascript
+const events = new EventSource('/todos/events');
+events.onmessage = (event) => console.log(JSON.parse(event.data));
+events.addEventListener('dart-orpc-complete', () => events.close());
+events.addEventListener('dart-orpc-error', (event) => {
+  console.error(JSON.parse(event.data));
+  events.close();
+});
+```
+
+Native `EventSource` cannot set an arbitrary Authorization header. Use an appropriate cookie policy or a fetch-based SSE client for bearer-protected routes. Do not place bearer secrets in URLs. EventSource can reconnect automatically, but the framework provides no replay/cursor guarantee; close it on terminal events when reconnection is unwanted.
+
+## Runtime policies
+
+SSE heartbeats default to 15 seconds and help detect disconnected idle consumers. `sseFlushEachChunk` defaults to `true`; disabling it trades prompt delivery for buffering. Ensure reverse proxies allow streaming and do not buffer your event route. Long-lived streams consume capacity and should release subscriptions/resources when cancelled.

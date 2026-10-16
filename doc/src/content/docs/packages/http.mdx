@@ -1,0 +1,12 @@
+---
+title: dart_orpc_http
+description: Pure-Dart HTTP adapter for unary RPC, REST/SSE, operations, and lifecycle.
+---
+
+The HTTP adapter binds generated registries to `dart:io`. It serves `POST /rpc`, generated REST/SSE, docs/schema endpoints, and optional static/health/metrics endpoints. WebSocket upgrades use the separate WebSocket package on the same server.
+
+Use generated `AppModule().buildRpcApp(...)` for ordinary apps. Low-level `RpcHttpApp` and `createRpcHttpHandler` support custom integration without requiring duplicate annotated route tables.
+
+The [Application and HTTP Reference](/dart-orpc/reference/application) lists options/defaults and distinguishes generated helper options from lower-level runtime options. [Server Operations](/dart-orpc/guides/server-operations) explains policies, CORS, deadlines, response bodies, metrics, environment, isolates, and shutdown. [REST and SSE](/dart-orpc/guides/rest-and-sse) covers binding and terminal events.
+
+HTTP RPC uses the framework's `{method, input}` envelope, not JSON-RPC 2.0.

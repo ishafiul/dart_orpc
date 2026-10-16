@@ -1,0 +1,81 @@
+---
+title: Installation Guide
+description: Set up the Dart SDK, runtime facade, generator, DTO tools, and development CLI.
+---
+
+## Requirements
+
+This source tree requires **Dart SDK `^3.11.0`**. Server runtime and bundled WebSocket transport use `dart:io`. Use a Dart VM or compatible Flutter native target for those APIs; browser clients need separate adapters and a browser-safe contract distribution strategy.
+
+These docs describe the checked-out implementation. Packages are prereleases and have independent versions. Keep runtime and generator releases compatible; do not copy one version number onto every companion package.
+
+## Create a project with the CLI
+
+From a checkout, install the local CLI:
+
+```sh
+dart pub global activate --source path packages/dart_orpc_cli
+dart_orpc create hello_app
+cd hello_app
+dart run build_runner build --delete-conflicting-outputs
+dart run bin/server.dart
+```
+
+The CLI creates a minimal app with `hello.say` and `GET /hello`, then runs `dart pub get`. `--no-pub-get` skips dependency resolution. Its template has its own pinned package constraints; when following checkout-only features, point the app at matching local packages or update constraints together.
+
+For a published release, install its CLI with `dart pub global activate dart_orpc_cli`. Registry availability depends on the release you use.
+
+## Add packages to an existing Dart app
+
+```sh
+dart pub add dart_orpc
+dart pub add --dev build_runner dart_orpc_generator dart_orpc_cli
+```
+
+Most server code needs one runtime import:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+```
+
+That facade re-exports annotations, core, HTTP, WebSocket, client, Luthor, and OpenAPI APIs. The generator and CLI are separate development tools.
+
+## Recommended DTO tooling
+
+For immutable DTOs, JSON serialization, and automatic schema validation:
+
+```sh
+dart pub add freezed_annotation json_annotation
+dart pub add --dev freezed json_serializable luthor_generator
+```
+
+Luthor is re-exported by the facade. Use [DTO and Validation](/dart-orpc/guides/procedures-and-dtos) for correct annotation and `part` declarations. Plain DTOs also work when they implement the required serialization methods, but plain JSON casts do not provide schema constraints.
+
+## Work inside this repository
+
+The repository uses a Dart pub workspace and Melos:
+
+```sh
+dart pub get
+dart run melos run generate
+dart run melos run dev:basic-app
+```
+
+Run these commands from the workspace root. In a separate terminal:
+
+```sh
+dart run melos run run:client-app
+```
+
+The example app has application-owned auth and database configuration; read its source and environment setup before using protected routes. For the smallest unprotected server, use the quick start.
+
+## Development workflow
+
+```sh
+dart run build_runner build --delete-conflicting-outputs
+dart run dart_orpc_cli:dart_orpc watch --project .
+```
+
+`watch` regenerates code and restarts the server process. It is not in-process hot reload. `serve` runs the entrypoint once and does not generate missing files. Both default to `bin/server.dart`; `--entrypoint` changes that path.
+
+Continue with [Quick Start](/dart-orpc/quick-start). If a generated import fails, see [Troubleshooting](/dart-orpc/guides/troubleshooting).

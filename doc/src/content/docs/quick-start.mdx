@@ -1,0 +1,148 @@
+---
+title: Quick Start Guide
+description: Create a working generated RPC and REST app, then call it with a typed Dart client.
+---
+
+This complete minimal example starts an unprotected `hello.say` procedure over HTTP RPC and REST, with live OpenAPI and Scalar documentation. Follow [Installation](/dart-orpc/installation) first.
+
+## 1. Define the controller and response
+
+Create `lib/hello_controller.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+
+part 'hello_controller.g.dart';
+
+@Controller('hello')
+final class HelloController {
+  const HelloController();
+
+  @RpcMethod(
+    name: 'say',
+    path: RestMapping.get('/hello'),
+    description: 'Return a greeting.',
+    tags: ['hello'],
+  )
+  Future<HelloResponse> say(RpcContext _) async {
+    return const HelloResponse(message: 'Hello, World!');
+  }
+}
+
+final class HelloResponse {
+  const HelloResponse({required this.message});
+
+  factory HelloResponse.fromJson(Map<String, Object?> json) =>
+      HelloResponse(message: json['message']! as String);
+
+  final String message;
+
+  Map<String, Object?> toJson() => {'message': message};
+}
+```
+
+The namespace and procedure name combine into `hello.say`. The same implementation supplies `GET /hello`. The generated `.g.dart` part contains DTO field references; you do not write it yourself.
+
+## 2. Compose a module
+
+Create `lib/app.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import 'hello_controller.dart';
+
+@Module(controllers: [HelloController])
+final class AppModule {
+  const AppModule();
+}
+```
+
+The generator writes `lib/app.orpc.dart` as a standalone library. **Import this generated library to access `buildRpcApp`, `createClient`, and re-exported contracts.** Do not add `part 'app.orpc.dart'`.
+
+## 3. Bootstrap the server
+
+Create `bin/server.dart`, replacing `hello_app` with your package name:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import 'package:hello_app/app.orpc.dart';
+
+Future<void> main() async {
+  final app = const AppModule().buildRpcApp(
+    openApi: const OpenApiDocumentOptions(
+      title: 'Hello API',
+      description: 'My first dart_orpc backend.',
+    ),
+  );
+  final server = await app.listen(3000);
+  print('Listening on http://127.0.0.1:${server.port}');
+}
+```
+
+`listen` owns the HTTP server and returns an `RpcHttpServer`. No manual route registration or separate `HttpServer.bind` is needed.
+
+## 4. Generate and run
+
+From the app directory:
+
+```sh
+dart run build_runner build --delete-conflicting-outputs
+dart analyze
+dart run bin/server.dart
+```
+
+## 5. Call both views
+
+RPC request:
+
+```sh
+curl http://127.0.0.1:3000/rpc \
+  -H 'content-type: application/json' \
+  -d '{"method":"hello.say","input":null}'
+```
+
+RPC response:
+
+```json
+{"data":{"message":"Hello, World!"}}
+```
+
+REST request:
+
+```sh
+curl http://127.0.0.1:3000/hello
+```
+
+REST response:
+
+```json
+{"message":"Hello, World!"}
+```
+
+Open `http://127.0.0.1:3000/docs` for Scalar or `/openapi.json` for the generated **OpenAPI 3.0.3** document. Documentation is built from metadata at startup.
+
+## 6. Call the generated client
+
+Create `bin/client.dart` in the same app:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import 'package:hello_app/app.orpc.dart';
+
+Future<void> main() async {
+  final transport = HttpRpcTransport(baseUrl: 'http://127.0.0.1:3000');
+  try {
+    final client = const AppModule().createClient(
+      transports: RpcClientTransports.unary(transport),
+    );
+    final greeting = await client.hello.say();
+    print(greeting.message);
+  } finally {
+    transport.close();
+  }
+}
+```
+
+Keep the server running and run `dart run bin/client.dart` in another terminal. The client handles the envelope and DTO decoding.
+
+Next, [Create an Application](/dart-orpc/guides/create-an-app) adds a service, validated input, feature module, and CRUD design. [Server Operations](/dart-orpc/guides/server-operations) covers shutdown and runtime policies.

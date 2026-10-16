@@ -1,0 +1,90 @@
+---
+title: 9. Set Up Rate Limiting
+description: Configure request quotas, understand identity keys and windows, and test rate-limit responses.
+---
+
+## What problem does rate limiting solve?
+
+A caller can send more requests than you intend to serve. Rate limiting bounds how often one identity may make requests during a configured time window. It helps protect capacity and enforce simple application policies.
+
+It is different from concurrency limiting. Rate limiting counts calls over time; concurrency limiting counts work active right now. You may want both for expensive endpoints or long-lived streams.
+
+## Enable a basic limit
+
+Add this serverOptions argument to the tutorial's `buildRpcApp` call, or merge rateLimit into your existing RpcHttpServerOptions:
+
+```dart
+serverOptions: const RpcHttpServerOptions(
+  rateLimit: RpcHttpRateLimitOptions(
+    maxRequests: 120,
+    window: Duration(minutes: 1),
+    maxKeys: 10000,
+  ),
+),
+```
+
+This allows up to 120 admitted requests per identity in the rolling one-minute window maintained by this implementation. The default identity is the direct peer address. Once that bucket is full, further requests receive HTTP 429 until enough earlier requests leave the window.
+
+No limit is enabled when serverOptions.rateLimit is null. The options above are examples; choose limits from the behavior of your clients, endpoint costs, and available capacity.
+
+## Every rate-limit option
+
+| Option | Default | How to choose it |
+| --- | --- | --- |
+| `maxRequests` | Required | Maximum admitted requests per identity/window; must be positive |
+| `window` | One minute | How long earlier admitted requests count; must be positive |
+| `maxKeys` | 10,000 | Bound on stored identities; new identities are rejected while the store is full |
+| `key` | Direct peer address, or `unknown` | Optional synchronous function deriving a bucket identity from RpcHttpRequest |
+
+The store is in memory and bounded. It is not a distributed quota service. Restarting the app resets it; multiple workers/processes have independent buckets. If a global quota matters, enforce it through coordinated application infrastructure or the deployment proxy.
+
+## Verify it with a deliberately small limit
+
+Temporarily set `maxRequests: 2` and `window: Duration(seconds: 30)`, restart the server, then run:
+
+```sh
+for attempt in 1 2 3; do
+  curl -i http://127.0.0.1:3000/todos/999
+done
+```
+
+With no other requests using the same bucket, the first two requests reach the application (404 for a missing todo, or 401 after adding the guard). The third receives 429 with an error like:
+
+```json
+{"error":{"code":"RESOURCE_EXHAUSTED","message":"HTTP request rate limit exceeded."}}
+```
+
+The exact message is less important than the status/code. The response includes Retry-After. Browser visits to docs, schema, and other HTTP paths can also consume your bucket, so use a fresh server or isolated test when checking exact request counts. Server-level CORS preflight is handled before the limiter in this implementation.
+
+Restore a realistic limit after testing. Client retry logic should honor retry policy/backoff instead of immediately looping on 429.
+
+## Use a custom key carefully
+
+For separate buckets for a known login path and other traffic, the same configured quota can use a key function:
+
+```dart
+serverOptions: RpcHttpServerOptions(
+  rateLimit: RpcHttpRateLimitOptions(
+    maxRequests: 60,
+    key: (request) {
+      final address = request.remoteAddress ?? 'unknown';
+      final group = request.path == '/auth/login' ? 'login' : 'general';
+      return '$address:$group';
+    },
+  ),
+),
+```
+
+This changes bucket grouping, not the maxRequests value for each group. It does not add a login endpoint to the tutorial. Use bounded known labels rather than every arbitrary URL/query value; otherwise callers can create many distinct buckets.
+
+The key callback runs at the HTTP boundary before procedure guards and context creation. It cannot automatically read a verified current user from a guard. Do not use an unverified user header as a trusted quota identity.
+
+Behind a reverse proxy, the direct peer may be that proxy. The framework does not implicitly trust X-Forwarded-For. Decide which proxy is trusted and where per-client quotas should be enforced rather than blindly trusting a caller-controlled forwarding header.
+
+## Rate limits versus active work
+
+Add `maxConcurrentRequests: 256` at the top level of buildRpcApp to reject overload with 503 UNAVAILABLE. This is not the 429 quota setting. Long-lived SSE responses stay active; WebSocket calls additionally need their WebSocket active-call/buffer limits. An HTTP upgrade request is not a quota check on every subsequent WebSocket call.
+
+For an application-specific per-user or per-procedure quota, use a policy at the level where authenticated identity and procedure metadata are available, with storage matching the required scope. The built-in HTTP rateLimit option is a transport-boundary policy.
+
+Next: [CORS](/dart-orpc/handbook/cors).

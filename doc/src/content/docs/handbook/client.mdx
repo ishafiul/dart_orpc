@@ -1,0 +1,122 @@
+---
+title: 12. Create and Configure a Client
+description: Generate typed calls, configure HTTP or WebSocket capabilities, pass credentials, and handle failures.
+---
+
+## Why use a generated client?
+
+A manual HTTP caller must remember the procedure string, envelope, DTO serialization, output decoding, and error format. A generated client turns that into a typed Dart method such as `client.todo.getById(GetTodoDto(id: 1))`.
+
+The client is derived from the same controller/DTO contract used by the server. Regenerate after changing the contract. This helps consumers catch incompatible changes when they rebuild; it cannot update a previously deployed application automatically.
+
+## Start with a client in the same package
+
+Complete the Todo application tutorial and run generation. Create `bin/client.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import 'package:todo_api/todo_api.dart';
+
+Future<void> main() async {
+  const baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://127.0.0.1:3000',
+  );
+  const token = String.fromEnvironment('API_TOKEN');
+  final transport = HttpRpcTransport(
+    baseUrl: baseUrl,
+    bearerTokenProvider: () => token.isEmpty ? null : token,
+  );
+  try {
+    final client = const AppModule().createClient(
+      transports: RpcClientTransports.unary(transport),
+    );
+    final created = await client.todo.create(CreateTodoDto(title: 'From Dart'));
+    final fetched = await client.todo.getById(GetTodoDto(id: created.id));
+    print('${fetched.id}: ${fetched.title}');
+  } on RpcException catch (error) {
+    print('${error.code.wireName}: ${error.message}');
+  } on RpcClientException catch (error) {
+    print('Transport/client failure: ${error.message}');
+  } finally {
+    transport.close();
+  }
+}
+```
+
+With the unguarded tutorial server running, `dart run bin/client.dart` is enough. After installing the handbook guard, set TOKEN to the configured API_TOKEN and run:
+
+```sh
+dart run -DAPI_TOKEN="$TOKEN" bin/client.dart
+```
+
+String.fromEnvironment reads Dart compilation configuration; it does not load `.env` or dynamically read the process environment. A real client should get user credentials from its authentication flow/storage. A secret embedded in a distributed client cannot remain private from that client's owner.
+
+## Understand the three objects
+
+- `HttpRpcTransport` knows how to send HTTP RPC requests. It takes the base URL and transport settings.
+- `RpcClientTransports` says which capabilities the generated client may use: unary, streaming, or both.
+- `AppModule().createClient(...)` creates the generated root client. Calling it does not start the server or create a database connection.
+
+Import the generated application library, or a barrel such as todo_api.dart that exports it. Importing only the runtime facade does not define AppClient or the generated extension.
+
+## HTTP transport options
+
+| Argument | Default | Purpose |
+| --- | --- | --- |
+| `baseUrl` | Required String | Server URL |
+| `endpointPath` | `/rpc` | RPC path; set an explicit prefixed path behind a proxy if needed |
+| `headers` | Empty map | Common request headers |
+| `bearerTokenProvider` | null | Resolve a token synchronously/asynchronously per HTTP call |
+| `interceptors` | Empty | Inspect/transform HTTP requests and responses |
+| `client` | Internally created package:http client | Supply custom HTTP infrastructure when needed |
+
+The implementation uses package:http, not Dio. `close()` closes an internally created HTTP client; a supplied client remains your responsibility. Generated clients do not own or close transports.
+
+`endpointPath` resolves against baseUrl. Since its default starts with `/`, a path in `https://example.com/api` does not automatically prefix `/rpc`; set `endpointPath: '/api/rpc'` for that deployment.
+
+## Supply a token per call
+
+When a procedure declares BearerAuth and has no required-header options wrapper, its generated method accepts `options`:
+
+```dart
+final todo = await client.todo.getById(
+  GetTodoDto(id: 1),
+  options: RpcCallOptions(bearerToken: accessToken),
+);
+```
+
+Here accessToken comes from the application's authentication flow. This snippet requires the guarded controller from the guard chapter; unguarded generated methods do not necessarily expose the same options parameter.
+
+Required `@FromHeader` bindings generate a typed `...RequestOptions` wrapper with header fields and optional `call: RpcCallOptions`. Inspect the actual generated signature rather than inventing a parameter name. See the [transport API reference](/dart-orpc/reference/transports) for option precedence.
+
+## Call server streams
+
+If the application exposes a Stream procedure and enables WebSocket:
+
+```dart
+final http = HttpRpcTransport(baseUrl: 'http://127.0.0.1:3000');
+final socket = await WebSocketRpcTransport.connect(
+  Uri.parse('ws://127.0.0.1:3000/rpc/ws'),
+  headers: {'authorization': 'Bearer $accessToken'},
+);
+final client = const AppModule().createClient(
+  transports: RpcClientTransports.split(unary: http, streaming: socket),
+);
+```
+
+This config fragment requires a stream-enabled application such as basic_app; the small Todo tutorial only defines unary methods. Use `RpcClientTransports.duplex(socket)` to send unary and server-stream calls on one socket. Missing capabilities throw RpcClientConfigurationException when needed.
+
+Cancel subscriptions and await socket.close when their owning screen/session ends. WebSocket credentials are connection-scoped; the bundled socket transport does not support per-call HTTP headers or automatic reconnect/replay.
+
+## Handle expected versus transport failures
+
+`RpcException` represents known server codes such as NOT_FOUND, UNAUTHORIZED, and BAD_REQUEST. Compare `error.code` with RpcErrorCode values. `RpcClientException` covers malformed responses, unavailable connections, and other client/transport failures.
+
+Do not blindly retry a failed mutation: the server may have committed it before the response was lost. Use bounded retries with an application idempotency policy where duplicate effects matter.
+
+## Use the client from another app
+
+A native Dart/Flutter app can depend on the package exporting the generated API and use the same typed calls. The current generator emits server helpers and clients together; it does not automatically create a separate browser-safe SDK. The facade and bundled WebSocket implementation use dart:io. Verify the actual consumer platform and packaging.
+
+Next: [Monorepos and Layout](/dart-orpc/handbook/monorepo).

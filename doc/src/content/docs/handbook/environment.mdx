@@ -1,0 +1,124 @@
+---
+title: 6. Environment and Application Configuration
+description: Load dotenv/platform settings into typed config, validate at startup, use bindings, and test from a map.
+---
+
+## Why configure through environment?
+
+Local development, tests, and production use different hosts, credentials, origins, and limits. Load those values once at startup, validate them, and give application code a typed object. Scattered Platform.environment reads make required settings and failure behavior harder to understand.
+
+## Document required values
+
+Create `.env.example` at the app root:
+
+```dotenv
+PORT=3000
+HOST=127.0.0.1
+CORS_ORIGIN=http://localhost:5173
+RATE_LIMIT_REQUESTS=120
+RATE_LIMIT_WINDOW_SECONDS=60
+API_TOKEN=replace-with-your-local-development-token
+DOCS_USERNAME=admin
+DOCS_PASSWORD=replace-with-your-local-docs-password
+```
+
+Copy it to .env and choose your own values. Ignore .env in version control; keep the example as a documented setting list. Production supplies real secrets through its environment/secret mechanism. API_TOKEN is used by this handbook's shared-token guard; it is not a JWT system.
+
+EnvReader.load includes platform environment and the named dotenv file through the dotenv package. Relative paths use the process working directory, so run from the app root or pass an explicit path.
+
+## Create typed configuration
+
+Create `lib/config/app_config.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+
+const appConfigKey = RpcContextKey<AppConfig>('todo_api.config');
+
+final class AppConfig {
+  AppConfig(EnvReader env)
+    : port = env.port('PORT', fallback: 3000),
+      hostname = env.string('HOST', fallback: '127.0.0.1'),
+      corsOrigin = env.string(
+        'CORS_ORIGIN',
+        fallback: 'http://localhost:5173',
+      ),
+      rateLimitRequests = env.positiveInt('RATE_LIMIT_REQUESTS', fallback: 120),
+      rateLimitWindow = env.duration(
+        'RATE_LIMIT_WINDOW_SECONDS',
+        fallback: const Duration(minutes: 1),
+      ),
+      apiToken = env.requiredString('API_TOKEN'),
+      docsUsername = env.requiredString('DOCS_USERNAME'),
+      docsPassword = env.requiredString('DOCS_PASSWORD');
+
+  final int port;
+  final String hostname;
+  final String corsOrigin;
+  final int rateLimitRequests;
+  final Duration rateLimitWindow;
+  final String apiToken;
+  final String docsUsername;
+  final String docsPassword;
+}
+```
+
+Malformed ports/limits and missing secrets fail before a socket opens. Required secrets have no silent production fallback. The object is immutable; handlers should not mutate shared settings.
+
+## Load it in the server
+
+Replace `bin/server.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import 'package:todo_api/config/app_config.dart';
+import 'package:todo_api/todo_api.dart';
+
+Future<void> main() async {
+  final config = AppConfig(EnvReader.load());
+  final app = const AppModule().buildRpcApp(
+    bindings: const RpcContextBindings.empty().withValue(appConfigKey, config),
+  );
+  final server = await app.listen(config.port, hostname: config.hostname);
+  print('Todo API listening on port ${server.port}');
+}
+```
+
+Bindings make typed app state available through RpcContext. Import the shared appConfigKey constant wherever you consume it; constructing a new key with the same name does not replace sharing the actual key instance.
+
+In a controller/guard's RpcContext, use `context.requireBinding(appConfigKey)` for required config or binding for an optional value. For services independent of requests, prefer constructor-injected config providers/factories rather than passing RpcContext throughout domain logic.
+
+## Every EnvReader helper
+
+| API | Behavior |
+| --- | --- |
+| `EnvReader.load(path: '.env')` | Include platform variables and dotenv file |
+| `EnvReader.fromMap(values)` | Read supplied values for tests |
+| `requiredString(name)` / `required(name)` | Trim and require a non-empty value |
+| `string(name, fallback: ...)` | Fallback for missing/blank text |
+| `positiveInt(name, fallback: ...)` | Parse positive integer, rejecting invalid/nonpositive values |
+| `duration(name, fallback: ...)` | Parse positive seconds |
+| `port(name, fallback: ...)` | Parse a positive integer up to 65535 |
+
+Numeric fallback applies to missing/blank values, not malformed text. A duration value of 60 means 60 seconds. Use explicit setting names to avoid millisecond/second confusion. Port 0 is intentionally rejected by config; use listen(0) directly for random-port tests.
+
+There is no built-in boolean reader. If adding one, parse documented accepted values explicitly and reject typos; a non-empty string `false` must not become true accidentally.
+
+## Test without reading a file
+
+```dart
+final config = AppConfig(EnvReader.fromMap({
+  'PORT': '4000',
+  'API_TOKEN': 'test-token',
+  'DOCS_USERNAME': 'test-admin',
+  'DOCS_PASSWORD': 'test-password',
+}));
+```
+
+Check port and optional defaults; test invalid ports, nonpositive limits, and missing required secrets. Do not print all config values or expose config as a response DTO.
+
+## Startup state versus request state
+
+An allowed origin/shared API token is startup config. The currently authenticated user or tenant is per-request/connection state. Both can use typed bindings, but their lifetimes differ. Do not store the latest request's identity in a singleton service.
+
+Next: [Middleware](/dart-orpc/handbook/middleware).

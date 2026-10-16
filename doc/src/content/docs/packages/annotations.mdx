@@ -1,0 +1,10 @@
+---
+title: dart_orpc_annotations
+description: Dependency-light annotations for the complete contract and generated module graph.
+---
+
+This package declares modules, providers, controllers, procedure metadata, REST mappings, guards, and input sources. It has no HTTP runtime and does not execute annotations itself; `dart_orpc_generator` reads them at build time.
+
+See the [complete annotation reference](/dart-orpc/reference/annotations) for every constructor and option, including `Module.global`, interface/factory bindings, bearer contracts, custom metadata, and DTO field-source overrides.
+
+Typical applications use the facade import. Shared libraries may depend directly on annotations when they only need contract declarations.

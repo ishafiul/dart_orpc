@@ -1,0 +1,62 @@
+---
+title: WebSocket Streaming
+description: Enable typed server streams, configure transport capabilities, and manage connection lifetime.
+---
+
+## Enable WebSocket explicitly
+
+```dart
+final app = const AppModule().buildRpcApp(
+  webSocket: const RpcWebSocketServerOptions(),
+);
+```
+
+HTTP and WebSocket share one server port. The default upgrade path is `/rpc/ws`, using subprotocol `dart-orpc.v1`. Without the `webSocket` option, the generated application does not mount the upgrade handler.
+
+## Define a typed stream
+
+Return `Stream<EventDto>` from an annotated method. Put event production/business behavior in a service, and let the controller expose it:
+
+```dart
+@RpcMethod(name: 'watchLive', path: RestMapping.sse('/todos/live-events'))
+Stream<TodoChangeResponseDto> watchLive(RpcContext context) {
+  return service.watchChanges();
+}
+```
+
+The optional SSE mapping adds an HTTP view. Dispose service-owned stream controllers through `RpcDisposable`, and propagate cancellation for expensive producers.
+
+## Configure clients by capability
+
+```dart
+final socket = await WebSocketRpcTransport.connect(
+  Uri.parse('ws://127.0.0.1:3000/rpc/ws'),
+);
+try {
+  final client = const AppModule().createClient(
+    transports: RpcClientTransports.duplex(socket),
+  );
+  final subscription = client.todo.watchLive().listen(
+    (event) => print(event.type),
+    onError: (Object error) => print(error),
+  );
+  // When the owning screen/session is finished:
+  await subscription.cancel();
+} finally {
+  await socket.close();
+}
+```
+
+The example shows ownership/cleanup; keep the subscription active for your actual application lifetime before cancelling it. `duplex` allows unary calls and server streams on one socket. Use `split(unary: http, streaming: socket)` to keep ordinary calls on HTTP. See [Client API](/dart-orpc/packages/client).
+
+Subscription cancellation sends a `cancel` frame for its invocation ID. A broken socket fails pending calls/streams. The transport exposes `pendingCalls` and asynchronous `close()` for lifecycle management.
+
+## Limits and security
+
+`RpcWebSocketServerOptions` bounds frame size, active calls per connection, connection count, and buffered frames/bytes. Defaults are listed in the [API Reference](/dart-orpc/reference/transports). Slow consumers cannot accumulate unbounded server output; handle terminal errors and recover at the application layer.
+
+Connection `authorize` runs before upgrade. Procedure guards run for each invocation. Client connection `headers` can carry bearer credentials on VM/native clients. No per-call WebSocket token override is implemented by the bundled transport.
+
+## Scope and guarantees
+
+Supported: unary and server-to-client streams, multiplexing, cancellation, ping/pong, bounded output, graceful close. Not implemented: client-to-server application streams, bidirectional RPC streams, reconnection, resumable event cursors, replay, or bundled browser WebSocket transport. Persist events and build explicit delivery semantics when missing updates is unacceptable.

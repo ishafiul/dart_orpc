@@ -1,0 +1,130 @@
+---
+title: 7. Create and Use Middleware
+description: Implement and register HTTP wrappers, understand next and ordering, short-circuit maintenance mode, and preserve content.
+---
+
+## What is middleware?
+
+Middleware wraps the next HTTP handler. It can inspect a request before routing and change the response afterward. Logging, common headers, maintenance mode, and HTTP-level transforms are typical uses.
+
+Its type is RpcHttpHandler Function(RpcHttpHandler next). The returned handler receives RpcHttpRequest and returns `Future<RpcHttpResponse>`. `await next(request)` continues the chain; returning your own response stops it for that request.
+
+Guards are different: they inspect resolved procedure metadata/decoded input and control procedure access across supported transports. HTTP middleware is not authorization for later WebSocket calls.
+
+## Create two middleware functions
+
+Create `lib/http/app_middleware.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+
+RpcHttpHandler requestLogMiddleware(RpcHttpHandler next) {
+  return (request) async {
+    final watch = Stopwatch()..start();
+    try {
+      final response = await next(request);
+      print(
+        '${request.method} ${request.path} -> ${response.statusCode} '
+        '(${watch.elapsedMilliseconds}ms to response)',
+      );
+      return response;
+    } catch (error) {
+      print('${request.method} ${request.path} failed before response');
+      rethrow;
+    } finally {
+      watch.stop();
+    }
+  };
+}
+
+RpcHttpHandler appHeadersMiddleware(RpcHttpHandler next) {
+  return (request) async {
+    final response = await next(request);
+    return response.copyWith(
+      headers: {...response.headers, 'X-App-Name': 'todo-api'},
+    );
+  };
+}
+```
+
+The returned closure is run for a request. Its next argument is already the rest of the chain. Rethrowing preserves centralized failure handling. Many procedure exceptions become HTTP error responses inside dispatch, so catching exceptions here does not observe every business error. Use onError/onComplete for adapter-level observation.
+
+This timer measures response creation, not the full lifetime of a download/SSE body. Completion hooks report the full exchange.
+
+## Register and verify
+
+Add this import to bin/server.dart:
+
+```dart
+import 'package:todo_api/http/app_middleware.dart';
+```
+
+Add the argument to its existing buildRpcApp call:
+
+```dart
+middleware: [requestLogMiddleware, appHeadersMiddleware],
+```
+
+Pass function references; the framework supplies next while constructing the chain. Restart and request:
+
+```sh
+curl -i http://127.0.0.1:3000/todos/999
+```
+
+Expect a response with X-App-Name and a log entry. The status is 404 for the unguarded app's missing todo, or 401 if the protected version lacks credentials.
+
+## Understand ordering
+
+For the registration above:
+
+```text
+requestLog before
+  appHeaders before
+    dispatcher/controller/service
+  appHeaders after
+requestLog after
+```
+
+Requests enter in list order; responses unwind in reverse. Middleware after an early return never runs. Put logging outside the policies you want it to observe.
+
+Admission/body policies and server-level CORS sit outside this handler chain. For headers on early adapter failures, use the appropriate server policy; middleware cannot decorate a response produced before it runs.
+
+## A configurable early-return middleware
+
+Add import dart:convert and this factory to app_middleware.dart:
+
+```dart
+RpcHttpMiddleware maintenanceMiddleware({required bool enabled}) {
+  return (next) {
+    return (request) async {
+      if (enabled && request.path != '/health') {
+        return RpcHttpResponse(
+          statusCode: 503,
+          headers: const {'content-type': 'application/json; charset=utf-8'},
+          body: jsonEncode({
+            'error': {
+              'code': 'UNAVAILABLE',
+              'message': 'The service is temporarily in maintenance mode.',
+            },
+          }),
+        );
+      }
+      return next(request);
+    };
+  };
+}
+```
+
+Register maintenanceMiddleware(enabled: true) in the middleware list. This outer call supplies configuration and returns a middleware; it is different from passing a plain function reference. The example leaves /health available when health is configured. Adjust exclusions for custom liveness/readiness paths.
+
+With maintenance enabled, ordinary HTTP requests stop here with 503; controller/service code is not run. Existing WebSocket invocations have a separate lifecycle and need their own policies if maintenance must affect them.
+
+## Preserve request and response metadata
+
+Use request.copyWith for transforms instead of rebuilding a request with just method/path/body. Requests also carry cancellation, bytes, URI/query data, remote address, request IDs, and observers.
+
+Use response.copyWith for header-only changes. Content may be buffered text, bytes, or streaming chunks. Do not cast every body to String or consume a stream simply to log it; that breaks SSE/download semantics and can buffer unbounded data.
+
+Preserve existing headers, repeated values, cookies, and stream flush policy. Log IDs/routes/status rather than Authorization, cookies, or full sensitive payloads.
+
+Next: [Guards](/dart-orpc/handbook/guards).

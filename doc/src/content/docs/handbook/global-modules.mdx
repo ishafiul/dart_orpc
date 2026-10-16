@@ -1,0 +1,118 @@
+---
+title: 4. Global Modules — When and Why
+description: Create a working global infrastructure provider and understand visibility, root scope, and appropriate use.
+---
+
+## Meaning and purpose
+
+A global module makes its explicitly exported providers visible to every module in the reachable generated app graph. Features can inject those providers without repeating that infrastructure module in each Module.imports list.
+
+Use this for small, stable infrastructure needed widely: a clock, immutable config service, or logging abstraction. Keep feature-specific services behind explicit imports so application relationships remain visible.
+
+Global does not scan unrelated files, expose private providers, or share one object across all processes. The root must still reach the module through imports.
+
+## Create a global clock
+
+Create `lib/platform/platform_module.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+
+final class AppClock {
+  DateTime now() => DateTime.now().toUtc();
+}
+
+@Module(
+  global: true,
+  providers: [AppClock],
+  exports: [AppClock],
+)
+final class PlatformModule {
+  const PlatformModule();
+}
+```
+
+Providers declares ownership; exports declares public provider visibility; global extends that visibility across the app graph. A provider omitted from exports remains private, even in a global module.
+
+## Consume it without a module import
+
+Create `lib/controllers/system_controller.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import '../platform/platform_module.dart';
+
+part 'system_controller.g.dart';
+
+final class TimeResponse {
+  const TimeResponse({required this.utc});
+  factory TimeResponse.fromJson(Map<String, Object?> json) =>
+      TimeResponse(utc: json['utc']! as String);
+  final String utc;
+  Map<String, Object?> toJson() => {'utc': utc};
+}
+
+@Controller('system')
+final class SystemController {
+  SystemController(this.clock);
+  final AppClock clock;
+
+  @RpcMethod(
+    name: 'time',
+    path: RestMapping.get('/system/time'),
+    description: 'Read the application clock.',
+    tags: ['system'],
+  )
+  Future<TimeResponse> time(RpcContext _) async =>
+      TimeResponse(utc: clock.now().toIso8601String());
+}
+```
+
+The Dart import makes AppClock's symbol available. This example adds the controller directly to the application root below; the global module owns and exports its dependency. The .g.dart part supports generated field references for the plain response DTO.
+
+## Connect the root
+
+Replace `lib/app.dart`:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import 'controllers/system_controller.dart';
+import 'modules/todo/todo_module.dart';
+import 'platform/platform_module.dart';
+
+@Module(
+  imports: [PlatformModule, TodoModule],
+  controllers: [SystemController],
+)
+final class AppModule {
+  const AppModule();
+}
+```
+
+If retaining the previous chapter's TodoPreview feature, import TodoPreviewModule instead of TodoModule; it already imports TodoModule. The example above uses the smallest root needed for this chapter.
+
+Generate/restart and request:
+
+```sh
+dart run build_runner build --delete-conflicting-outputs
+dart run bin/server.dart
+curl http://127.0.0.1:3000/system/time
+```
+
+The result contains an ISO UTC timestamp. The generated root client also exposes client.system.time().
+
+## Why not put AppClock in each feature?
+
+Independent registrations create multiple owners rather than one deliberate shared binding. A global export gives the infrastructure one owner and intended lifetime. Reaching the same binding through explicit and global visibility reuses that generated binding; competing exporters should be resolved as a graph conflict.
+
+Each generated app container still has its own singleton. Building two roots or running isolate workers creates separate instances. Share data across workers through external infrastructure rather than assuming the global flag shares memory.
+
+## Tests and limits
+
+Global visibility is computed for a composed root. A feature module generated in isolation cannot discover an unrelated PlatformModule. Keep standalone feature examples self-contained with explicit imports when generating them independently, or consume the provider at a composed root as above. Test the generated root you will actually run.
+
+A global guard provider becomes injectable, not automatically active. Apply UseGuards/BearerAuth to procedures/controllers to execute it. Global visibility is a DI rule, not an authorization policy.
+
+Next: [Data Validation](/dart-orpc/handbook/validation).
+
+Current generation can emit lint warnings in infrastructure-only `.orpc.dart` files (for example an unused generated client field or redundant imports). Treat source/compilation errors separately, and do not hand-edit generated output to silence lints.

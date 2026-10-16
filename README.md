@@ -1,6 +1,23 @@
 # dart_orpc
 
-Contract-first Dart: define your API once, get **RPC**, **REST/SSE**, **OpenAPI**, and a **typed Dart client** from the same annotations and DTOs. RPC is the source of truth; HTTP, WebSocket, REST/SSE, and docs are transport views of that contract.
+**An opinionated, contract-first backend framework for Dart.** Build structured backends with modules, controllers, services, validated DTOs, and compile-time dependency wiring. Define your API once to derive **RPC**, **REST/SSE**, **OpenAPI**, and a **typed Dart client** from the same annotations and DTOs. RPC is the source of truth; HTTP, WebSocket, REST/SSE, and docs are transport views of that contract.
+
+## Documentation
+
+Start with the [documentation site](https://shafi.dev/dart-orpc) or its source through `doc/`:
+
+- [Build an App — step-by-step handbook](doc/src/content/docs/handbook/index.mdx)
+- [Philosophy and core concepts](doc/src/content/docs/core-concepts.mdx)
+- [Installation](doc/src/content/docs/installation.mdx) and [working quick start](doc/src/content/docs/quick-start.mdx)
+- [Create a complete application](doc/src/content/docs/guides/create-an-app.mdx)
+- [API reference](doc/src/content/docs/reference/index.mdx)
+- [Modules and dependency injection](doc/src/content/docs/guides/modules-and-providers.mdx)
+- [Authentication and guards](doc/src/content/docs/guides/auth-and-guards.mdx)
+- [Server operations](doc/src/content/docs/guides/server-operations.mdx)
+- [Good practices and tips](doc/src/content/docs/guides/practices-and-tips.mdx)
+- [Testing](doc/src/content/docs/guides/testing.mdx) and [troubleshooting](doc/src/content/docs/guides/troubleshooting.mdx)
+
+Docs describe the current source checkout. HTTP RPC uses `{method, input}` and `{data}` envelopes; OpenAPI output is 3.0.3. Prerelease package versions may differ.
 
 ## Why use it
 
@@ -180,9 +197,10 @@ final transport = HttpRpcTransport(
 );
 ```
 
-An interceptor can inspect or replace the response after `next.next`, recover
-from errors with `try`/`catch`, return a response without sending a request, or
-implement a bounded retry by calling the same downstream handler again.
+An interceptor can inspect or replace the HTTP response after `next.next`, recover
+from transport errors with `try`/`catch`, or short-circuit a request. RPC error envelopes
+are parsed after the pipeline returns. Retry only operations whose duplicate effects
+are understood, using bounded attempts and an application idempotency policy.
 
 ```dart
 final class LoggingInterceptor extends RpcInterceptor {
@@ -247,7 +265,7 @@ With `basic_app` running (default port **3000**):
 | **WebSocket RPC** | `ws://127.0.0.1:3000/rpc/ws` (`dart-orpc.v1`) |
 | **Todo SSE example** | `GET http://127.0.0.1:3000/todos/events` |
 
-The sample server protects **`/docs`** (and the OpenAPI URL the UI loads) with HTTP Basic Auth: username **`admin`**, password **`secret`**. Your browser will prompt once; `curl` needs `-u admin:secret`.
+The current sample server leaves docs Basic Auth wiring commented out. Enable `RpcHttpDocsOptions.basicAuth` explicitly to protect both docs and schema. Todo procedures use application-owned bearer authentication; obtain a token through signup/login before calling them. See the [authenticated example walkthrough](doc/src/content/docs/examples/todo-app.mdx).
 
 **There is no checked-in `openapi.json` file** in the repo. The spec is **built in memory** from generated procedure metadata and served at **`/openapi.json`** while the server runs. Defaults for paths come from `RpcHttpDocsOptions` (`openApiPath`: `/openapi.json`, `docsPath`: `/docs`).
 

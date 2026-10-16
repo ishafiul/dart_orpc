@@ -1,0 +1,106 @@
+---
+title: 2. Controllers and RpcMethod
+description: Understand public procedure boundaries, namespaces, every RpcMethod option, and optional REST/stream mappings.
+---
+
+## What is a controller?
+
+A controller groups externally callable operations and describes their public contracts. It receives validated DTOs, calls services, and returns response DTOs. A service owns business behavior; a repository owns persistence details. Keeping those responsibilities separate lets tests and jobs reuse business behavior without HTTP.
+
+The controller's constructor declares dependencies. The module registers them, and generation constructs/injects the instances. You do not manually create a controller for every request.
+
+## Read one complete operation
+
+In the tutorial controller, keep its existing imports and use this pattern:
+
+```dart
+@Controller('todo')
+final class TodoController {
+  TodoController(this.service);
+  final TodoService service;
+
+  @RpcMethod(
+    name: 'getById',
+    path: RestMapping.get('/todos/:id'),
+    description: 'Find a todo by its integer ID.',
+    tags: ['todo'],
+  )
+  Future<TodoResponseDto> getById(
+    RpcContext context,
+    @RpcInput() GetTodoDto input,
+  ) => service.getById(input.id);
+}
+```
+
+Controller namespace `todo` plus procedure name `getById` gives RPC identifier `todo.getById`. The REST route is explicitly `/todos/:id`; the namespace does not prefix it automatically.
+
+RpcContext supplies request headers, typed bindings, attributes, and cancellation. It is framework execution context, not the operation's input. `@RpcInput()` marks the DTO built from RPC input or the generated REST binding.
+
+## When and why to use RpcMethod
+
+Annotate a method when clients should be able to invoke that operation. Unannotated helper methods remain ordinary Dart implementation code. Do not annotate repository methods or private helpers merely because they return a Future.
+
+Generation reads RpcMethod and the Dart signature to derive invocation code, validation/serialization hooks, client calls, metadata, and optional REST output. This lets one operation serve multiple interfaces without duplicate handlers.
+
+## Every RpcMethod option
+
+| Option | Default | Why to use it |
+| --- | --- | --- |
+| `name` | Dart method name | Set a stable public RPC identifier independent of internal naming |
+| `path` | null | Add a REST/SSE view when consumers need standard HTTP access |
+| `description` | null | Explain behavior, constraints, and side effects in API docs |
+| `tags` | Empty list | Group related operations in docs |
+
+You can omit name when the Dart method name is already suitable. An override preserves the wire name when refactoring, but generated Dart client method names still follow the Dart method. Consider both compatibility surfaces.
+
+You can omit path for RPC-only APIs. Such methods remain available through the generated client and POST /rpc; current OpenAPI paths describe explicit REST/SSE projections rather than individual RPC-only methods.
+
+## REST mapping options
+
+Each constructor takes a path, optional statusCode, and static headers map:
+
+| Mapping | Typical use |
+| --- | --- |
+| `RestMapping.get('/todos/:id')` | Read a resource |
+| `RestMapping.post('/todos', statusCode: 201)` | Create a resource |
+| `RestMapping.put('/todos/:id')` | Replace according to app semantics |
+| `RestMapping.patch('/todos/:id')` | Apply partial changes |
+| `RestMapping.delete('/todos/:id')` | Remove a resource |
+| `RestMapping.sse('/todos/events')` | HTTP GET view of a server stream |
+
+For example:
+
+```dart
+@RpcMethod(
+  name: 'create',
+  path: RestMapping.post(
+    '/todos',
+    statusCode: 201,
+    headers: {'X-API-Version': '1'},
+  ),
+  description: 'Create a todo with a non-empty title.',
+  tags: ['todo'],
+)
+```
+
+The status applies to REST; RPC retains its normal success envelope. Stable headers/status belong in contract metadata so OpenAPI reflects them. Request-specific HTTP controls are available through rpcHttpResponseKey when needed, but services should stay transport-neutral.
+
+## Input binding and method signatures
+
+Prefer an optional RpcContext plus one RpcInput DTO for shared RPC/REST/client behavior. A no-input operation can receive only context. The tutorial's GetTodoDto declares a scalar ID supplied by `/todos/:id`; POST/PUT/PATCH remaining fields normally come from JSON body, while GET/DELETE remaining fields normally come from query parameters.
+
+Explicit FromPath/FromQuery/FromHeader annotations or RpcInputBinding override those defaults. [Validation](/dart-orpc/handbook/validation) walks through actual valid/invalid requests.
+
+Separate PathParam, QueryParam, and Body controller parameters support REST-only signatures. They do not produce the normal RPC-compatible typed client procedure, so choose them only when that limitation fits your interface.
+
+## Returns and streams
+
+Use explicit response DTOs with toJson/fromJson so server serialization and client decoding stay typed. A value/Future is unary. A non-nullable `Stream<T>` is server streaming; return it directly rather than `Future<Stream<T>>`.
+
+POST /rpc is unary. Stream procedures require enabled WebSocket RPC or an explicit RestMapping.sse HTTP view. An ordinary RestMapping.get is not an SSE mapping. Client-to-server and bidirectional application streams are not implemented.
+
+## Good controller habits
+
+Keep DTOs immutable, procedures narrow, and descriptions accurate. Put database access, transactions, and core business rules into services/repositories. Avoid manually parsing JSON or assembling RPC envelopes inside controllers. Regenerate after contract changes and test RPC plus any declared REST view.
+
+Next: [Modules and Providers](/dart-orpc/handbook/modules).

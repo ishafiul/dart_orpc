@@ -1,0 +1,52 @@
+---
+title: Good Practices and Tips
+description: Practical decisions for maintainable contract-first backends and compatible Dart clients.
+---
+
+## Start with one complete feature
+
+Build one DTO → controller → service → module → generated app → generated client flow. Verify RPC, REST, validation, and OpenAPI together before adding infrastructure. The framework's value is keeping these views aligned.
+
+## Keep boundaries clear
+
+| Concern | Best home |
+| --- | --- |
+| Route/procedure name, tags, REST mapping | Controller annotations |
+| Input/output shape and constraints | DTO/schema |
+| Use case, business rule, transaction coordination | Service |
+| Database, filesystem, external API calls | Repository or infrastructure provider |
+| Composition and visibility | Module |
+| Identity/token policy | App auth service and guards |
+| Headers, CORS, request limits, correlation | Adapter configuration/middleware |
+
+Do not pass raw HTTP requests throughout services. Pass typed arguments or explicit application context. Avoid exposing persistence entities directly: response DTOs should contain only intentional public fields.
+
+## Design contracts for consumers
+
+Use stable namespaces and procedure names. Document meaningful behavior with descriptions and tags. Name DTOs for use cases (`CreateTodoDto`, `UpdateTodoDto`) rather than reusing one object with many nullable fields. Validate syntactic constraints at the boundary and business constraints in services. Apply page-size bounds and stable pagination semantics in application DTOs; there is no built-in pagination policy.
+
+## Treat changes as API changes
+
+Adding required fields, tightening constraints, renaming procedures, changing null semantics, or changing output types can break clients. Regenerate and test consumers, update API version policy, and coordinate rollout. A generated client gives compile-time feedback when rebuilt; it cannot update already deployed binaries.
+
+## Keep dependency ownership visible
+
+Export providers intentionally. Use global modules for shared infrastructure sparingly. Put state in singleton services only when it should be shared across requests, and never store current user/request state there. Dispose connections and stream controllers. In-memory data and event buses are local to each process/isolate.
+
+## Retry with a business policy
+
+A network failure does not prove a mutation failed: the server may have committed before the connection broke. Retry only operations whose duplicate behavior is understood, with bounded attempts/backoff and an application idempotency strategy where needed. Avoid copying a catch-all retry interceptor onto every RPC call.
+
+## Observe and bound work
+
+Measure representative loads before tuning. Bound request sizes, concurrency, downstream connections, and stream fanout. Use completion hooks for full response/stream duration, route-template labels for metrics, and request IDs for tracing. Avoid logging tokens or complete sensitive payloads.
+
+## Use explicit transport capabilities
+
+HTTP supports unary calls. WebSocket supports unary and server streams. Generated stream methods require a streaming transport and throw configuration errors when absent. SSE is an HTTP projection; the bundled generated Dart stream client does not automatically consume it. Own transport lifetime in the application and close it during teardown.
+
+## Troubleshoot the contract before bypassing it
+
+When RPC, REST, OpenAPI, or clients disagree, check source annotations, DTO schemas, generated files, and package versions. Fix the shared contract or generator/runtime behavior. Adding a hand-maintained route table or separate schema usually creates another source of drift.
+
+See [Testing](/dart-orpc/guides/testing) and [Troubleshooting](/dart-orpc/guides/troubleshooting) for practical checks.

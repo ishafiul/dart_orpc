@@ -1,0 +1,120 @@
+---
+title: Server Operations and Deployment
+description: Configure HTTP policies, CORS, health, metrics, static assets, environment, and graceful shutdown.
+---
+
+**Learning this for the first time?** [Create and configure a server](/dart-orpc/handbook/server) includes explanations, file-by-file examples, and verification steps.
+
+## Configure the application
+
+Generated `buildRpcApp` creates shared provider, RPC, and REST registries. Runtime policies are explicit:
+
+```dart
+final app = const AppModule().buildRpcApp(
+  health: const RpcHttpHealthOptions(
+    livenessPath: '/live',
+    readinessPath: '/ready',
+  ),
+  metrics: const RpcHttpMetricsOptions(),
+  maxConcurrentRequests: 256,
+  requestBodyIdleTimeout: const Duration(seconds: 10),
+  serverOptions: RpcHttpServerOptions(
+    cors: const CorsOptions(
+      allowedOrigins: ['https://app.example.com'],
+      allowCredentials: true,
+      exposeHeaders: ['X-Request-ID'],
+    ),
+    maxHeaderBytes: 16 * 1024,
+    bodyTimeout: const Duration(seconds: 20),
+    handlerTimeout: const Duration(seconds: 10),
+    rateLimit: const RpcHttpRateLimitOptions(maxRequests: 120),
+    onComplete: (event) => print(
+      '${event.request.requestId} ${event.route} ${event.statusCode}',
+    ),
+    onError: (event) => print(event.error),
+  ),
+);
+final server = await app.listen(3000);
+```
+
+Numbers above are examples; choose capacity from measured workload, stream counts, and downstream resources. Observer hooks are synchronous. Queue asynchronous logging/export work yourself. Hook failures are isolated and counted.
+
+## Limits and deadlines
+
+- `maxConcurrentRequests`: unlimited by default. Counts work from body reading through response completion, including streams and upgrades. Excess admission returns 503 `UNAVAILABLE` before middleware.
+- `requestBodyIdleTimeout`: disabled by default; bounds time between body chunks.
+- `serverOptions.bodyTimeout`: disabled by default; bounds total body reading.
+- `serverOptions.handlerTimeout`: disabled by default; bounds response creation including context, guards, and middleware. Does not bound returned stream lifetime.
+- `serverOptions.maxHeaderBytes`: optional application header-size policy.
+- Low-level `RpcHttpApp.maxRequestBodyBytes`: default 1 MiB. The generated `buildRpcApp` helper currently does not expose this argument. Do not copy it into the helper call.
+
+Timeouts and disconnects signal cooperative cancellation. Arbitrary Futures may continue unless their implementation observes it.
+
+## CORS
+
+Use `serverOptions.cors` when CORS must cover adapter failures such as 408, 413, 429, 431, and 503. `createCorsMiddleware` remains available for handler-only pipelines.
+
+Credentialed CORS requires exact origin configuration through `allowOrigin`, `allowedOrigins`, or `allowOriginPredicate`. Wildcard-only credentialed reflection is not supported. Preflight checks allowed methods/headers. Set `allowHeaders` for custom headers such as tenant or tracing headers. CORS is a browser access policy; it does not replace authentication.
+
+## Rate limiting and request IDs
+
+`RpcHttpRateLimitOptions` accepts required `maxRequests`, `window` (one minute), `maxKeys` (10,000), and optional `key(request)`. Default key uses direct peer address. Proxy headers are not trusted implicitly. The bounded in-memory limiter is local to a process/worker; use coordinated app/proxy policy when you need a shared quota. Rejections include `Retry-After` and use 429 `RESOURCE_EXHAUSTED`.
+
+The adapter issues `X-Request-ID` and exposes `rpcRequestIdKey`. Incoming IDs are ignored unless `trustRequestId: true`; accepted values are bounded and header-safe. A custom `requestIdFactory` can supply application IDs.
+
+## Health and metrics
+
+`RpcHttpHealthOptions` defaults to `/health`. Optional `livenessPath`, `readinessPath`, `check`, and `readinessCheck` separate process health from dependencies. Checks default to a five-second deadline. Readiness also observes draining.
+
+`RpcHttpMetricsOptions(path: '/metrics')` enables JSON process/request metrics, including active work, streams, errors, rejections, bytes, and cumulative durations. It is not a Prometheus exporter. Labels use registered route templates and a bounded unmatched label. Restrict operational endpoints at your deployment boundary as appropriate.
+
+## Middleware and HTTP data
+
+An HTTP middleware is `RpcHttpHandler Function(RpcHttpHandler next)`:
+
+```dart
+RpcHttpHandler timingMiddleware(RpcHttpHandler next) {
+  return (request) async {
+    final response = await next(request);
+    return response.copyWith(headers: {...response.headers, 'X-Service': 'todo'});
+  };
+}
+```
+
+Register with `middleware: [timingMiddleware]`. Preserve request internals with `request.copyWith()` rather than reconstructing requests. Request APIs include `bodyBytes`, lazily decoded `body`, `queryParametersAll`, `uri`, `remoteAddress`, `cookies`, `requestId`, and `cancellation`. Completion hooks are better for full stream duration than middleware timing around response creation.
+
+## Static files and response bodies
+
+```dart
+staticAssets: const RpcHttpStaticOptions(
+  directory: 'public',
+  path: '/assets',
+  cacheControl: 'public, max-age=3600',
+),
+```
+
+`defaultDocument` defaults to `index.html`, `path` to `/`, and `cacheControl` to `no-cache`. Static serving checks filesystem containment/symlinks, supports GET/HEAD, ETag/Last-Modified validation, and single byte ranges. `no-cache` permits storage but requires revalidation. Use longer immutable caching only for versioned asset URLs.
+
+`RpcHttpResponse.content` distinguishes `RpcBufferedHttpBody` and `RpcStreamingHttpBody`. Streaming responses expose byte chunks and flush policy. Preserve `headerValues`, cookies, and stream bodies when writing middleware. Static handler results are streaming; do not assume `body` is a byte list.
+
+## Performance switches
+
+`encodeJsonToBytes: true` encodes successful JSON directly to UTF-8 bytes; middleware must accept buffered `String` and `List<int>`. Default is `false`. `RpcJsonBytes` provides a specialized REST byte path for already encoded JSON; treat it as an advanced escape hatch and test contract behavior. `serverOptions.compress: true` enables negotiated gzip, excluding SSE and partial range responses. `sseFlushEachChunk` defaults to true.
+
+## Environment configuration
+
+`EnvReader.load(path: '.env')` reads dotenv/platform values. `EnvReader.fromMap` helps tests. Methods: `requiredString`/`required`, `string(fallback:)`, `positiveInt(fallback:)`, `duration(fallback:)` (seconds), and `port(fallback:)` (1–65535). Validate settings at startup and inject typed app configuration. Keep secrets out of DTOs, logs, and version control.
+
+## Shutdown
+
+```dart
+await server.close(gracePeriod: const Duration(seconds: 30));
+```
+
+Close stops admission, drains work, cancels remaining work at the deadline, closes upgrade handlers, and disposes generated providers. `app.close()` also works before listening, to release initialized providers. Wire process signal handlers in your executable and await close before exiting. `force: true` skips the drain.
+
+For production, generate first, analyze/test, compile the server, ship required assets, provide environment values, and configure TLS/proxy timeouts, WebSocket upgrades, and SSE buffering. The framework does not deploy or terminate TLS for you through the generated helper.
+
+## Multiple isolates
+
+`RpcHttpIsolateServer.start(createApp:, port:, workers:)` starts independent apps sharing a listening port. Use a top-level sendable app factory; initialize resources inside each worker. Providers, rate limits, metrics, memory stores, and stream buses are worker-local. Use shared external persistence/event infrastructure when multiple workers must observe the same data. Observe `server.done` and call `close()` during shutdown.

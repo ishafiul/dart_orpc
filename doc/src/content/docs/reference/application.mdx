@@ -1,0 +1,92 @@
+---
+title: Application and HTTP API
+description: Generated app methods, available options, defaults, and lower-level HTTP APIs.
+---
+
+## Generated module extension
+
+Import the module's `.orpc.dart` library. A module instance exposes:
+
+| Method | Result |
+| --- | --- |
+| `buildRpcApp(...)` | `RpcHttpApp` sharing one generated provider container |
+| `createClient(transports: ...)` | Generated root client, e.g. `AppClient` |
+| `procedureRegistry()` | `RpcProcedureRegistry` |
+| `restRouteRegistry()` | `RestRouteRegistry` |
+| `procedureMetadata()` | `ProcedureMetadataRegistry` |
+| `openApiSchemaRegistry()` | `OpenApiSchemaRegistry` |
+| `openApiDocument(options: ...)` | `JsonObject` OpenAPI document |
+
+Isolated modules can introduce additional required typed dependencies. Inspect emitted signatures for those cases.
+
+## buildRpcApp options
+
+| Option | Default | Purpose |
+| --- | --- | --- |
+| `openApi` | `OpenApiDocumentOptions()` | Document info and servers |
+| `docs` | `RpcHttpDocsOptions()` | Docs/schema paths, HTML, auth |
+| `staticAssets` | null | Static files |
+| `health` | null | Enable probes |
+| `metrics` | null | Enable metrics endpoint |
+| `webSocket` | null | Enable WebSocket upgrade handler |
+| `bindings` | empty typed bindings | Application context state |
+| `contextFactory` | null | Build per-request HTTP context |
+| `sseHeartbeatInterval` | 15 seconds | Idle stream heartbeat interval |
+| `sseFlushEachChunk` | true | Immediate SSE writes |
+| `encodeJsonToBytes` | false | Encode successful JSON as UTF-8 bytes |
+| `maxConcurrentRequests` | null/unlimited | HTTP admission bound |
+| `requestBodyIdleTimeout` | null/disabled | Idle body-read deadline |
+| `serverOptions` | `RpcHttpServerOptions()` | Adapter policies/hooks |
+| `middleware` | empty | HTTP middleware chain |
+
+`maxRequestBodyBytes`, `docsPath`, `openApiPath`, `websocketPath`, and `onClose` are not direct generated helper arguments. Configure docs paths through `docs`, WebSocket path through `webSocket`, and lower-level customization through `RpcHttpApp` where necessary.
+
+## RpcHttpServerOptions
+
+| Option | Default | Purpose |
+| --- | --- | --- |
+| `cors` | null | CORS over all adapter responses |
+| `onError` | null | Original exception/stack observer |
+| `onComplete` | null | Completion/abort observer |
+| `requestIdFactory` | null | App-supplied ID generation |
+| `trustRequestId` | false | Accept bounded safe incoming IDs |
+| `maxHeaderBytes` | null | Header size bound |
+| `bodyTimeout` | null | Total body-read deadline |
+| `handlerTimeout` | null | Response-creation deadline |
+| `compress` | false | Negotiated gzip |
+| `rateLimit` | null | Process-local bounded rate limiter |
+
+`RpcHttpRateLimitOptions` requires `maxRequests`; `window` defaults to one minute, `maxKeys` to 10,000, and `key` to direct peer address lookup. Do not assume quota sharing across workers or implicit proxy trust.
+
+`RpcHttpErrorEvent` supplies `request`, `error`, `stackTrace`. `RpcHttpCompletion` supplies `request`, route template, status, elapsed time, received/sent bytes, streaming/disconnect flags, and `failed`. Hooks are synchronous and isolated from response execution.
+
+## Supporting options
+
+| Type | Parameters and defaults |
+| --- | --- |
+| `RpcHttpDocsOptions` | `openApiPath: '/openapi.json'`, `docsPath: '/docs'`, nullable `title`, `html`, `basicAuth` |
+| `RpcHttpBasicAuth` | required username/password; `realm: 'Restricted'` |
+| `RpcHttpStaticOptions` | required directory; `path: '/'`, `defaultDocument: 'index.html'`, `cacheControl: 'no-cache'` |
+| `RpcHttpHealthOptions` | `path: '/health'`; optional check/livenessPath/readinessPath/readinessCheck; checkTimeout five seconds |
+| `RpcHttpMetricsOptions` | `path: '/metrics'` |
+| `CorsOptions` | wildcard noncredentialed origin; GET/POST/PUT/DELETE/PATCH/OPTIONS/HEAD; Content-Type/Authorization/X-Requested-With; no credentials; empty exposed headers |
+
+CORS also accepts `allowedOrigins`, `allowOriginPredicate`, `allowMethods`, `allowHeaders`, `exposeHeaders`, and optional `maxAge` seconds. Credentialed access needs explicit allowed origins.
+
+## Lifecycle
+
+`RpcHttpApp.listen(int port, {String hostname = '0.0.0.0', bool shared = false})` binds a server and returns `RpcHttpServer` with `port` and `address`. Use port `0` for an OS-selected test port, and `hostname: '127.0.0.1'` to bind locally. `app.close` and `server.close` accept `gracePeriod` (30 seconds) and `force` (false). App close before listen releases owned providers.
+
+`RpcHttpIsolateServer.start` takes required `createApp`, `port`, `workers`; optional hostname (`0.0.0.0`), startupTimeout (30 seconds), and disposeApp. It exposes `workerCount`, `port`, `address`, `done`, and `close`. State is worker-local.
+
+## Lower-level HTTP extension points
+
+`RpcHttpApp` accepts explicit procedure/REST registries, OpenAPI JSON/HTML and paths, `maxRequestBodyBytes` (1 MiB), upgrade handlers, and an `onClose` resource callback in addition to runtime options. If you compose it manually, share containers intentionally and preserve disposal.
+
+`RpcHttpHandler` returns `Future<RpcHttpResponse>` for `RpcHttpRequest`. `createRpcHttpHandler` builds a handler without the listening adapter; calling it directly does not exercise socket-level admission/body/deadline policies. `RpcHttpMiddleware` wraps a handler.
+
+`RestUnaryRoute` and `RestStreamRoute` are advanced manual route types collected by `RestRouteRegistry`. Normal annotated controllers use generated routes. `RpcHttpUpgradeHandler` defines upgrade matching, handling, and close behavior.
+
+`RpcHttpResponse` supports buffered bodies, `.streaming`, `.copyWith`, repeated `headerValues`, and cookies. Its `.content` is `RpcBufferedHttpBody` or `RpcStreamingHttpBody`. `RpcHttpResponseControl`, under `rpcHttpResponseKey`, supplies per-request HTTP status/headers/cookies. Preserve streaming content when copying responses.
+
+Operational examples and semantics: [Server Operations](/dart-orpc/guides/server-operations).

@@ -1,0 +1,97 @@
+---
+title: Authentication, Guards, and Metadata
+description: Declare bearer contracts, enforce application-owned auth, and attach custom permission metadata.
+---
+
+**Learning this for the first time?** [Build a complete guard](/dart-orpc/handbook/guards) includes explanations, file-by-file examples, and verification steps.
+
+## Authentication is application-owned
+
+The framework supplies guard execution, bearer contract metadata, context bindings, and client token options. Your app chooses token issuance, verification, sessions, permission storage, and identity models.
+
+`@BearerAuth` describes the public bearer requirement. **It does not validate a token on its own.** Its guard must also appear in `@UseGuards`, and that guard must be resolvable through module providers.
+
+```dart
+@BearerAuth(guard: JwtGuard)
+@UseGuards([JwtGuard])
+@Controller('account')
+final class AccountController {
+  @RpcMethod(name: 'me', path: RestMapping.get('/account/me'))
+  Future<AccountDto> me(RpcContext context) => loadAccount(context);
+}
+```
+
+This declaration assumes your app defines `JwtGuard`, `AccountDto`, and `loadAccount`. Register `JwtGuard` in the owning module's providers or import its exported binding. Bearer metadata also drives OpenAPI security requirements and generated call options.
+
+## Guard API
+
+```dart
+abstract interface class RpcGuard {
+  FutureOr<void> canActivate(RpcGuardContext context);
+}
+```
+
+Return normally to allow a call; throw `RpcException.unauthorized` or `.forbidden` to deny it. The method does not return a boolean. Guard context supplies `rpcContext`, `procedure` metadata, and decoded `input`. Guards can inspect typed input for resource/tenant authorization.
+
+```dart
+final class TenantGuard implements RpcGuard {
+  @override
+  void canActivate(RpcGuardContext context) {
+    final tenant = context.rpcContext.binding(tenantKey);
+    if (tenant == null) {
+      throw RpcException.forbidden('Tenant access is required.');
+    }
+  }
+}
+```
+
+`tenantKey` must refer to trusted application state populated after authentication. Do not accept an arbitrary client tenant header as an authorization decision.
+
+Controller and method guard declarations compose in the generated contract. Keep order intentional: authenticate before evaluating permissions. Input decoding may occur before guards; guards are not a substitute for transport/body limits.
+
+## Identity and request state
+
+`RpcContext` is immutable and has no built-in identity property or mutation API. Resolve request identity in an app context factory or inject an app-owned authentication service that guards/controllers can use. Share identity via typed bindings when appropriate. For HTTP-specific context factories, account separately for WebSocket upgrade authorization and connection context.
+
+For actual JWT verification, validate signature, algorithm, expiry, issuer, audience, and application claims as required by your identity system. The repository's `BasicAppJwtAuthGuard` is an application example; review its policy before reusing it.
+
+## WebSocket authorization
+
+`RpcWebSocketServerOptions(authorize: ...)` checks connection access before upgrade. It is separate from per-procedure guards. The VM client sends headers at `WebSocketRpcTransport.connect`; those connection credentials remain associated with the socket. Per-call `RpcCallOptions` are not supported by the bundled WebSocket transport. Reconnect explicitly when credentials must change.
+
+## Custom declarative metadata
+
+Use `@RpcMetadata` to make an app annotation part of procedure metadata:
+
+```dart
+@RpcMetadata('permissions')
+final class RequirePermissions {
+  const RequirePermissions({required this.allOf});
+  final List<String> allOf;
+}
+```
+
+Apply it to a controller or procedure alongside a guard:
+
+```dart
+@RequirePermissions(allOf: ['todo.write'])
+@RpcMethod(name: 'create', path: RestMapping.post('/todos'))
+Future<TodoResponseDto> create(RpcContext context, @RpcInput() CreateTodoDto input) {
+  return service.create(input.title);
+}
+```
+
+A guard reads `context.procedure.metadataValues('permissions')`, validates the metadata shape, and enforces it against authenticated identity. `metadataEntries`, `firstMetadataValue`, `guardTypes`, and `securityRequirements` support inspection. Metadata alone grants or denies nothing. Fail closed when required identity/permissions are absent.
+
+## HTTP client bearer tokens
+
+```dart
+final transport = HttpRpcTransport(
+  baseUrl: 'https://api.example.com',
+  bearerTokenProvider: () async => tokenStore.readAccessToken(),
+);
+```
+
+For a bearer-declared generated method without required header fields, per-call override uses `options: RpcCallOptions(bearerToken: token)`. Header-bound procedures generate a typed `requestOptions` wrapper instead; inspect that generated signature.
+
+Protect `/docs` and `/openapi.json` separately using `RpcHttpDocsOptions.basicAuth`. That option does not protect your business procedures.

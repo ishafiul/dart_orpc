@@ -1,0 +1,19 @@
+---
+title: dart_orpc_openapi
+description: OpenAPI 3.0.3 models, schema registry, document creation, and Scalar HTML.
+---
+
+The current implementation emits **OpenAPI 3.0.3** from shared procedure metadata and Luthor schemas.
+
+| API | Constructor/function arguments |
+| --- | --- |
+| `OpenApiDocumentOptions` | optional title/description; version defaults to `1.0.0`; servers defaults empty |
+| `OpenApiServer` | required url, optional description; `.toJson()` |
+| `OpenApiSchemaComponent` | required name and Luthor validator |
+| `OpenApiSchemaRegistry` | iterable components; exposes names/components/index lookup; rejects duplicate names |
+| `createOpenApiDocument` | required title/procedures; optional version, description, servers, schemas |
+| `createScalarHtml` | required title; openApiPath defaults to `/openapi.json` |
+
+Generated apps supply registries automatically and serve a startup document snapshot. Current document paths represent explicit REST/SSE mappings, not individual RPC-only methods. SSE adds event schema/terminal metadata; bearer declarations add security metadata.
+
+Use [Scalar and OpenAPI](/dart-orpc/guides/scalar-openapi) for route configuration, auth, static export, CDN/offline behavior, and schema caveats.
