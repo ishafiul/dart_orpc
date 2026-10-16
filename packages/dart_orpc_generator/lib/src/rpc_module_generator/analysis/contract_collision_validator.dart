@@ -24,7 +24,7 @@ void _validateUniqueProcedureContracts(
       if (path != null) {
         _recordUniqueContract(
           restOwners,
-          signature: _normalizedRestRouteSignature(path),
+          signature: path.route.signature(path.method),
           owner: owner,
           description: 'REST route',
           moduleElement: moduleElement,
@@ -52,16 +52,4 @@ void _recordUniqueContract(
     '"$signature" in $existingOwner and $owner.',
     element: moduleElement,
   );
-}
-
-String _normalizedRestRouteSignature(_ResolvedPathMapping path) {
-  var normalizedPath = _normalizeRestPath(path.path);
-  if (normalizedPath.length > 1 && normalizedPath.endsWith('/')) {
-    normalizedPath = normalizedPath.substring(0, normalizedPath.length - 1);
-  }
-
-  final normalizedSegments = normalizedPath
-      .split('/')
-      .map((segment) => segment.startsWith(':') ? ':' : segment);
-  return '${path.method.toUpperCase()} ${normalizedSegments.join('/')}';
 }

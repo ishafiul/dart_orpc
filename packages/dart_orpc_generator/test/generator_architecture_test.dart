@@ -88,6 +88,30 @@ void main() {
 
       expect(violations, isEmpty);
     });
+
+    test(
+      'graph and contract libraries are standalone and analyzer-independent',
+      () {
+        final violations = <String>[];
+        for (final directory in ['graph', 'contracts']) {
+          final root = Directory('${packageRoot.path}/lib/src/$directory');
+          for (final file in root.listSync().whereType<File>()) {
+            if (!file.path.endsWith('.dart')) continue;
+            final source = file.readAsStringSync();
+            if (source.contains('part of ') ||
+                RegExp(
+                  r'''(?:import|export)\s+['"](?!dart:)''',
+                ).hasMatch(source) ||
+                RegExp(
+                  r'\b(?:InterfaceElement|DartType|ConstantReader|_ProviderDefinition)\b',
+                ).hasMatch(source)) {
+              violations.add('$directory/${_relativePath(file, root)}');
+            }
+          }
+        }
+        expect(violations, isEmpty);
+      },
+    );
   });
 }
 

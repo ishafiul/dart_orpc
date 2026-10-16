@@ -484,7 +484,7 @@ _ResolvedPathMapping? _readPathMapping(ConstantReader annotationReader) {
     statusCode: status,
     headers: headers,
     method: pathReader.read('method').stringValue,
-    path: _normalizeRestPath(pathReader.read('rawPath').stringValue),
+    route: RestRoutePattern.parse(pathReader.read('rawPath').stringValue),
     isSse: pathReader.read('isSse').boolValue,
   );
 }

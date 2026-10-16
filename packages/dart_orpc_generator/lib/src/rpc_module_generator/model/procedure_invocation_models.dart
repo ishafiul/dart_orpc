@@ -32,14 +32,15 @@ final class _ResolvedInvocationParameter {
 final class _ResolvedPathMapping {
   const _ResolvedPathMapping({
     required this.method,
-    required this.path,
+    required this.route,
     required this.isSse,
     this.statusCode,
     this.headers = const {},
   });
 
   final String method;
-  final String path;
+  final RestRoutePattern route;
+  String get path => route.path;
   final bool isSse;
   final int? statusCode;
   final Map<String, String> headers;

@@ -12,60 +12,23 @@ List<_ResolvedDtoField> _resolveDtoFields(
   }
 
   final fieldsByName = <String, _ResolvedDtoFieldBuilder>{};
-  void recordField(
-    String name,
-    String typeCode, {
-    _ResolvedDtoFieldBinding? binding,
-  }) {
+  for (final candidate in [
+    ...discoverDtoMembers(element),
+    ...discoverDtoConstructorParameters(element),
+  ]) {
     final field = fieldsByName.putIfAbsent(
-      name,
-      () => _ResolvedDtoFieldBuilder(name: name, typeCode: typeCode),
+      candidate.name,
+      () => _ResolvedDtoFieldBuilder(
+        name: candidate.name,
+        typeCode: candidate.type.getDisplayString(),
+      ),
+    );
+    final binding = _readResolvedDtoFieldBinding(
+      candidate.element,
+      methodName: methodName,
     );
     if (binding != null) {
       field.applyBinding(binding, methodName: methodName, element: element);
-    }
-  }
-
-  for (final field in element.fields) {
-    final name = field.displayName;
-    if (!field.isStatic && !name.startsWith('_')) {
-      recordField(
-        name,
-        field.type.getDisplayString(),
-        binding: _readResolvedDtoFieldBinding(field, methodName: methodName),
-      );
-    }
-  }
-
-  for (final getter in element.getters) {
-    final name = getter.displayName;
-    if (!getter.isStatic &&
-        !name.startsWith('_') &&
-        name != 'hashCode' &&
-        name != 'runtimeType') {
-      recordField(
-        name,
-        getter.returnType.getDisplayString(),
-        binding: _readResolvedDtoFieldBinding(getter, methodName: methodName),
-      );
-    }
-  }
-
-  for (final constructor in element.constructors.where((constructor) {
-    final name = constructor.name ?? '';
-    return name.isEmpty || name == 'new';
-  })) {
-    for (final parameter in constructor.formalParameters) {
-      if (!parameter.displayName.startsWith('_')) {
-        recordField(
-          parameter.displayName,
-          parameter.type.getDisplayString(),
-          binding: _readResolvedDtoFieldBinding(
-            parameter,
-            methodName: methodName,
-          ),
-        );
-      }
     }
   }
 

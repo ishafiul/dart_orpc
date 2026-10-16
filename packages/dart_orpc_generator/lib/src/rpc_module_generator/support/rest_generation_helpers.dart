@@ -9,13 +9,6 @@ String _escapeDartString(String value) {
       .replaceAll('\$', r'\$');
 }
 
-String _normalizeRestPath(String rawPath) {
-  if (rawPath.isEmpty) {
-    return '/';
-  }
-  return rawPath.startsWith('/') ? rawPath : '/$rawPath';
-}
-
 String _decodeInputExpression(_ResolvedProcedure procedure) {
   if (!procedure.hasInput) {
     return '(rawInput) => expectNoRpcInput(rawInput, context: \'RPC method "${procedure.rpcMethod}"\')';
@@ -188,24 +181,22 @@ void _ensureSupportedRestScalarParameter(
 }
 
 void _validateRestPathBindings(
-  String routePath,
+  RestRoutePattern route,
   List<FormalParameterElement> pathParameters, {
   required String methodName,
 }) {
-  final routeParameters = RegExp(
-    r':([A-Za-z_][A-Za-z0-9_]*)',
-  ).allMatches(routePath).map((match) => match.group(1)!).toSet();
+  final routeParameters = route.parameterNames.toSet();
   final boundParameters = pathParameters.map(_pathParamWireName).toSet();
   final unknownBindings = boundParameters.difference(routeParameters);
   if (unknownBindings.isNotEmpty) {
     throw InvalidGenerationSourceError(
-      'RPC method "$methodName" declares @PathParam bindings not present in route "$routePath": ${unknownBindings.join(', ')}.',
+      'RPC method "$methodName" declares @PathParam bindings not present in route "${route.path}": ${unknownBindings.join(', ')}.',
     );
   }
   final missingBindings = routeParameters.difference(boundParameters);
   if (missingBindings.isNotEmpty) {
     throw InvalidGenerationSourceError(
-      'RPC method "$methodName" must declare @PathParam bindings for route "$routePath": ${missingBindings.join(', ')}.',
+      'RPC method "$methodName" must declare @PathParam bindings for route "${route.path}": ${missingBindings.join(', ')}.',
     );
   }
 }

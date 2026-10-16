@@ -143,10 +143,3 @@ final class _ResolvedProviderBinding {
   final String variableName;
   final String sourceLabel;
 }
-
-final class _VisitedModule {
-  const _VisitedModule({required this.typeKey, required this.displayName});
-
-  final String typeKey;
-  final String displayName;
-}

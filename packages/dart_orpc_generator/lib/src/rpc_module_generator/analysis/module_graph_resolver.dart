@@ -5,15 +5,9 @@ _ResolvedModuleGraph _resolveModuleGraph(
   required ConstantReader annotation,
   required Set<String> usedNames,
 }) {
-  final declarations = <String, _ModuleDeclaration>{};
-  final orderedDeclarations = <_ModuleDeclaration>[];
-
-  _discoverModule(
+  final orderedDeclarations = _discoverModuleDeclarations(
     rootModule,
-    annotation: annotation,
-    declarations: declarations,
-    orderedDeclarations: orderedDeclarations,
-    stack: const [],
+    annotation,
   );
 
   final exportedProviderDeclarations = <String, _DeclaredProvider>{};
@@ -195,79 +189,67 @@ _ResolvedModuleGraph _resolveModuleGraph(
   );
 }
 
-_ModuleDeclaration _discoverModule(
-  InterfaceElement moduleElement, {
-  required ConstantReader? annotation,
-  required Map<String, _ModuleDeclaration> declarations,
-  required List<_ModuleDeclaration> orderedDeclarations,
-  required List<_VisitedModule> stack,
-}) {
-  final typeKey = _typeKeyFor(moduleElement.thisType);
-  final cached = declarations[typeKey];
-  if (cached != null) return cached;
-
-  final cycleStartIndex = stack.indexWhere(
-    (visitedModule) => visitedModule.typeKey == typeKey,
-  );
-  if (cycleStartIndex != -1) {
-    final cycle = [
-      for (final visitedModule in stack.skip(cycleStartIndex))
-        visitedModule.displayName,
-      moduleElement.displayName,
-    ].join(' -> ');
+List<_ModuleDeclaration> _discoverModuleDeclarations(
+  InterfaceElement rootModule,
+  ConstantReader rootAnnotation,
+) {
+  final annotations = <String, ConstantReader>{
+    _typeKeyFor(rootModule.thisType): rootAnnotation,
+  };
+  final imports = <String, List<InterfaceElement>>{};
+  final List<InterfaceElement> orderedModules;
+  try {
+    orderedModules = depthFirstPostorder<InterfaceElement, String>(
+      [rootModule],
+      keyOf: (module) => _typeKeyFor(module.thisType),
+      dependenciesOf: (module) {
+        final key = _typeKeyFor(module.thisType);
+        final annotation = annotations.putIfAbsent(
+          key,
+          () => _readModuleAnnotation(module),
+        );
+        return imports[key] = _readModuleElements(
+          annotation.read('imports'),
+          element: module,
+          fieldName: 'imports',
+        );
+      },
+    );
+  } on DependencyCycle<InterfaceElement> catch (cycle) {
+    final path = cycle.path.map((module) => module.displayName).join(' -> ');
     throw InvalidGenerationSourceError(
-      'Detected circular @Module.imports chain: $cycle.',
-      element: moduleElement,
+      'Detected circular @Module.imports chain: $path.',
+      element: cycle.path.last,
     );
   }
 
-  final resolvedAnnotation = annotation ?? _readModuleAnnotation(moduleElement);
-  final importedElements = _readModuleElements(
-    resolvedAnnotation.read('imports'),
-    element: moduleElement,
-    fieldName: 'imports',
-  );
-  final importedModules = importedElements
-      .map(
-        (importedModule) => _discoverModule(
-          importedModule,
-          annotation: null,
-          declarations: declarations,
-          orderedDeclarations: orderedDeclarations,
-          stack: [
-            ...stack,
-            _VisitedModule(
-              typeKey: typeKey,
-              displayName: moduleElement.displayName,
-            ),
-          ],
-        ),
-      )
-      .toList(growable: false);
-  final declaration = _ModuleDeclaration(
-    typeKey: typeKey,
-    displayName: moduleElement.displayName,
-    moduleElement: moduleElement,
-    importedModules: importedModules,
-    controllers: _readInterfaceElements(
-      resolvedAnnotation.read('controllers'),
-      element: moduleElement,
-      fieldName: 'controllers',
-    ),
-    providers: _readProviderDefinitions(
-      resolvedAnnotation,
-      element: moduleElement,
-    ),
-    exports: _readInterfaceElements(
-      resolvedAnnotation.read('exports'),
-      element: moduleElement,
-      fieldName: 'exports',
-    ),
-    isGlobal: resolvedAnnotation.read('global').boolValue,
-  );
-  declarations[typeKey] = declaration;
-  orderedDeclarations.add(declaration);
-  return declaration;
+  final declarations = <String, _ModuleDeclaration>{};
+  for (final module in orderedModules) {
+    final key = _typeKeyFor(module.thisType);
+    final annotation = annotations[key]!;
+    declarations[key] = _ModuleDeclaration(
+      typeKey: key,
+      displayName: module.displayName,
+      moduleElement: module,
+      importedModules: [
+        for (final imported in imports[key]!)
+          declarations[_typeKeyFor(imported.thisType)]!,
+      ],
+      controllers: _readInterfaceElements(
+        annotation.read('controllers'),
+        element: module,
+        fieldName: 'controllers',
+      ),
+      providers: _readProviderDefinitions(annotation, element: module),
+      exports: _readInterfaceElements(
+        annotation.read('exports'),
+        element: module,
+        fieldName: 'exports',
+      ),
+      isGlobal: annotation.read('global').boolValue,
+    );
+  }
+  return declarations.values.toList(growable: false);
 }
 
 List<_ProviderDefinition> _readProviderDefinitions(

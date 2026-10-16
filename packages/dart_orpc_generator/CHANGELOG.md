@@ -1,3 +1,11 @@
+## Unreleased
+
+- Share DTO field discovery between module and field-reference generators;
+  reuse parsed REST route patterns for binding, collision checks, and metadata.
+- Extract internal graph algorithms; use iterative DFS for module traversal and
+  cycle diagnostics, and Kahn ordering for providers while preserving declaration
+  order, optional injection, and disposal behavior.
+
 ## 0.1.0-dev.6
 
  - **FEAT**(generator): Support provider bindings and custom REST status and headers.

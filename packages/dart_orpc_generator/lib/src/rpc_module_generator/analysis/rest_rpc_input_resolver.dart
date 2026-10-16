@@ -18,10 +18,7 @@ _ResolvedRestRpcInput _resolveRestRpcInput(
   }
 
   final fieldByName = {for (final field in inputFields) field.name: field};
-  final routeParameters = RegExp(r':([A-Za-z_][A-Za-z0-9_]*)')
-      .allMatches(path.path)
-      .map((match) => match.group(1)!)
-      .toList(growable: false);
+  final routeParameters = path.route.parameterNames;
   final effectiveDetails = _mergeRpcInputDetails(
     _rpcInputBindingFromDtoFields(inputFields),
     binding,

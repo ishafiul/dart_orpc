@@ -8,6 +8,11 @@ import 'package:dart_orpc_core/dart_orpc_core.dart';
 import 'package:luthor/luthor.dart';
 import 'package:source_gen/source_gen.dart';
 
+import 'analysis/dto_field_discovery.dart';
+import 'contracts/rest_route_pattern.dart';
+import 'graph/depth_first_search.dart';
+import 'graph/topological_sort.dart';
+
 // Analyzer-facing discovery and contract resolution.
 part 'rpc_module_generator/analysis/controller_binding_builder.dart';
 part 'rpc_module_generator/analysis/contract_collision_validator.dart';

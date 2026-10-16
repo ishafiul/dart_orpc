@@ -81,7 +81,6 @@ List<_ResolvedInstantiation> _resolveProviderInstantiations(
     ...externalProviders,
   };
   final declaredProviderNames = <String>{};
-  final remainingProviders = [...providers];
 
   for (final provider in providers) {
     if (!declaredProviderNames.add(provider.typeKey)) {
@@ -99,77 +98,55 @@ List<_ResolvedInstantiation> _resolveProviderInstantiations(
     }
   }
 
-  while (remainingProviders.isNotEmpty) {
-    var progressed = false;
-    for (final provider in List<_ProviderDefinition>.from(remainingProviders)) {
-      final instantiation = _tryBuildInstantiation(
-        provider,
-        availableProviders: availableProviders,
-        usedNames: usedNames,
-        forcedVariableName: forcedVariableNames[provider.typeKey],
-      );
-      if (instantiation == null) {
-        continue;
-      }
-      resolved.add(instantiation);
-      availableProviders[instantiation.typeKey] = instantiation.variableName;
-      remainingProviders.remove(provider);
-      progressed = true;
-    }
-    if (progressed) {
-      continue;
-    }
-    final cycle = _findProviderDependencyCycle(remainingProviders);
+  final dependencies = {
+    for (final provider in providers)
+      provider.typeKey: [
+        for (final parameter in provider.parameters)
+          if (!parameter.isOptional) _dependencyTypeKeyFor(parameter.type),
+      ],
+  };
+  final sorted = topologicalSort<_ProviderDefinition, String>(
+    providers,
+    keyOf: (provider) => provider.typeKey,
+    dependenciesOf: (provider) => dependencies[provider.typeKey]!,
+    available: availableProviders.keys,
+  );
+  if (sorted.unresolved.isNotEmpty) {
+    final unresolvedByKey = {
+      for (final provider in sorted.unresolved) provider.typeKey: provider,
+    };
+    final cycle = findDependencyCycle<_ProviderDefinition, String>(
+      sorted.unresolved,
+      keyOf: (provider) => provider.typeKey,
+      dependenciesOf: (provider) => [
+        for (final key in dependencies[provider.typeKey]!)
+          if (unresolvedByKey[key] case final dependency?) dependency,
+      ],
+    );
     if (cycle != null) {
       throw InvalidGenerationSourceError(
-        'Provider dependency cycle: ${cycle.join(' -> ')}.',
+        'Provider dependency cycle: ${cycle.map((provider) => provider.typeName).join(' -> ')}.',
         element: moduleElement,
       );
     }
     throw InvalidGenerationSourceError(
-      'Unable to resolve provider dependencies for: ${remainingProviders.map((provider) => provider.typeName).join(', ')}.',
+      'Unable to resolve provider dependencies for: ${sorted.unresolved.map((provider) => provider.typeName).join(', ')}.',
       element: moduleElement,
     );
   }
 
+  for (final provider in sorted.ordered) {
+    final instantiation = _tryBuildInstantiation(
+      provider,
+      availableProviders: availableProviders,
+      usedNames: usedNames,
+      forcedVariableName: forcedVariableNames[provider.typeKey],
+    );
+    if (instantiation == null) {
+      throw StateError('Invalid dependency order for "${provider.typeName}".');
+    }
+    resolved.add(instantiation);
+    availableProviders[instantiation.typeKey] = instantiation.variableName;
+  }
   return resolved;
-}
-
-List<String>? _findProviderDependencyCycle(
-  List<_ProviderDefinition> providers,
-) {
-  final providersByType = {
-    for (final provider in providers) provider.typeKey: provider,
-  };
-
-  List<String>? walk(_ProviderDefinition provider, List<String> path) {
-    final typeKey = provider.typeKey;
-    final cycleStart = path.indexOf(typeKey);
-    if (cycleStart != -1) {
-      return [
-        ...path.skip(cycleStart).map(_providerNameForTypeKey),
-        provider.typeName,
-      ];
-    }
-    final nextPath = [...path, typeKey];
-    for (final parameter in provider.parameters) {
-      if (parameter.isOptional) continue;
-      final next = providersByType[_dependencyTypeKeyFor(parameter.type)];
-      if (next == null) continue;
-      final cycle = walk(next, nextPath);
-      if (cycle != null) return cycle;
-    }
-    return null;
-  }
-
-  for (final provider in providers) {
-    final cycle = walk(provider, const []);
-    if (cycle != null) return cycle;
-  }
-  return null;
-}
-
-String _providerNameForTypeKey(String typeKey) {
-  final separator = typeKey.lastIndexOf(':');
-  return separator == -1 ? typeKey : typeKey.substring(separator + 1);
 }

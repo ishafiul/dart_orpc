@@ -38,7 +38,7 @@ void _validateMethodSourceAnnotations(
   );
   if (path != null && rpcInputParameters.isEmpty) {
     _validateRestPathBindings(
-      path.path,
+      path.route,
       pathParameters,
       methodName: methodName,
     );

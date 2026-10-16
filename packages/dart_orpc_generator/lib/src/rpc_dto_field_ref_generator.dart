@@ -3,6 +3,8 @@ import 'package:build/build.dart';
 import 'package:luthor/luthor.dart';
 import 'package:source_gen/source_gen.dart';
 
+import 'analysis/dto_field_discovery.dart';
+
 const _luthorFieldRefChecker = TypeChecker.typeNamed(
   Luthor,
   inPackage: 'luthor',
@@ -64,42 +66,13 @@ final class RpcDtoFieldRefGenerator extends Generator {
   }
 
   List<String> _resolveFieldNames(InterfaceElement element) {
-    final fieldNames = <String>{};
-
-    for (final field in element.fields) {
-      final name = field.displayName;
-      if (field.isStatic || name.startsWith('_')) {
-        continue;
-      }
-      fieldNames.add(name);
-    }
-
-    for (final getter in element.getters) {
-      final name = getter.displayName;
-      if (getter.isStatic ||
-          name.startsWith('_') ||
-          name == 'hashCode' ||
-          name == 'runtimeType') {
-        continue;
-      }
-      fieldNames.add(name);
-    }
-
+    final fieldNames = {
+      for (final member in discoverDtoMembers(element)) member.name,
+    };
     if (fieldNames.isEmpty) {
-      final candidateConstructors = element.constructors.where((constructor) {
-        final name = constructor.name ?? '';
-        return name.isEmpty || name == 'new';
-      });
-
-      for (final constructor in candidateConstructors) {
-        for (final parameter in constructor.formalParameters) {
-          final name = parameter.displayName;
-          if (name.startsWith('_')) {
-            continue;
-          }
-          fieldNames.add(name);
-        }
-      }
+      fieldNames.addAll(
+        discoverDtoConstructorParameters(element).map((field) => field.name),
+      );
     }
 
     return fieldNames.toList(growable: false)..sort();
