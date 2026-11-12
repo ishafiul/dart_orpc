@@ -166,6 +166,82 @@ void main() {
     );
   });
 
+  group('Given error details', () {
+    test(
+      'When a const exception carries details then the error object includes them',
+      () {
+        const error = RpcException(
+          code: RpcErrorCode.conflict,
+          message: 'Todo exists.',
+          details: {'todoId': 7},
+        );
+
+        expect(error.details, {'todoId': 7});
+        expect(error.toResponse().toJson(), {
+          'error': {
+            'code': 'CONFLICT',
+            'message': 'Todo exists.',
+            'details': {'todoId': 7},
+          },
+        });
+      },
+    );
+
+    test(
+      'When details are absent or empty then the error object omits them',
+      () {
+        const absent = RpcErrorBody(code: 'NOT_FOUND', message: 'missing');
+        const empty = RpcErrorBody(
+          code: 'NOT_FOUND',
+          message: 'missing',
+          details: {},
+        );
+
+        expect(absent.toJson(), {'code': 'NOT_FOUND', 'message': 'missing'});
+        expect(empty.toJson(), {'code': 'NOT_FOUND', 'message': 'missing'});
+      },
+    );
+
+    test('When a factory receives details then the exception keeps them', () {
+      const details = {'field': 'title'};
+      final errors = {
+        RpcErrorCode.badRequest: RpcException.badRequest('m', details: details),
+        RpcErrorCode.unauthorized: RpcException.unauthorized(
+          'm',
+          details: details,
+        ),
+        RpcErrorCode.forbidden: RpcException.forbidden('m', details: details),
+        RpcErrorCode.notFound: RpcException.notFound('m', details: details),
+        RpcErrorCode.conflict: RpcException.conflict('m', details: details),
+        RpcErrorCode.resourceExhausted: RpcException.resourceExhausted(
+          'm',
+          details: details,
+        ),
+        RpcErrorCode.requestTimeout: RpcException.requestTimeout(
+          'm',
+          details: details,
+        ),
+        RpcErrorCode.payloadTooLarge: RpcException.payloadTooLarge(
+          'm',
+          details: details,
+        ),
+        RpcErrorCode.unavailable: RpcException.unavailable(
+          'm',
+          details: details,
+        ),
+        RpcErrorCode.deadlineExceeded: RpcException.deadlineExceeded(
+          'm',
+          details: details,
+        ),
+      };
+
+      for (final MapEntry(key: code, value: error) in errors.entries) {
+        expect(error.code, code);
+        expect(error.details, {'field': 'title'});
+      }
+    });
+  });
+
   group('Given RpcContext defaults', () {
     test('When using typed bindings then the key infers the value type', () {
       const tenantKey = RpcContextKey<String>('tenant');
