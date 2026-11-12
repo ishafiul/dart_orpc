@@ -269,4 +269,46 @@ void main() {
       },
     );
   });
+
+  group('Given an RpcHttpErrorEvent built with existing arguments', () {
+    late RpcHttpErrorEvent event;
+
+    setUp(() {
+      event = RpcHttpErrorEvent(
+        request: const RpcHttpRequest(method: 'POST', path: '/rpc'),
+        error: StateError('boom'),
+        stackTrace: StackTrace.empty,
+      );
+    });
+
+    test('When it is read then transport defaults to http', () {
+      expect(event.transport, RpcTransportKind.http);
+    });
+
+    test('When it is read then call metadata is absent', () {
+      expect(event.rpcMethod, isNull);
+      expect(event.callId, isNull);
+    });
+  });
+
+  group('Given an RpcHttpErrorEvent for a WebSocket call', () {
+    late RpcHttpErrorEvent event;
+
+    setUp(() {
+      event = RpcHttpErrorEvent(
+        request: const RpcHttpRequest(method: 'GET', path: '/ws'),
+        error: StateError('boom'),
+        stackTrace: StackTrace.empty,
+        transport: RpcTransportKind.webSocket,
+        rpcMethod: 'user.getById',
+        callId: '7',
+      );
+    });
+
+    test('When it is read then transport and call metadata are kept', () {
+      expect(event.transport, RpcTransportKind.webSocket);
+      expect(event.rpcMethod, 'user.getById');
+      expect(event.callId, '7');
+    });
+  });
 }
