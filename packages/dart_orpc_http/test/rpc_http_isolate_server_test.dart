@@ -134,6 +134,23 @@ void main() {
     expect(await disposed, 'disposed');
   });
 
+  test('binding failure waits for slow disposal inside worker', () async {
+    final occupied = await ServerSocket.bind('127.0.0.1', 0);
+    addTearDown(occupied.close);
+    final events = ReceivePort();
+    addTearDown(events.close);
+    final disposed = events.first;
+    await expectLater(
+      start(
+        port: occupied.port,
+        workers: 1,
+        disposeApp: _slowDisposer(events.sendPort),
+      ),
+      throwsA(isA<RemoteError>()),
+    );
+    expect(await disposed.timeout(const Duration(seconds: 5)), 'disposed');
+  });
+
   test(
     'unexpected VM exit during startup is reported and cleaned up',
     () async {
@@ -380,6 +397,10 @@ RpcHttpApp Function() _controlledFactory(SendPort events) =>
 
 void Function(RpcHttpApp) _disposer(SendPort events) =>
     (_) => events.send('disposed');
+Future<void> Function(RpcHttpApp) _slowDisposer(SendPort events) => (_) async {
+  await Future<void>.delayed(const Duration(milliseconds: 200));
+  events.send('disposed');
+};
 void _failingDispose(RpcHttpApp _) => throw StateError('cleanup failed');
 
 Future<RpcHttpApp> _asyncFailingFactory() {
