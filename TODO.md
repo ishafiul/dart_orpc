@@ -17,6 +17,10 @@ No ready items.
   `onComplete`.
 - [ ] **SEC-001 · P1 · Feature:** Document the application authentication integration
   model.
+- [ ] **SEC-002 · P2 · Security:** Stop leaking internal details in explicit
+  internal-error messages: Luthor output-validation failures send DTO field names
+  to clients. Send a generic message and report the real one through `onError`.
+  Split out of ERR-001 ([#19](https://github.com/ishafiul/dart_orpc/issues/19)).
 - [ ] **CLIENT-001 · P1 · Feature:** Add per-call client timeouts and cancellation
   to `RpcCallOptions`. Headers and bearer tokens already exist.
 - [ ] **CLIENT-002 · P1 · Feature:** Add an opt-in retry policy.
@@ -54,6 +58,11 @@ No ready items.
   the closed `RpcErrorCode` enum.
 - [ ] **ERR-004 · P1 · Feature:** Add a centralized exception-mapping hook that turns
   domain exceptions into `RpcException` for every transport.
+- [ ] **ERR-005 · P2 · Feature:** Add typed error-detail classes that the generated
+  client decodes from `error.details`, keyed by error code and designed together
+  with ERR-003. Deferred from ERR-001
+  ([#18](https://github.com/ishafiul/dart_orpc/issues/18)), which ships untyped
+  `JsonObject` details on the same wire field.
 - [ ] **DI-002 · P1 · Feature:** Support async provider factories.
 - [ ] **DI-003 · P1 · Feature:** Add a provider initialization lifecycle hook to pair
   with `RpcDisposable`.
