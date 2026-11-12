@@ -31,15 +31,38 @@ final class RpcHttpServerOptions {
   final RpcHttpRateLimitOptions? rateLimit;
 }
 
+/// The transport that produced an [RpcHttpErrorEvent].
+enum RpcTransportKind {
+  /// An HTTP exchange: RPC, REST or SSE.
+  http,
+
+  /// A call on an upgraded WebSocket connection.
+  webSocket,
+}
+
 final class RpcHttpErrorEvent {
   const RpcHttpErrorEvent({
     required this.request,
     required this.error,
     required this.stackTrace,
+    this.transport = RpcTransportKind.http,
+    this.rpcMethod,
+    this.callId,
   });
+
+  /// The HTTP request, or the upgrade request for a WebSocket call.
   final RpcHttpRequest request;
   final Object error;
   final StackTrace stackTrace;
+
+  /// The transport that produced the error.
+  final RpcTransportKind transport;
+
+  /// The RPC method of the failed call, when known.
+  final String? rpcMethod;
+
+  /// The transport call id of the failed call, such as a WebSocket frame id.
+  final String? callId;
 }
 
 final class RpcHttpCompletion {
