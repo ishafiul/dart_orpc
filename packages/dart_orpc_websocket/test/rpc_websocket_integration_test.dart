@@ -649,10 +649,91 @@ void main() {
       },
     );
   });
+  group('Given WebSocket calls that fail with non-RPC errors', () {
+    late List<RpcHttpErrorEvent> events;
+    late WebSocket socket;
+    late StreamIterator<Object?> frames;
+    const codec = RpcWebSocketFrameCodec();
+
+    setUp(() async {
+      events = [];
+      final fixture = await _startRawFixture(onError: events.add);
+      socket = await _connectRaw(fixture.server);
+      frames = StreamIterator<Object?>(socket);
+      addTearDown(frames.cancel);
+    });
+
+    Future<RpcWebSocketFrame> call(
+      String id,
+      RpcWebSocketCallKind kind,
+      String method,
+    ) async {
+      socket.add(
+        codec.encode(RpcWebSocketCallFrame(id: id, kind: kind, method: method)),
+      );
+      expect(await frames.moveNext(), isTrue);
+      return codec.decode(frames.current);
+    }
+
+    test(
+      'When a unary call throws then the client gets INTERNAL_ERROR',
+      () async {
+        final frame = await call(
+          'u1',
+          RpcWebSocketCallKind.unary,
+          'boom.unary',
+        );
+
+        expect(
+          (frame as RpcWebSocketErrorFrame).error.code,
+          RpcErrorCode.internalError.wireName,
+        );
+      },
+    );
+
+    test(
+      'When a unary call throws then onError gets a WebSocket event',
+      () async {
+        await call('u1', RpcWebSocketCallKind.unary, 'boom.unary');
+
+        expect(events, hasLength(1));
+        expect(events.single.error, isA<StateError>());
+        expect(events.single.transport, RpcTransportKind.webSocket);
+        expect(events.single.rpcMethod, 'boom.unary');
+        expect(events.single.callId, 'u1');
+        expect(events.single.request.path, '/rpc/ws');
+      },
+    );
+
+    test('When a stream fails then onError gets a WebSocket event', () async {
+      final frame = await call(
+        's1',
+        RpcWebSocketCallKind.stream,
+        'boom.stream',
+      );
+
+      expect(frame, isA<RpcWebSocketErrorFrame>());
+      expect(events, hasLength(1));
+      expect(events.single.error, isA<StateError>());
+      expect(events.single.rpcMethod, 'boom.stream');
+      expect(events.single.callId, 's1');
+    });
+
+    test(
+      'When two calls fail on one connection then both are reported',
+      () async {
+        await call('u1', RpcWebSocketCallKind.unary, 'boom.unary');
+        await call('u2', RpcWebSocketCallKind.unary, 'boom.unary');
+
+        expect(events.map((event) => event.callId), ['u1', 'u2']);
+      },
+    );
+  });
 }
 
 Future<_RawFixture> _startRawFixture({
   RpcWebSocketServerOptions options = const RpcWebSocketServerOptions(),
+  void Function(RpcHttpErrorEvent event)? onError,
 }) async {
   final cancelled = Completer<void>();
   final procedures = RpcProcedureRegistry([
@@ -667,6 +748,31 @@ Future<_RawFixture> _startRawFixture({
       decodeInput: (input) => expectJsonObject(input, context: 'echo input'),
       encodeOutput: (output) => output,
       handler: (_, input) => input,
+    ),
+    RpcUnaryProcedure<Null, JsonObject>(
+      method: 'boom.unary',
+      metadata: const ProcedureMetadata(
+        rpcMethod: 'boom.unary',
+        controllerNamespace: 'boom',
+        methodName: 'unary',
+        outputTypeCode: 'JsonObject',
+      ),
+      decodeInput: (_) => null,
+      encodeOutput: (output) => output,
+      handler: (_, _) => throw StateError('unary failed'),
+    ),
+    RpcStreamProcedure<Null, JsonObject>(
+      method: 'boom.stream',
+      metadata: const ProcedureMetadata(
+        rpcMethod: 'boom.stream',
+        controllerNamespace: 'boom',
+        methodName: 'stream',
+        outputTypeCode: 'JsonObject',
+        kind: RpcProcedureKind.serverStream,
+      ),
+      decodeInput: (_) => null,
+      encodeOutput: (output) => output,
+      handler: (_, _) => Stream<JsonObject>.error(StateError('stream failed')),
     ),
     RpcStreamProcedure<Null, JsonObject>(
       method: 'events.forever',
@@ -699,6 +805,7 @@ Future<_RawFixture> _startRawFixture({
   );
   final app = RpcHttpApp(
     procedures: procedures,
+    serverOptions: RpcHttpServerOptions(onError: onError),
     upgradeHandlers: [upgradeHandler],
   );
   final server = await app.listen(
