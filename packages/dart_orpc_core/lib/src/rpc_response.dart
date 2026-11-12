@@ -9,12 +9,23 @@ final class RpcSuccessResponse {
 }
 
 final class RpcErrorBody {
-  const RpcErrorBody({required this.code, required this.message});
+  const RpcErrorBody({required this.code, required this.message, this.details});
 
   final String code;
   final String message;
 
-  JsonObject toJson() => {'code': code, 'message': message};
+  /// Client-visible structured context. The `issues` key is reserved for
+  /// framework validation issues. Null and empty details are omitted.
+  final JsonObject? details;
+
+  JsonObject toJson() {
+    final details = this.details;
+    return {
+      'code': code,
+      'message': message,
+      if (details != null && details.isNotEmpty) 'details': details,
+    };
+  }
 }
 
 final class RpcErrorResponse {
