@@ -1,6 +1,6 @@
 # PRD — ERR-001: Structured error details across transports
 
-- **Status:** Draft, under review
+- **Status:** Approved on [#21](https://github.com/ishafiul/dart_orpc/issues/21#issuecomment-6833161232)
 - **Tracker item:** `ERR-001` in [`TODO.md`](../../TODO.md)
 - **Requirements map:** [#16](https://github.com/ishafiul/dart_orpc/issues/16)
 - **Baseline:** `main` at `3d82bae`. Line references below are against this commit.
