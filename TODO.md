@@ -50,8 +50,6 @@ No ready items.
 - [ ] **BUG-007 · P1 · Fix:** Make the `basic_app` `TodoPermissionGuard` fail closed;
   it allows every request because nothing sets `attributes['permissions']`.
   Depends on CORE-001.
-- [ ] **ERR-001 · P1 · Feature:** Add a `details` payload to `RpcException` and the
-  error envelope across RPC, REST, WebSocket, OpenAPI, and the client.
 - [ ] **ERR-002 · P1 · Feature:** Return structured validation issues (field path
   and message) from the Luthor bridge instead of one flattened string.
 - [ ] **ERR-003 · P1 · Feature:** Allow application-defined typed error codes beyond
@@ -86,6 +84,10 @@ No ready items.
   message-only `RpcClientException`s.
 ## In progress
 
+- [ ] **ERR-001 · P1 · Feature:** Add a `details` payload to `RpcException` and the
+  error envelope across RPC, REST, WebSocket, OpenAPI, and the client.
+  Tracked by [#16](https://github.com/ishafiul/dart_orpc/issues/16); F1.1 done,
+  F1.2 in review.
 - [ ] **GEN-001 · P1 · Maintenance:** Refactor the generator into a maintainable,
   well-structured, and approachable architecture.
 - [ ] **PERF-001 · P2 · Performance:** Establish performance baselines and regression

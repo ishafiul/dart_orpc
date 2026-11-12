@@ -6,6 +6,7 @@ export 'src/rpc_cancellation.dart';
 export 'src/rpc_context.dart';
 export 'src/rpc_disposable.dart';
 export 'src/rpc_error_code.dart';
+export 'src/rpc_error_encoding.dart';
 export 'src/rpc_exception.dart';
 export 'src/rpc_guard.dart';
 export 'src/rpc_json_bytes.dart';
