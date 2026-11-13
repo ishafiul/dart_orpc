@@ -43,6 +43,22 @@ melos:
     test:
       description: Run tests in workspace packages that define them.
       run: dart run melos exec --fail-fast --dir-exists=test -- dart test
+    test:uncovered:
+      description: >-
+        Run tests in packages that the coverage scripts do not already test.
+        CI runs this with test:generator:coverage and test:runtime:coverage so
+        each package's tests run once.
+      run: >-
+        dart run melos exec
+        --fail-fast
+        --dir-exists=test
+        --ignore=dart_orpc_generator
+        --ignore=dart_orpc_core
+        --ignore=dart_orpc_client
+        --ignore=dart_orpc_http
+        --ignore=dart_orpc_websocket
+        --ignore=dart_orpc_openapi
+        -- dart test
     test:generator:coverage:
       description: Verify generator tests and enforce at least 90% line coverage.
       run: >-
