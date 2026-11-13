@@ -345,6 +345,14 @@ JsonObject _buildComponentSchemas(OpenApiSchemaRegistry schemas) {
       'properties': {
         'code': {'type': 'string'},
         'message': {'type': 'string'},
+        'details': {
+          'type': 'object',
+          'additionalProperties': true,
+          'description':
+              'Optional structured context for the error. Omitted when '
+              'there is none. The `issues` key is reserved for framework '
+              'validation issues.',
+        },
       },
     },
     'RpcErrorResponse': {

@@ -37,6 +37,45 @@ void main() {
     },
   );
 
+  group('Given the shared RpcErrorBody component', () {
+    late JsonObject errorBody;
+
+    setUp(() {
+      final document = createOpenApiDocument(
+        title: 'API',
+        procedures: ProcedureMetadataRegistry(const []),
+      );
+      final components = document['components'] as JsonObject;
+      errorBody =
+          (components['schemas'] as JsonObject)['RpcErrorBody'] as JsonObject;
+    });
+
+    test('When read then details is an optional property', () {
+      expect(errorBody['required'], ['code', 'message']);
+      expect((errorBody['properties'] as JsonObject).keys, [
+        'code',
+        'message',
+        'details',
+      ]);
+    });
+
+    test('When read then details is an open object', () {
+      final details =
+          (errorBody['properties'] as JsonObject)['details'] as JsonObject;
+
+      expect(details['type'], 'object');
+      expect(details['additionalProperties'], isTrue);
+    });
+
+    test('When read then details documents the reserved issues key', () {
+      final details =
+          (errorBody['properties'] as JsonObject)['details'] as JsonObject;
+
+      expect(details['description'], contains('`issues`'));
+      expect(details['description'], contains('reserved'));
+    });
+  });
+
   group('Given createOpenApiDocument', () {
     test(
       'When passed REST procedure metadata and Luthor schemas then it builds an OpenAPI document with components',
