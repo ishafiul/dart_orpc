@@ -135,67 +135,67 @@ packages:
       path: "../../../packages/dart_orpc"
       relative: true
     source: path
-    version: "0.1.0-dev.5"
+    version: "0.1.0-dev.6"
   dart_orpc_annotations:
     dependency: "direct overridden"
     description:
       path: "../../../packages/dart_orpc_annotations"
       relative: true
     source: path
-    version: "0.1.0-dev.3"
+    version: "0.1.0-dev.4"
   dart_orpc_client:
     dependency: transitive
     description:
       name: dart_orpc_client
-      sha256: "1d5a5123ed6503335227bf4e76636b4c9aa171712c239370459b468f63be5802"
+      sha256: d0196d290f1463baa56caf410dbbe7567e6702fff48e69391ca6f1635697cb78
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.0-dev.4"
+    version: "0.1.0-dev.5"
   dart_orpc_core:
     dependency: "direct overridden"
     description:
       path: "../../../packages/dart_orpc_core"
       relative: true
     source: path
-    version: "0.1.0-dev.4"
+    version: "0.1.0-dev.5"
   dart_orpc_generator:
     dependency: "direct dev"
     description:
       path: "../../../packages/dart_orpc_generator"
       relative: true
     source: path
-    version: "0.1.0-dev.5"
+    version: "0.1.0-dev.6"
   dart_orpc_http:
     dependency: "direct overridden"
     description:
       path: "../../../packages/dart_orpc_http"
       relative: true
     source: path
-    version: "0.1.0-dev.5"
+    version: "0.1.0-dev.6"
   dart_orpc_luthor:
     dependency: transitive
     description:
       name: dart_orpc_luthor
-      sha256: "74cf1c4f343228046ddde726b68c3bc60056feb0f9015f016ee4cd6cc45537bb"
+      sha256: a04aebefc08db76bcaadb8246a4df3d218d3d56d125a06229fa08d3fe0531422
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.0-dev.4"
+    version: "0.1.0-dev.5"
   dart_orpc_openapi:
     dependency: transitive
     description:
       name: dart_orpc_openapi
-      sha256: "25155bf384938cd425b550d320c1f8720232ac4df1fa727c548588c0e0bda360"
+      sha256: "3d6022abf2c66ba7e20d00a36d57882ce4b4a19aceb84649296f18a202e1be1a"
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.0-dev.5"
+    version: "0.1.0-dev.6"
   dart_orpc_websocket:
     dependency: transitive
     description:
       name: dart_orpc_websocket
-      sha256: "74a96496039fd53624a6084e3a6ed79bcb161358d9a8bb221b577141b85c2bc2"
+      sha256: a28eb8612c94dff223cb2b223b167050c44ada152a719194366845115a52adf6
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.0-dev.5"
+    version: "0.1.0-dev.6"
   dart_style:
     dependency: transitive
     description:
@@ -501,4 +501,4 @@ packages:
     source: hosted
     version: "3.1.4"
 sdks:
-  dart: ">=3.11.0 <4.0.0"
+  dart: ">=3.14.0 <4.0.0"
