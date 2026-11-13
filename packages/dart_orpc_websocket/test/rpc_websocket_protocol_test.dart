@@ -22,6 +22,17 @@ void main() {
         id: '1',
         error: RpcErrorBody(code: 'NOT_FOUND', message: 'missing'),
       ),
+      const RpcWebSocketErrorFrame(
+        id: '2',
+        error: RpcErrorBody(
+          code: 'CONFLICT',
+          message: 'stale',
+          details: {
+            'version': 2,
+            'fields': ['name'],
+          },
+        ),
+      ),
     ];
 
     test('When valid frames round-trip then their JSON remains stable', () {
@@ -30,6 +41,51 @@ void main() {
         expect(decoded.toJson(), frame.toJson());
       }
     });
+
+    test('When an error frame has object details then they are decoded', () {
+      final frame = codec.decode(
+        jsonEncode({
+          'type': 'error',
+          'id': '1',
+          'error': {
+            'code': 'CONFLICT',
+            'message': 'stale',
+            'details': {'version': 2},
+          },
+        }),
+      );
+
+      expect((frame as RpcWebSocketErrorFrame).error.details, {'version': 2});
+    });
+
+    test(
+      'When an error frame has non-object details then they decode as null',
+      () {
+        for (final details in <Object?>[
+          null,
+          'text',
+          3,
+          true,
+          ['a'],
+        ]) {
+          final frame = codec.decode(
+            jsonEncode({
+              'type': 'error',
+              'id': '1',
+              'error': {
+                'code': 'CONFLICT',
+                'message': 'stale',
+                'details': details,
+              },
+            }),
+          );
+
+          final error = (frame as RpcWebSocketErrorFrame).error;
+          expect(error.details, isNull, reason: 'details: $details');
+          expect(error.code, 'CONFLICT');
+        }
+      },
+    );
 
     test('When extra fields are present then they are ignored', () {
       final decoded = codec.decode(

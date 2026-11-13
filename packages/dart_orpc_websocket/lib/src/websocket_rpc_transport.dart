@@ -185,7 +185,11 @@ final class WebSocketRpcTransport implements RpcDuplexTransport {
             ? RpcClientException(
                 'WebSocket RPC returned unknown error code "${error.code}".',
               )
-            : RpcException(code: rpcCode, message: error.message);
+            : RpcException(
+                code: rpcCode,
+                message: error.message,
+                details: error.details,
+              );
         switch (call) {
           case _PendingUnaryCall(:final completer):
             if (!completer.isCompleted) {

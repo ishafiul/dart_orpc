@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 
@@ -293,6 +294,79 @@ void main() {
         ),
       );
     });
+  });
+  group('Given a WebSocket server that returns error details', () {
+    Future<WebSocketRpcTransport> connect(Object? details) async {
+      const codec = RpcWebSocketFrameCodec();
+      final endpoint = await _serveWebSocket((socket) {
+        socket.listen((message) {
+          final call = codec.decode(message) as RpcWebSocketCallFrame;
+          socket.add(
+            jsonEncode({
+              'type': 'error',
+              'id': call.id,
+              'error': {
+                'code': 'CONFLICT',
+                'message': 'stale',
+                'details': details,
+              },
+            }),
+          );
+        });
+      });
+      final transport = await WebSocketRpcTransport.connect(endpoint);
+      addTearDown(transport.close);
+      return transport;
+    }
+
+    test('When a unary call fails then the exception has details', () async {
+      final transport = await connect({'version': 2});
+
+      await expectLater(
+        transport.send(const RpcRequest(method: 'item.update')),
+        throwsA(
+          isA<RpcException>()
+              .having((error) => error.code, 'code', RpcErrorCode.conflict)
+              .having((error) => error.details, 'details', {'version': 2}),
+        ),
+      );
+    });
+
+    test(
+      'When a stream fails then the emitted exception has details',
+      () async {
+        final transport = await connect({'version': 2});
+
+        await expectLater(
+          transport.subscribe(const RpcRequest(method: 'item.watch')),
+          emitsError(
+            isA<RpcException>().having((error) => error.details, 'details', {
+              'version': 2,
+            }),
+          ),
+        );
+      },
+    );
+
+    test(
+      'When details are not an object then the call fails with null details',
+      () async {
+        final transport = await connect('not an object');
+
+        await expectLater(
+          transport.send(const RpcRequest(method: 'item.update')),
+          throwsA(
+            isA<RpcException>()
+                .having((error) => error.code, 'code', RpcErrorCode.conflict)
+                .having((error) => error.details, 'details', isNull),
+          ),
+        );
+        await expectLater(
+          transport.send(const RpcRequest(method: 'item.again')),
+          throwsA(isA<RpcException>()),
+        );
+      },
+    );
   });
 }
 
