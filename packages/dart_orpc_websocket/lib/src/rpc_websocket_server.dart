@@ -251,7 +251,11 @@ final class _RpcWebSocketConnection {
 
   void _start(RpcWebSocketCallFrame frame) {
     if (!_acceptingCalls) {
-      _sendError(frame.id, RpcException.cancelled('Server is shutting down.'));
+      _sendError(
+        frame.id,
+        RpcException.cancelled('Server is shutting down.'),
+        rpcMethod: frame.method,
+      );
       return;
     }
     if (_calls.containsKey(frame.id)) {
@@ -264,6 +268,7 @@ final class _RpcWebSocketConnection {
         RpcException.resourceExhausted(
           'The WebSocket connection has too many active RPC calls.',
         ),
+        rpcMethod: frame.method,
       );
       return;
     }
@@ -307,13 +312,14 @@ final class _RpcWebSocketConnection {
             RpcException.resourceExhausted(
               'RPC result exceeded the configured WebSocket buffer limit.',
             ),
+            rpcMethod: request.method,
           );
         }
       }
     } on Object catch (error, stackTrace) {
       if (_calls.containsKey(id)) {
         _reportCallFailure(error, stackTrace, id, request.method);
-        _sendError(id, _asRpcException(error));
+        _sendError(id, _asRpcException(error), rpcMethod: request.method);
       }
     } finally {
       _calls.remove(id);
@@ -346,7 +352,7 @@ final class _RpcWebSocketConnection {
           onError: (Object error, StackTrace stackTrace) {
             if (_calls.containsKey(id)) {
               _reportCallFailure(error, stackTrace, id, request.method);
-              _sendError(id, _asRpcException(error));
+              _sendError(id, _asRpcException(error), rpcMethod: request.method);
               unawaited(_finish(id));
             }
           },
@@ -358,6 +364,7 @@ final class _RpcWebSocketConnection {
                   RpcException.resourceExhausted(
                     'RPC completion exceeded the configured WebSocket buffer limit.',
                   ),
+                  rpcMethod: request.method,
                 );
               }
               unawaited(_finish(id));
@@ -371,16 +378,48 @@ final class _RpcWebSocketConnection {
     return _writer.enqueue(id, frame);
   }
 
-  void _sendError(String id, RpcException error) {
-    final queued = _writer.enqueue(
-      id,
-      RpcWebSocketErrorFrame(
-        id: id,
-        error: RpcErrorBody(code: error.code.wireName, message: error.message),
-      ),
-      bypassCallLimit: true,
-    );
-    if (!queued) {
+  /// Queues an error frame for [id]. Never throws.
+  ///
+  /// A frame over `maxFrameBytes` is retried without details, then with a
+  /// short fixed message, always keeping the real code. If even that does not
+  /// fit, the connection is closed with a policy violation.
+  void _sendError(String id, RpcException error, {String? rpcMethod}) {
+    void report(Object failure, StackTrace stackTrace) =>
+        reportError(failure, stackTrace, rpcMethod: rpcMethod, callId: id);
+
+    var encoding = encodeRpcError(error);
+    final detailsError = encoding.detailsError;
+    if (detailsError != null) report(detailsError, encoding.detailsStackTrace!);
+
+    var attempt = _tryEnqueueError(id, encoding);
+    if (attempt case _Oversize(
+      :final cause,
+      :final stackTrace,
+    ) when _hasDetails(encoding)) {
+      report(
+        RpcErrorDetailsEncodingException(exception: error, cause: cause),
+        stackTrace,
+      );
+      encoding = encoding.withoutDetails();
+      attempt = _tryEnqueueError(id, encoding);
+    }
+    if (attempt case _Oversize(:final cause, :final stackTrace)) {
+      report(cause, stackTrace);
+      attempt = _tryEnqueueError(
+        id,
+        encodeRpcError(
+          RpcException(code: error.code, message: _oversizeErrorMessage),
+        ),
+      );
+    }
+    if (attempt is _Oversize) {
+      unawaited(
+        close(
+          WebSocketStatus.policyViolation,
+          'WebSocket error frame exceeds the configured size limit.',
+        ),
+      );
+    } else if (attempt case _Queued(accepted: false)) {
       unawaited(
         close(
           WebSocketStatus.policyViolation,
@@ -388,6 +427,36 @@ final class _RpcWebSocketConnection {
         ),
       );
     }
+  }
+
+  static const _oversizeErrorMessage =
+      'RPC error exceeded the WebSocket frame size limit.';
+
+  static bool _hasDetails(RpcErrorEncoding encoding) =>
+      (encoding.json['error'] as JsonObject).containsKey('details');
+
+  _ErrorEnqueue _tryEnqueueError(String id, RpcErrorEncoding encoding) {
+    try {
+      return _Queued(_enqueueError(id, encoding));
+    } on RpcWebSocketProtocolException catch (cause, stackTrace) {
+      return _Oversize(cause, stackTrace);
+    }
+  }
+
+  bool _enqueueError(String id, RpcErrorEncoding encoding) {
+    final error = encoding.json['error'] as JsonObject;
+    return _writer.enqueue(
+      id,
+      RpcWebSocketErrorFrame(
+        id: id,
+        error: RpcErrorBody(
+          code: error['code'] as String,
+          message: error['message'] as String,
+          details: error['details'] as JsonObject?,
+        ),
+      ),
+      bypassCallLimit: true,
+    );
   }
 
   Future<void> _overflow(String id) async {
@@ -488,6 +557,26 @@ final class _RpcWebSocketConnection {
       }
     }
   }
+}
+
+/// Outcome of queueing an error frame.
+sealed class _ErrorEnqueue {
+  const _ErrorEnqueue();
+}
+
+/// The frame fit; [accepted] is false when the output buffer is full.
+final class _Queued extends _ErrorEnqueue {
+  const _Queued(this.accepted);
+
+  final bool accepted;
+}
+
+/// The frame exceeded `maxFrameBytes`.
+final class _Oversize extends _ErrorEnqueue {
+  const _Oversize(this.cause, this.stackTrace);
+
+  final RpcWebSocketProtocolException cause;
+  final StackTrace stackTrace;
 }
 
 final class _ActiveServerCall {

@@ -729,6 +729,245 @@ void main() {
       },
     );
   });
+  group('Given WebSocket calls that fail with error details', () {
+    late List<RpcHttpErrorEvent> events;
+    late WebSocket socket;
+    late StreamIterator<Object?> frames;
+    const codec = RpcWebSocketFrameCodec(maxFrameBytes: 1024);
+
+    setUp(() async {
+      events = [];
+      final fixture = await _startRawFixture(
+        options: const RpcWebSocketServerOptions(maxFrameBytes: 1024),
+        onError: events.add,
+      );
+      socket = await _connectRaw(fixture.server);
+      frames = StreamIterator<Object?>(socket);
+      addTearDown(frames.cancel);
+    });
+
+    Future<JsonObject> call(
+      String id,
+      RpcWebSocketCallKind kind,
+      String method, [
+      Object? input,
+    ]) async {
+      socket.add(
+        codec.encode(
+          RpcWebSocketCallFrame(
+            id: id,
+            kind: kind,
+            method: method,
+            input: input,
+          ),
+        ),
+      );
+      expect(await frames.moveNext(), isTrue);
+      return jsonDecode(frames.current as String) as JsonObject;
+    }
+
+    test('When a unary call fails then the error frame has details', () async {
+      final frame = await call(
+        'u1',
+        RpcWebSocketCallKind.unary,
+        'details.unary',
+        {'kind': 'small'},
+      );
+
+      expect(frame, {
+        'type': 'error',
+        'id': 'u1',
+        'error': {
+          'code': 'CONFLICT',
+          'message': 'Version conflict.',
+          'details': {'version': 2},
+        },
+      });
+    });
+
+    test('When a stream fails then the error frame has details', () async {
+      final frame = await call(
+        's1',
+        RpcWebSocketCallKind.stream,
+        'details.stream',
+      );
+
+      expect((frame['error'] as JsonObject)['details'], {'version': 2});
+    });
+
+    test(
+      'When the error frame is too large then it is re-sent without details',
+      () async {
+        final frame = await call(
+          'big',
+          RpcWebSocketCallKind.unary,
+          'details.unary',
+          {'kind': 'large'},
+        );
+
+        expect(frame['error'], {
+          'code': 'CONFLICT',
+          'message': 'Version conflict.',
+        });
+      },
+    );
+
+    test(
+      'When the error frame is too large then the connection keeps working',
+      () async {
+        await call('big', RpcWebSocketCallKind.unary, 'details.unary', {
+          'kind': 'large',
+        });
+        final next = await call(
+          'next',
+          RpcWebSocketCallKind.unary,
+          'echo.value',
+          {'value': 7},
+        );
+
+        expect(next, {
+          'type': 'result',
+          'id': 'next',
+          'data': {'value': 7},
+        });
+      },
+    );
+
+    test(
+      'When the error frame is too large then the drop is reported',
+      () async {
+        await call('big', RpcWebSocketCallKind.unary, 'details.unary', {
+          'kind': 'large',
+        });
+
+        expect(events, hasLength(1));
+        expect(events.single.error, isA<RpcErrorDetailsEncodingException>());
+        expect(events.single.transport, RpcTransportKind.webSocket);
+        expect(events.single.rpcMethod, 'details.unary');
+        expect(events.single.callId, 'big');
+      },
+    );
+
+    test(
+      'When even the message is too large then a short error frame is sent',
+      () async {
+        final frame = await call(
+          'long',
+          RpcWebSocketCallKind.unary,
+          'details.unary',
+          {'kind': 'longMessage'},
+        );
+
+        expect(frame['id'], 'long');
+        expect(frame['error'], {
+          'code': 'CONFLICT',
+          'message': 'RPC error exceeded the WebSocket frame size limit.',
+        });
+      },
+    );
+
+    test(
+      'When even the message is too large then the connection keeps working',
+      () async {
+        await call('long', RpcWebSocketCallKind.unary, 'details.unary', {
+          'kind': 'longMessage',
+        });
+        final next = await call(
+          'next',
+          RpcWebSocketCallKind.unary,
+          'echo.value',
+          {'value': 7},
+        );
+
+        expect(next['type'], 'result');
+      },
+    );
+
+    test(
+      'When even the message is too large then the failure is reported',
+      () async {
+        await call('long', RpcWebSocketCallKind.unary, 'details.unary', {
+          'kind': 'longMessage',
+        });
+
+        expect(events.map((event) => event.error), [
+          isA<RpcErrorDetailsEncodingException>(),
+          isA<RpcWebSocketProtocolException>(),
+        ]);
+        expect(events.map((event) => event.callId), everyElement('long'));
+      },
+    );
+
+    test(
+      'When a stream message is too large then the call is cleaned up',
+      () async {
+        final frame = await call(
+          's1',
+          RpcWebSocketCallKind.stream,
+          'details.longStream',
+        );
+        final reused = await call(
+          's1',
+          RpcWebSocketCallKind.unary,
+          'echo.value',
+          {'value': 1},
+        );
+
+        expect((frame['error'] as JsonObject)['code'], 'CONFLICT');
+        expect(reused['type'], 'result');
+      },
+    );
+
+    test(
+      'When details cannot be encoded then the frame keeps the code',
+      () async {
+        final frame = await call(
+          'o1',
+          RpcWebSocketCallKind.unary,
+          'details.unary',
+          {'kind': 'opaque'},
+        );
+
+        expect(frame['error'], {
+          'code': 'CONFLICT',
+          'message': 'Version conflict.',
+        });
+        expect(events.single.error, isA<RpcErrorDetailsEncodingException>());
+        expect(events.single.callId, 'o1');
+      },
+    );
+  });
+  group('Given a frame limit too small for any error frame', () {
+    test(
+      'When a call fails then the connection closes with a policy violation',
+      () async {
+        final events = <RpcHttpErrorEvent>[];
+        final fixture = await _startRawFixture(
+          options: const RpcWebSocketServerOptions(maxFrameBytes: 100),
+          onError: events.add,
+        );
+        final socket = await _connectRaw(fixture.server);
+        final subscription = socket.listen((_) {});
+        addTearDown(subscription.cancel);
+        const codec = RpcWebSocketFrameCodec(maxFrameBytes: 100);
+
+        socket.add(
+          codec.encode(
+            const RpcWebSocketCallFrame(
+              id: 'x',
+              kind: RpcWebSocketCallKind.unary,
+              method: 'details.unary',
+              input: {'kind': 'longMessage'},
+            ),
+          ),
+        );
+        await socket.done.timeout(const Duration(seconds: 2));
+
+        expect(socket.closeCode, WebSocketStatus.policyViolation);
+        expect(events.last.error, isA<RpcWebSocketProtocolException>());
+      },
+    );
+  });
 }
 
 Future<_RawFixture> _startRawFixture({
@@ -760,6 +999,55 @@ Future<_RawFixture> _startRawFixture({
       decodeInput: (_) => null,
       encodeOutput: (output) => output,
       handler: (_, _) => throw StateError('unary failed'),
+    ),
+    RpcUnaryProcedure<JsonObject, JsonObject>(
+      method: 'details.unary',
+      metadata: const ProcedureMetadata(
+        rpcMethod: 'details.unary',
+        controllerNamespace: 'details',
+        methodName: 'unary',
+        outputTypeCode: 'JsonObject',
+      ),
+      decodeInput: (input) => expectJsonObject(input, context: 'input'),
+      encodeOutput: (output) => output,
+      handler: (_, input) => throw RpcException.conflict(
+        input['kind'] == 'longMessage' ? 'm' * 2048 : 'Version conflict.',
+        details: switch (input['kind']) {
+          'large' => {'blob': 'x' * 4096},
+          'opaque' => {'opaque': Object()},
+          _ => {'version': 2},
+        },
+      ),
+    ),
+    RpcStreamProcedure<Null, JsonObject>(
+      method: 'details.stream',
+      metadata: const ProcedureMetadata(
+        rpcMethod: 'details.stream',
+        controllerNamespace: 'details',
+        methodName: 'stream',
+        outputTypeCode: 'JsonObject',
+        kind: RpcProcedureKind.serverStream,
+      ),
+      decodeInput: (_) => null,
+      encodeOutput: (output) => output,
+      handler: (_, _) => Stream<JsonObject>.error(
+        RpcException.conflict('Version conflict.', details: {'version': 2}),
+      ),
+    ),
+    RpcStreamProcedure<Null, JsonObject>(
+      method: 'details.longStream',
+      metadata: const ProcedureMetadata(
+        rpcMethod: 'details.longStream',
+        controllerNamespace: 'details',
+        methodName: 'longStream',
+        outputTypeCode: 'JsonObject',
+        kind: RpcProcedureKind.serverStream,
+      ),
+      decodeInput: (_) => null,
+      encodeOutput: (output) => output,
+      handler: (_, _) => Stream<JsonObject>.error(
+        RpcException.conflict('m' * 2048, details: {'version': 2}),
+      ),
     ),
     RpcStreamProcedure<Null, JsonObject>(
       method: 'boom.stream',
