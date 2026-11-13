@@ -1,0 +1,167 @@
+---
+import "./PackageLanding.css";
+
+type LandingLink = { title: string; description: string; href: string };
+type Props = {
+  name: string;
+  title: string;
+  description: string;
+  category: string;
+  headline: string;
+  highlight: string;
+  summary: string;
+  install: string;
+  docsUrl: string;
+  sourceUrl: string;
+  pubUrl: string;
+  visual: "query" | "contract" | "transit";
+  image?: string;
+  imageAlt?: string;
+  facts: string[];
+  features: { title: string; description: string }[];
+  guides: LandingLink[];
+  note?: string;
+};
+
+const page = Astro.props;
+const canonicalUrl = new URL(
+  Astro.url.pathname.replace(/\/$/, "") || "/",
+  Astro.site ?? "https://shafi.dev",
+).href;
+const sourceSchema = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  name: page.name,
+  description: page.description,
+  codeRepository: page.sourceUrl,
+  programmingLanguage: "Dart",
+  url: canonicalUrl,
+  author: {
+    "@type": "Person",
+    name: "Shafiul Islam",
+    url: "https://shafi.dev/profile",
+  },
+};
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#111412" />
+    <title>{page.title}</title>
+    <meta name="description" content={page.description} />
+    <link rel="canonical" href={canonicalUrl} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={page.title} />
+    <meta property="og:description" content={page.description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={page.title} />
+    <meta name="twitter:description" content={page.description} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700&display=swap" rel="stylesheet" />
+    <script type="application/ld+json" set:html={JSON.stringify(sourceSchema)} />
+  </head>
+  <body class="package-page">
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <slot name="header">
+      <header class="package-header">
+        <div class="page-width header-inner">
+          <a class="wordmark" href="/" aria-label="Shafiul Islam, home">shafi<span>.dev</span><i aria-hidden="true"></i></a>
+          <nav aria-label="Primary navigation">
+            <a href="/#open-source">Work</a>
+            <a href="/#about">About</a>
+            <a href="/blogs">Writing</a>
+            <a class="github-link" href="https://github.com/ishafiul">GitHub</a>
+          </nav>
+        </div>
+      </header>
+    </slot>
+    <main id="main-content" class="page-width" data-pagefind-body>
+      <section class="package-hero" aria-labelledby="package-title">
+        <div class="hero-copy enter">
+          <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span>{page.category}</p>
+          <h1 id="package-title" data-pagefind-meta="title">{page.name}</h1>
+          <p class="hero-tagline">{page.headline} <span class="tagline-detail">{page.highlight}</span></p>
+          <p class="hero-summary">{page.summary}</p>
+          <div class="hero-actions">
+            <a class="primary-link" href={page.docsUrl}>Get started</a>
+            <a class="text-link" href={page.pubUrl} aria-label={`View ${page.name} on pub.dev`}>pub.dev</a>
+            <a class="text-link" href={page.sourceUrl}>View source</a>
+          </div>
+        </div>
+        <div class:list={["hero-visual", "enter", `visual-${page.visual}`]} style="--delay: 120ms">
+          {page.visual === "query" && (
+            <div class="diagram-panel" aria-label="FASQ fetches data, caches it, and keeps the UI in sync">
+              <div class="panel-heading"><span class="eyebrow">The query lifecycle</span><span class="mono">FASQ</span></div>
+              <div class="query-flow" aria-hidden="true"><span>Fetch</span><i></i><span class="active-node">Cache</span><i></i><span>Sync</span></div>
+              <div class="query-bars" aria-hidden="true">{Array.from({ length: 24 }, () => <i />)}</div>
+              <div class="query-detail"><span class="small-dot" aria-hidden="true"></span><span>Cached data. Fresh in the background.</span></div>
+              <div class="diagram-bottom"><span>Queries</span><span>Mutations</span><span>Your UI</span></div>
+            </div>
+          )}
+          {page.visual === "contract" && (
+            <div class="diagram-panel" aria-label="One Dart contract generates RPC, REST, OpenAPI, and typed clients">
+              <div class="panel-heading"><span class="eyebrow">One source of truth</span><span class="mono">DART</span></div>
+              <div class="contract-flow" aria-hidden="true"><div class="contract-node"><span>&lt;/&gt;</span>Contract</div><div class="contract-outputs"><span>RPC</span><span>REST</span><span>OpenAPI</span><span>Typed client</span></div></div>
+              <div class="diagram-bottom"><span>Define once.</span><span>Keep everything connected.</span></div>
+            </div>
+          )}
+          {page.visual === "transit" && page.image && (
+            <figure class="transit-demo"><div class="panel-heading"><span class="eyebrow">The package in action</span><span class="mono">NFC</span></div><img src={page.image} alt={page.imageAlt ?? "MRT Card Reader app demonstration"} width="800" height="1200" loading="eager" decoding="async" /><figcaption>Scan status, card balance, and journey history.</figcaption></figure>
+          )}
+        </div>
+      </section>
+
+      <section class="install-strip enter" style="--delay: 200ms" aria-label={`Install ${page.name}`}>
+        <span class="eyebrow">Add to your project</span>
+        <div class="install-command"><span aria-hidden="true">$</span><code id="install-command">{page.install}</code></div>
+        <button type="button" class="copy-command" data-copy-command hidden>Copy command</button>
+        <span class="copy-feedback" role="status" aria-live="polite"></span>
+      </section>
+      <ul class="package-facts" aria-label="Package details">{page.facts.map((fact) => <li>{fact}</li>)}</ul>
+
+      <section class="features-section" id="features" aria-labelledby="features-title">
+        <div class="section-heading"><p class="eyebrow">01 / What it does</p><h2 id="features-title">The useful parts.<br /><span class="heading-muted">Without the busywork.</span></h2></div>
+        <div class="feature-grid">{page.features.map((feature, index) => (
+          <article class="feature"><span class="feature-number mono" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span><h3>{feature.title}</h3><p>{feature.description}</p></article>
+        ))}</div>
+        {page.note && <p class="package-note">{page.note}</p>}
+      </section>
+
+      <section class="guides-section" aria-labelledby="guides-title">
+        <div class="section-heading"><p class="eyebrow">02 / Documentation</p><h2 id="guides-title">Find your next step.</h2></div>
+        <nav class="guide-grid" aria-label={`${page.name} documentation`}>
+          {page.guides.map((guide) => <a class="guide" href={guide.href}><h3>{guide.title}</h3><p>{guide.description}</p><span class="guide-action">Read guide</span></a>)}
+        </nav>
+      </section>
+    </main>
+    <footer class="page-width package-footer">
+      <div><p class="footer-name">{page.name}</p><p>Created & maintained by <a href="/profile">Shafiul Islam</a>.</p></div>
+      <nav aria-label="Package links"><a href={page.docsUrl}>Documentation</a><a href={page.pubUrl}>pub.dev</a><a href={page.sourceUrl}>GitHub</a></nav>
+    </footer>
+  </body>
+</html>
+
+<script>
+  const copyButton = document.querySelector<HTMLButtonElement>("[data-copy-command]");
+  const command = document.querySelector("#install-command")?.textContent;
+  const feedback = document.querySelector(".copy-feedback");
+  if (copyButton && command && navigator.clipboard) {
+    copyButton.hidden = false;
+    copyButton.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(command);
+        if (feedback) feedback.textContent = "Copied.";
+      } catch {
+        if (feedback) feedback.textContent = "Select the command to copy it.";
+      }
+    });
+  }
+</script>
+
+

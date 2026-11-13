@@ -1,6 +1,8 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "mf-dart-orpc",
+  "workers_dev": false,
+  "preview_urls": false,
   "main": "dist/_worker.js/index.js",
   "compatibility_date": "2026-04-18",
   "compatibility_flags": [

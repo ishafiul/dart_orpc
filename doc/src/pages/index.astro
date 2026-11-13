@@ -1,0 +1,57 @@
+---
+import PackageLanding from "../components/PackageLanding.astro";
+
+const features = [
+  {
+    title: "One API contract",
+    description:
+      "Generate RPC, REST mappings, OpenAPI, and typed Dart clients from the same controller metadata.",
+  },
+  {
+    title: "Structured applications",
+    description:
+      "Organize backend code with modules, controllers, services, and dependency injection.",
+  },
+  {
+    title: "Validated inputs",
+    description:
+      "Use DTO schemas to validate input at the boundary and keep server and client types aligned.",
+  },
+];
+const guides = [
+  {
+    title: "Quick start",
+    description: "Build a generated RPC and REST app, then call it from Dart.",
+    href: "/dart-orpc/quick-start",
+  },
+  {
+    title: "Build an app",
+    description:
+      "Follow the handbook from server setup to a complete application.",
+    href: "/dart-orpc/handbook",
+  },
+  {
+    title: "API reference",
+    description: "Find contracts, transports, and package APIs.",
+    href: "/dart-orpc/reference",
+  },
+];
+---
+
+<PackageLanding
+  name="Dart oRPC"
+  title="dart_orpc | A Contract-First Backend Framework for Dart"
+  description="Define Dart API contracts once and generate RPC, REST, OpenAPI, and typed clients from the same source of truth."
+  category="Dart backend framework"
+  headline="One contract."
+  highlight="Every connection."
+  summary="Define Dart controllers and DTOs once. Generate RPC, REST, OpenAPI, and typed clients from the same contract."
+  install="dart pub add dart_orpc"
+  docsUrl="/dart-orpc/quick-start"
+  sourceUrl="https://github.com/ishafiul/dart_orpc"
+  pubUrl="https://pub.dev/packages/dart_orpc"
+  visual="contract"
+  facts={["Dart", "Contract first", "Generated clients"]}
+  features={features}
+  guides={guides}
+/>
