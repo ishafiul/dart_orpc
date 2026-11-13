@@ -195,12 +195,14 @@ final class _HttpWorker {
     _stopping = true;
     if (!_exited.isCompleted) {
       final commands = _commands;
-      if (commands == null) {
+      if (commands != null) {
+        commands.send(_StopWorker(gracePeriod, force));
+      } else if (!_failed) {
         _stopped = true;
         _isolate.kill(priority: Isolate.immediate);
-      } else {
-        commands.send(_StopWorker(gracePeriod, force));
       }
+      // A worker that failed before becoming ready is already unwinding and
+      // disposing its app; let it exit within the bound below.
       // A blocked worker cannot receive shutdown commands. Bound shutdown even
       // when application cleanup hangs. Hard termination bypasses cleanup;
       // report failure so the caller can restart the process if needed.

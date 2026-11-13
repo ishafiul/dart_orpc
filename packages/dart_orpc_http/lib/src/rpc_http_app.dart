@@ -15,10 +15,27 @@ import 'middleware/cors_policy.dart';
 const int _defaultMaxRequestBodyBytes = 1024 * 1024;
 const Duration _defaultGracePeriod = Duration(seconds: 30);
 
+/// Reports a failure from an upgraded connection to
+/// [RpcHttpServerOptions.onError] as a [RpcTransportKind.webSocket] event.
+///
+/// Unlike HTTP exchanges, a connection may report any number of errors.
+typedef RpcUpgradeErrorReporter =
+    void Function(
+      Object error,
+      StackTrace stackTrace, {
+      String? rpcMethod,
+      String? callId,
+    });
+
 abstract interface class RpcHttpUpgradeHandler {
   bool canHandle(HttpRequest request);
 
-  Future<void> handle(HttpRequest request, RpcContext context);
+  /// Handles an upgrade [request]. Call failures go to [reportError].
+  Future<void> handle(
+    HttpRequest request,
+    RpcContext context,
+    RpcUpgradeErrorReporter reportError,
+  );
 
   Future<void> close({required Duration gracePeriod});
 }
@@ -397,7 +414,28 @@ final class RpcHttpApp {
           final context = await _createContext(exchange.request);
           upgraded = true;
           exchange.statusCode = HttpStatus.switchingProtocols;
-          await upgradeHandler.handle(request, context);
+          final upgradeRequest = exchange.request;
+          await upgradeHandler.handle(request, context, (
+            Object error,
+            StackTrace stackTrace, {
+            String? rpcMethod,
+            String? callId,
+          }) {
+            try {
+              serverOptions.onError?.call(
+                RpcHttpErrorEvent(
+                  request: upgradeRequest,
+                  error: error,
+                  stackTrace: stackTrace,
+                  transport: RpcTransportKind.webSocket,
+                  rpcMethod: rpcMethod,
+                  callId: callId,
+                ),
+              );
+            } catch (_) {
+              _metrics?.hookErrors++;
+            }
+          });
           return;
         }
       }

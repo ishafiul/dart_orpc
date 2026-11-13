@@ -379,6 +379,74 @@ void main() {
       },
     );
   });
+
+  group('Given an upgrade handler that reports errors', () {
+    late RpcHttpServer server;
+    late Uri baseUri;
+    late List<RpcHttpErrorEvent> events;
+    late int onErrorCalls;
+
+    setUp(() async {
+      events = [];
+      onErrorCalls = 0;
+      final app = RpcHttpApp(
+        procedures: RpcProcedureRegistry(const []),
+        serverOptions: RpcHttpServerOptions(
+          onError: (event) {
+            onErrorCalls++;
+            if (onErrorCalls == 1) throw StateError('hook failed');
+            events.add(event);
+          },
+        ),
+        upgradeHandlers: [_ReportingUpgradeHandler()],
+      );
+      server = await app.listen(
+        0,
+        hostname: InternetAddress.loopbackIPv4.address,
+      );
+      baseUri = Uri.parse('http://${server.address.address}:${server.port}');
+    });
+
+    tearDown(() async {
+      await server.close(force: true);
+    });
+
+    test(
+      'When the handler reports several errors then each reaches onError',
+      () async {
+        final response = await _send(baseUri.resolve('/ws'), method: 'GET');
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(onErrorCalls, 3);
+        expect(events, hasLength(2));
+      },
+    );
+
+    test(
+      'When the handler reports errors then events are WebSocket events',
+      () async {
+        await _send(baseUri.resolve('/ws'), method: 'GET');
+
+        expect(
+          events.map((event) => event.transport),
+          everyElement(RpcTransportKind.webSocket),
+        );
+        expect(events.map((event) => event.request.path), everyElement('/ws'));
+      },
+    );
+
+    test(
+      'When the handler reports call metadata then the event carries it',
+      () async {
+        await _send(baseUri.resolve('/ws'), method: 'GET');
+
+        expect(events.last.error, isA<FormatException>());
+        expect(events.last.rpcMethod, 'user.getById');
+        expect(events.last.callId, '7');
+        expect(events.first.rpcMethod, isNull);
+      },
+    );
+  });
 }
 
 Future<_HttpResponseData> _send(
@@ -423,4 +491,30 @@ final class _HttpResponseData {
 String _basicAuthHeader(String username, String password) {
   final credentials = base64Encode(utf8.encode('$username:$password'));
   return 'Basic $credentials';
+}
+
+final class _ReportingUpgradeHandler implements RpcHttpUpgradeHandler {
+  @override
+  bool canHandle(HttpRequest request) => request.uri.path == '/ws';
+
+  @override
+  Future<void> handle(
+    HttpRequest request,
+    RpcContext context,
+    RpcUpgradeErrorReporter reportError,
+  ) async {
+    reportError(StateError('first'), StackTrace.current);
+    reportError(ArgumentError('second'), StackTrace.current);
+    reportError(
+      const FormatException('third'),
+      StackTrace.current,
+      rpcMethod: 'user.getById',
+      callId: '7',
+    );
+    request.response.statusCode = HttpStatus.ok;
+    await request.response.close();
+  }
+
+  @override
+  Future<void> close({required Duration gracePeriod}) async {}
 }

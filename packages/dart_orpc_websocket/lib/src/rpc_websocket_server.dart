@@ -64,7 +64,11 @@ final class RpcWebSocketUpgradeHandler implements RpcHttpUpgradeHandler {
   }
 
   @override
-  Future<void> handle(HttpRequest request, RpcContext context) async {
+  Future<void> handle(
+    HttpRequest request,
+    RpcContext context,
+    RpcUpgradeErrorReporter reportError,
+  ) async {
     if (!_accepting) {
       await _reject(request, HttpStatus.serviceUnavailable, 'Server draining.');
       return;
@@ -115,6 +119,7 @@ final class RpcWebSocketUpgradeHandler implements RpcHttpUpgradeHandler {
       baseContext: context,
       codec: _codec,
       options: options,
+      reportError: reportError,
     );
     _connections.add(connection);
     try {
@@ -185,6 +190,7 @@ final class _RpcWebSocketConnection {
     required this.baseContext,
     required this.codec,
     required this.options,
+    required this.reportError,
   }) : _writer = _BoundedWebSocketWriter(
          socket: socket,
          codec: codec,
@@ -196,6 +202,7 @@ final class _RpcWebSocketConnection {
   final RpcContext baseContext;
   final RpcWebSocketFrameCodec codec;
   final RpcWebSocketServerOptions options;
+  final RpcUpgradeErrorReporter reportError;
   final _BoundedWebSocketWriter _writer;
   final Map<String, _ActiveServerCall> _calls = {};
   final Completer<void> _done = Completer<void>();
@@ -303,8 +310,9 @@ final class _RpcWebSocketConnection {
           );
         }
       }
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
       if (_calls.containsKey(id)) {
+        _reportCallFailure(error, stackTrace, id, request.method);
         _sendError(id, _asRpcException(error));
       }
     } finally {
@@ -337,6 +345,7 @@ final class _RpcWebSocketConnection {
           },
           onError: (Object error, StackTrace stackTrace) {
             if (_calls.containsKey(id)) {
+              _reportCallFailure(error, stackTrace, id, request.method);
               _sendError(id, _asRpcException(error));
               unawaited(_finish(id));
             }
@@ -450,6 +459,17 @@ final class _RpcWebSocketConnection {
     if (!_done.isCompleted) {
       _done.complete();
     }
+  }
+
+  /// Reports failures that are hidden from the client as `INTERNAL_ERROR`.
+  void _reportCallFailure(
+    Object error,
+    StackTrace stackTrace,
+    String id,
+    String method,
+  ) {
+    if (error is RpcException) return;
+    reportError(error, stackTrace, rpcMethod: method, callId: id);
   }
 
   static RpcException _asRpcException(Object error) {
