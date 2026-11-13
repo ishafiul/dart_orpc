@@ -3,6 +3,66 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-11-13
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`dart_orpc_http` - `v0.1.0-dev.7`](#dart_orpc_http---v010-dev7)
+ - [`dart_orpc_websocket` - `v0.1.0-dev.7`](#dart_orpc_websocket---v010-dev7)
+
+Packages with other changes:
+
+ - [`dart_orpc_client` - `v0.1.0-dev.6`](#dart_orpc_client---v010-dev6)
+ - [`dart_orpc_core` - `v0.1.0-dev.6`](#dart_orpc_core---v010-dev6)
+ - [`dart_orpc_generator` - `v0.1.0-dev.7`](#dart_orpc_generator---v010-dev7)
+ - [`dart_orpc_openapi` - `v0.1.0-dev.7`](#dart_orpc_openapi---v010-dev7)
+ - [`dart_orpc` - `v0.1.0-dev.7`](#dart_orpc---v010-dev7)
+ - [`dart_orpc_luthor` - `v0.1.0-dev.6`](#dart_orpc_luthor---v010-dev6)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `dart_orpc` - `v0.1.0-dev.7`
+ - `dart_orpc_luthor` - `v0.1.0-dev.6`
+
+---
+
+#### `dart_orpc_http` - `v0.1.0-dev.7`
+
+ - **FEAT**(http): Carry details in the SSE dart-orpc-error event (#30) (#45).
+ - **FEAT**(http): Encode HTTP RPC and REST errors with details (#29) (#44).
+ - **FEAT**(http): Add transport and call metadata to RpcHttpErrorEvent (#32) (#42).
+ - **BREAKING** **FEAT**(http): Report upgrade-handler errors through onError (#33) (#43).
+
+#### `dart_orpc_websocket` - `v0.1.0-dev.7`
+
+ - **FEAT**(websocket): Expose error details in the WebSocket client (#36) (#49).
+ - **FEAT**(websocket): Carry details in error frames with oversize fallback (#31) (#46).
+ - **BREAKING** **FEAT**(http): Report upgrade-handler errors through onError (#33) (#43).
+
+#### `dart_orpc_client` - `v0.1.0-dev.6`
+
+ - **FEAT**(client): Expose error details from HTTP error envelopes (#35) (#48).
+
+#### `dart_orpc_core` - `v0.1.0-dev.6`
+
+ - **FEAT**(core): Add encodeRpcError with safe details fallback (#28) (#41).
+ - **FEAT**(core): Add optional details to RpcException and RpcErrorBody (#40).
+
+#### `dart_orpc_generator` - `v0.1.0-dev.7`
+
+ - **REFACTOR**(generator): Extract shared graph and contract primitives.
+
+#### `dart_orpc_openapi` - `v0.1.0-dev.7`
+
+ - **FEAT**(openapi): Document optional error details in RpcErrorBody (#37) (#50).
+
+
 ## 2026-10-16
 
 ### Changes

@@ -1,3 +1,7 @@
+## 0.1.0-dev.7
+
+ - **REFACTOR**(generator): Extract shared graph and contract primitives.
+
 ## Unreleased
 
 - Share DTO field discovery between module and field-reference generators;

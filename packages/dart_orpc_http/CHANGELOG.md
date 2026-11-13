@@ -1,3 +1,12 @@
+## 0.1.0-dev.7
+
+> Note: This release has breaking changes.
+
+ - **FEAT**(http): Carry details in the SSE dart-orpc-error event (#30) (#45).
+ - **FEAT**(http): Encode HTTP RPC and REST errors with details (#29) (#44).
+ - **FEAT**(http): Add transport and call metadata to RpcHttpErrorEvent (#32) (#42).
+ - **BREAKING** **FEAT**(http): Report upgrade-handler errors through onError (#33) (#43).
+
 ## 0.1.0-dev.6
 
  - **FEAT**(http): Add isolate server, runtime metrics, CORS policies, and server options.

@@ -1,3 +1,7 @@
+## 0.1.0-dev.7
+
+ - **FEAT**(openapi): Document optional error details in RpcErrorBody (#37) (#50).
+
 ## 0.1.0-dev.6
 
  - **FEAT**(ecosystem): Update Luthor validation, OpenAPI docs, and transport tests.

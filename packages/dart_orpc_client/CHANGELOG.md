@@ -1,3 +1,7 @@
+## 0.1.0-dev.6
+
+ - **FEAT**(client): Expose error details from HTTP error envelopes (#35) (#48).
+
 ## 0.1.0-dev.5
 
  - **FEAT**(ecosystem): Update Luthor validation, OpenAPI docs, and transport tests.

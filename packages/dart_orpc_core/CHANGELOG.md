@@ -1,3 +1,8 @@
+## 0.1.0-dev.6
+
+ - **FEAT**(core): Add encodeRpcError with safe details fallback (#28) (#41).
+ - **FEAT**(core): Add optional details to RpcException and RpcErrorBody (#40).
+
 ## 0.1.0-dev.5
 
  - **FEAT**(core): Add disposable lifecycle, json bytes optimization, and enhanced cancellation.
