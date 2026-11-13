@@ -94,7 +94,7 @@ No ready items.
   analyzer 14 `FieldElement.isSynthetic` removal, and move `basic_app` to
   language 3.14.
   Tracked by [#61](https://github.com/ishafiul/dart_orpc/issues/61) (PRD
-  [#66](https://github.com/ishafiul/dart_orpc/issues/66)); golden OpenAPI snapshot (#73) in review.
+  [#66](https://github.com/ishafiul/dart_orpc/issues/66)); golden snapshot (#73) done, metadata model (#74) in review.
 - [ ] **GEN-001 · P1 · Maintenance:** Refactor the generator into a maintainable,
   well-structured, and approachable architecture.
 - [ ] **PERF-001 · P2 · Performance:** Establish performance baselines and regression

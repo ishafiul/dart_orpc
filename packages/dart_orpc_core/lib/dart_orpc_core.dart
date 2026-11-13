@@ -1,5 +1,6 @@
 library dart_orpc_core;
 
+export 'src/dto_schema_metadata.dart';
 export 'src/json_utils.dart';
 export 'src/procedure_metadata.dart';
 export 'src/rpc_cancellation.dart';
