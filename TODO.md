@@ -84,11 +84,6 @@ No ready items.
   message-only `RpcClientException`s.
 ## In progress
 
-- [ ] **ERR-001 · P1 · Feature:** Add a `details` payload to `RpcException` and the
-  error envelope across RPC, REST, WebSocket, OpenAPI, and the client.
-  Tracked by [#16](https://github.com/ishafiul/dart_orpc/issues/16); core (#22),
-  transport (#23), reporting (#24) and client (#25) tasks and F5.1 done;
-  acceptance test (#39) in review.
 - [ ] **GEN-001 · P1 · Maintenance:** Refactor the generator into a maintainable,
   well-structured, and approachable architecture.
 - [ ] **PERF-001 · P2 · Performance:** Establish performance baselines and regression
@@ -100,6 +95,10 @@ No blocked items.
 
 ## Done
 
+- [x] **ERR-001 · P1 · Feature:** Added a `details` payload to `RpcException` and
+  the error envelope across RPC, REST, SSE, WebSocket, OpenAPI, and both clients
+  ([#16](https://github.com/ishafiul/dart_orpc/issues/16), PRD
+  [#21](https://github.com/ishafiul/dart_orpc/issues/21)).
 - [x] **HTTP-002 · P2 · Feature:** Add rate-limiting support
   (`RpcHttpRateLimitOptions`, sliding-window limiter with tests).
 - [x] **GEN-002 · P1 · Feature:** Support JSON-native scalar and `void` procedure
