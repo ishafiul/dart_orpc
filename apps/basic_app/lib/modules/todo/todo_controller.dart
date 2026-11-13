@@ -64,6 +64,20 @@ final class TodoController {
     return todoService.getById(input.id);
   }
 
+  @RequirePermissions(anyOf: ['todo.read', 'todo.admin'])
+  @RpcMethod(
+    name: 'watchById',
+    path: RestMapping.sse('/todos/:id/events'),
+    description: 'Stream the current state of a single todo.',
+    tags: ['todo'],
+  )
+  Stream<TodoResponseDto> watchById(
+    RpcContext _,
+    @RpcInput() GetTodoDto input,
+  ) async* {
+    yield await todoService.getById(input.id);
+  }
+
   @RequirePermissions(allOf: ['tenant.active'])
   @RpcMethod(
     name: 'create',

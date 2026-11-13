@@ -263,6 +263,30 @@ RpcProcedureRegistry _$createAppModuleProcedureRegistryFromContainer(
       handler: (context, input) =>
           container.todoController.getById(context, input),
     ),
+    RpcStreamProcedure<GetTodoDto, TodoResponseDto>(
+      method: 'todo.watchById',
+      decodeInput: (rawInput) => decodeRpcInputWithLuthor<GetTodoDto>(
+        rawInput: rawInput,
+        method: 'todo.watchById',
+        validate: $GetTodoDtoValidate,
+        validateReadOnly: $GetTodoDtoValidate,
+      ),
+      encodeOutput: (output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
+        output: output,
+        method: 'todo.watchById',
+        toJson: (output) => output.toJson(),
+        validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+      ),
+      metadata: metadataRegistry['todo.watchById']!,
+      guards: [
+        container.basicAppJwtAuthGuard,
+        container.todoRouteLoggerGuard,
+        container.todoPermissionGuard,
+      ],
+
+      handler: (context, input) =>
+          container.todoController.watchById(context, input),
+    ),
     RpcUnaryProcedure<CreateTodoDto, TodoResponseDto>(
       method: 'todo.create',
       decodeInput: (rawInput) => decodeRpcInputWithLuthor<CreateTodoDto>(
@@ -566,6 +590,39 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
         container.todoPermissionGuard,
       ],
     ),
+    RestStreamRoute(
+      path: '/todos/:id/events',
+      handler: (context, request, pathParameters) {
+        final rawInput = <String, Object?>{};
+        rawInput['id'] = decodeRestScalarParameter<int>(
+          rawValue: pathParameters['id'],
+          source: 'path parameter',
+          name: 'id',
+          route: 'GET /todos/:id/events',
+        );
+        final input = ((rawInput) => decodeRpcInputWithLuthor<GetTodoDto>(
+          rawInput: rawInput,
+          method: 'todo.watchById',
+          validate: $GetTodoDtoValidate,
+          validateReadOnly: $GetTodoDtoValidate,
+        ))(rawInput);
+        final output = container.todoController.watchById(context, input);
+        return output.map(
+          (output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
+            output: output,
+            method: 'todo.watchById',
+            toJson: (output) => output.toJson(),
+            validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+          ),
+        );
+      },
+      metadata: metadataRegistry['todo.watchById']!,
+      guards: [
+        container.basicAppJwtAuthGuard,
+        container.todoRouteLoggerGuard,
+        container.todoPermissionGuard,
+      ],
+    ),
     RestUnaryRoute(
       method: 'POST',
       path: '/todos',
@@ -844,6 +901,43 @@ ProcedureMetadataRegistry _$createAppModuleLocalProcedureMetadataRegistry() {
       inputTypeCode: 'GetTodoDto',
       outputTypeCode: 'TodoResponseDto',
       description: 'Get a single todo by id.',
+      tags: ['todo'],
+      guardTypes: [
+        'BasicAppJwtAuthGuard',
+        'TodoRouteLoggerGuard',
+        'TodoPermissionGuard',
+      ],
+      securityRequirements: [ProcedureSecurityRequirement('bearerAuth')],
+      customMetadata: [
+        ProcedureCustomMetadata(
+          key: 'permissions',
+          value: {
+            'anyOf': ['todo.read', 'todo.admin'],
+          },
+        ),
+      ],
+      parameters: [
+        ProcedureParameterMetadata(
+          parameterName: 'id',
+          wireName: 'id',
+          source: ProcedureParameterSourceKind.path,
+          typeCode: 'int',
+        ),
+      ],
+    ),
+    const ProcedureMetadata(
+      rpcMethod: 'todo.watchById',
+      controllerNamespace: 'todo',
+      methodName: 'watchById',
+      kind: RpcProcedureKind.serverStream,
+      path: RestProcedureMetadata(
+        method: 'GET',
+        path: '/todos/:id/events',
+        responseKind: RestResponseKind.sse,
+      ),
+      inputTypeCode: 'GetTodoDto',
+      outputTypeCode: 'TodoResponseDto',
+      description: 'Stream the current state of a single todo.',
       tags: ['todo'],
       guardTypes: [
         'BasicAppJwtAuthGuard',
