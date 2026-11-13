@@ -51,6 +51,20 @@ The example shows ownership/cleanup; keep the subscription active for your actua
 
 Subscription cancellation sends a `cancel` frame for its invocation ID. A broken socket fails pending calls/streams. The transport exposes `pendingCalls` and asynchronous `close()` for lifecycle management.
 
+## Errors
+
+A failed call or stream receives an `error` frame with the same `error` object as HTTP, including optional [`details`](/dart-orpc/guides/errors-and-context#error-details):
+
+```json
+{"type": "error", "id": "7", "error": {"code": "NOT_FOUND", "message": "Todo 7 was not found.", "details": {"todoId": 7}}}
+```
+
+The client throws an `RpcException` with `details` for unary calls and emits it as the stream error for subscriptions.
+
+If an error frame is larger than `maxFrameBytes`, the server re-sends it without details. If the message alone is still too large, it sends the real code with a short fixed message, and only if even that cannot fit does it close the connection with a policy violation. Each fallback is reported through `serverOptions.onError`.
+
+Call failures are reported to `serverOptions.onError` with `transport: RpcTransportKind.webSocket`, the call's `rpcMethod`, and its `callId`. Failures that are not `RpcException`s reach the client as `INTERNAL_ERROR` and are reported with the original exception.
+
 ## Limits and security
 
 `RpcWebSocketServerOptions` bounds frame size, active calls per connection, connection count, and buffered frames/bytes. Defaults are listed in the [API Reference](/dart-orpc/reference/transports). Slow consumers cannot accumulate unbounded server output; handle terminal errors and recover at the application layer.

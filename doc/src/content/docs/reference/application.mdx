@@ -46,7 +46,7 @@ Isolated modules can introduce additional required typed dependencies. Inspect e
 | Option | Default | Purpose |
 | --- | --- | --- |
 | `cors` | null | CORS over all adapter responses |
-| `onError` | null | Original exception/stack observer |
+| `onError` | null | Original exception/stack observer for HTTP and WebSocket |
 | `onComplete` | null | Completion/abort observer |
 | `requestIdFactory` | null | App-supplied ID generation |
 | `trustRequestId` | false | Accept bounded safe incoming IDs |
@@ -58,7 +58,7 @@ Isolated modules can introduce additional required typed dependencies. Inspect e
 
 `RpcHttpRateLimitOptions` requires `maxRequests`; `window` defaults to one minute, `maxKeys` to 10,000, and `key` to direct peer address lookup. Do not assume quota sharing across workers or implicit proxy trust.
 
-`RpcHttpErrorEvent` supplies `request`, `error`, `stackTrace`. `RpcHttpCompletion` supplies `request`, route template, status, elapsed time, received/sent bytes, streaming/disconnect flags, and `failed`. Hooks are synchronous and isolated from response execution.
+`RpcHttpErrorEvent` supplies `request`, `error`, `stackTrace`, `transport` (`RpcTransportKind.http` or `webSocket`, default `http`), and nullable `rpcMethod` and `callId`. See [Observing errors with onError](/dart-orpc/guides/errors-and-context#observing-errors-with-onerror). `RpcHttpCompletion` supplies `request`, route template, status, elapsed time, received/sent bytes, streaming/disconnect flags, and `failed`. Hooks are synchronous and isolated from response execution.
 
 ## Supporting options
 
@@ -85,7 +85,9 @@ CORS also accepts `allowedOrigins`, `allowOriginPredicate`, `allowMethods`, `all
 
 `RpcHttpHandler` returns `Future<RpcHttpResponse>` for `RpcHttpRequest`. `createRpcHttpHandler` builds a handler without the listening adapter; calling it directly does not exercise socket-level admission/body/deadline policies. `RpcHttpMiddleware` wraps a handler.
 
-`RestUnaryRoute` and `RestStreamRoute` are advanced manual route types collected by `RestRouteRegistry`. Normal annotated controllers use generated routes. `RpcHttpUpgradeHandler` defines upgrade matching, handling, and close behavior.
+`RestUnaryRoute` and `RestStreamRoute` are advanced manual route types collected by `RestRouteRegistry`. Normal annotated controllers use generated routes. `RpcHttpUpgradeHandler` defines upgrade matching, handling, and close behavior. Its `handle(HttpRequest request, RpcContext context, RpcUpgradeErrorReporter reportError)` receives a reporter that sends `transport: webSocket` events to `serverOptions.onError`; call it with the error, stack trace, and optional `rpcMethod` and `callId`. A connection may report any number of errors. The `reportError` parameter is new: custom upgrade handlers must add it.
+
+`rpcHttpErrorResponse(error, headers:, onError:)` writes the shared error envelope for custom HTTP code; `onError` receives the `RpcErrorDetailsEncodingException` when details have to be dropped.
 
 `RpcHttpResponse` supports buffered bodies, `.streaming`, `.copyWith`, repeated `headerValues`, and cookies. Its `.content` is `RpcBufferedHttpBody` or `RpcStreamingHttpBody`. `RpcHttpResponseControl`, under `rpcHttpResponseKey`, supplies per-request HTTP status/headers/cookies. Preserve streaming content when copying responses.
 
