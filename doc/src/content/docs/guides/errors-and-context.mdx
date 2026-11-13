@@ -174,7 +174,7 @@ final app = const AppModule().buildRpcApp(
 
 This fragment assumes an application `log`. What gets reported differs by transport:
 
-- **HTTP** (RPC, REST, SSE): every failed request reports its error, including `RpcException`s, at most once per request, plus an `RpcErrorDetailsEncodingException` if its details had to be dropped.
+- **HTTP** (RPC, REST, SSE): errors thrown while handling a request, by procedures, guards, validation, or the framework (rate limiting included), are reported, including `RpcException`s. That's at most once per request, plus an `RpcErrorDetailsEncodingException` if the error's details had to be dropped. Sending an HTTP error response doesn't by itself trigger `onError`: responses the adapter returns directly, such as `405 Method Not Allowed` for a wrong HTTP method or a rejected CORS preflight, aren't reported.
 - **WebSocket**: only unexpected failures that are not `RpcException`s (the client receives `INTERNAL_ERROR`) and the details and frame-size fallbacks are reported. An `RpcException` is sent to the client without an `onError` event. A connection can report any number of errors.
 
 The hook runs synchronously; an exception it throws is contained and does not affect the response.
