@@ -220,6 +220,133 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 20)),
   );
+
+  test(
+    'Given a missing todo When every transport reports it then error details stay aligned',
+    () async {
+      const missingId = 999999;
+      const expectedDetails = {'todoId': missingId};
+      final temporaryDirectory = Directory.systemTemp.createTempSync(
+        'dart-orpc-details-acceptance',
+      );
+      databasePathOverride = '${temporaryDirectory.path}/todos.db';
+      final env = AppEnv.fromMap({
+        'JWT_SECRET': 'acceptance-secret',
+        'JWT_ISSUER': 'basic_app_acceptance',
+        'JWT_EXPIRES_IN_SECONDS': '3600',
+      });
+      final accessToken = _createAccessToken(env);
+      final server = await const TodoModule()
+          .buildRpcApp(
+            openApi: const OpenApiDocumentOptions(title: 'Acceptance API'),
+            webSocket: const RpcWebSocketServerOptions(),
+            sseHeartbeatInterval: Duration.zero,
+            contextFactory: _permissionContext,
+            bindings: RpcContextBindings.empty().withValue(appEnvKey, env),
+          )
+          .listen(0, hostname: InternetAddress.loopbackIPv4.address);
+      final baseUri = Uri.parse(
+        'http://${server.address.address}:${server.port}',
+      );
+      final httpClient = HttpClient();
+      final httpTransport = HttpRpcTransport(
+        baseUrl: baseUri.toString(),
+        interceptors: [_PermissionInterceptor(_allPermissions, accessToken)],
+      );
+      final webSocketTransport = await WebSocketRpcTransport.connect(
+        Uri.parse('ws://${server.address.address}:${server.port}/rpc/ws'),
+        headers: {
+          'x-permissions': _allPermissions,
+          'authorization': 'Bearer $accessToken',
+        },
+      );
+      final httpClientApi = const TodoModule().createClient(
+        transports: RpcClientTransports.split(
+          unary: httpTransport,
+          streaming: webSocketTransport,
+        ),
+      );
+      final webSocketClientApi = const TodoModule().createClient(
+        transports: RpcClientTransports.duplex(webSocketTransport),
+      );
+      addTearDown(() async {
+        httpClient.close(force: true);
+        httpTransport.close();
+        await webSocketTransport.close();
+        await server.close(gracePeriod: const Duration(seconds: 1));
+        databasePathOverride = null;
+        if (temporaryDirectory.existsSync()) {
+          temporaryDirectory.deleteSync(recursive: true);
+        }
+      });
+      final missing = isA<RpcException>()
+          .having((error) => error.code, 'code', RpcErrorCode.notFound)
+          .having((error) => error.details, 'details', expectedDetails);
+
+      // Generated client over HTTP RPC (POST /rpc).
+      await expectLater(
+        httpClientApi.todo.getById(const GetTodoDto(id: missingId)),
+        throwsA(missing),
+      );
+
+      // Generated client over WebSocket, unary and stream.
+      await expectLater(
+        webSocketClientApi.todo.getById(const GetTodoDto(id: missingId)),
+        throwsA(missing),
+      );
+      await expectLater(
+        httpClientApi.todo.watchById(const GetTodoDto(id: missingId)),
+        emitsError(missing),
+      );
+
+      // REST.
+      final rest = await _get(
+        httpClient,
+        baseUri.resolve('/todos/$missingId'),
+        permissions: _allPermissions,
+        authorization: accessToken,
+      );
+      expect(rest.statusCode, HttpStatus.notFound);
+      final restError =
+          (jsonDecode(rest.body) as Map<String, Object?>)['error']
+              as Map<String, Object?>;
+      expect(restError['details'], expectedDetails);
+
+      // SSE terminal error event.
+      final sse = await _get(
+        httpClient,
+        baseUri.resolve('/todos/$missingId/events'),
+        permissions: _allPermissions,
+        authorization: accessToken,
+      );
+      final sseError = RegExp(
+        r'event: dart-orpc-error\ndata: (.*)\n\n$',
+      ).firstMatch(sse.body);
+      expect(sseError, isNotNull, reason: sse.body);
+      final sseEnvelope =
+          (jsonDecode(sseError!.group(1)!) as Map<String, Object?>)['error']
+              as Map<String, Object?>;
+      expect(sseEnvelope['code'], 'NOT_FOUND');
+      expect(sseEnvelope['details'], expectedDetails);
+
+      // The same error object everywhere: REST and SSE envelopes match.
+      expect(sseEnvelope, restError);
+
+      // OpenAPI documents the optional details.
+      final openApi = await _get(httpClient, baseUri.resolve('/openapi.json'));
+      final schemas =
+          ((jsonDecode(openApi.body) as Map<String, Object?>)['components']
+                  as Map<String, Object?>)['schemas']
+              as Map<String, Object?>;
+      final errorBody = schemas['RpcErrorBody'] as Map<String, Object?>;
+      expect(errorBody['required'], ['code', 'message']);
+      expect(
+        (errorBody['properties'] as Map<String, Object?>)['details'],
+        containsPair('type', 'object'),
+      );
+    },
+    timeout: const Timeout(Duration(seconds: 20)),
+  );
 }
 
 const _allPermissions = 'todo.read,todo.write,todo.admin,tenant.active';
