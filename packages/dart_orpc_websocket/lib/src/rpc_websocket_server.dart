@@ -378,38 +378,68 @@ final class _RpcWebSocketConnection {
     return _writer.enqueue(id, frame);
   }
 
+  /// Queues an error frame for [id]. Never throws.
+  ///
+  /// A frame over `maxFrameBytes` is retried without details, then with a
+  /// short fixed message, always keeping the real code. If even that does not
+  /// fit, the connection is closed with a policy violation.
   void _sendError(String id, RpcException error, {String? rpcMethod}) {
-    final encoding = encodeRpcError(error);
+    void report(Object failure, StackTrace stackTrace) =>
+        reportError(failure, stackTrace, rpcMethod: rpcMethod, callId: id);
+
+    var encoding = encodeRpcError(error);
     final detailsError = encoding.detailsError;
-    if (detailsError != null) {
-      reportError(
-        detailsError,
-        encoding.detailsStackTrace!,
-        rpcMethod: rpcMethod,
-        callId: id,
-      );
-    }
-    bool queued;
-    try {
-      queued = _enqueueError(id, encoding);
-    } on RpcWebSocketProtocolException catch (cause, stackTrace) {
-      // The frame is over maxFrameBytes: keep the code and message, drop the
-      // details, and keep the connection open.
-      reportError(
+    if (detailsError != null) report(detailsError, encoding.detailsStackTrace!);
+
+    var attempt = _tryEnqueueError(id, encoding);
+    if (attempt case _Oversize(
+      :final cause,
+      :final stackTrace,
+    ) when _hasDetails(encoding)) {
+      report(
         RpcErrorDetailsEncodingException(exception: error, cause: cause),
         stackTrace,
-        rpcMethod: rpcMethod,
-        callId: id,
       );
-      queued = _enqueueError(id, encoding.withoutDetails());
+      encoding = encoding.withoutDetails();
+      attempt = _tryEnqueueError(id, encoding);
     }
-    if (!queued) {
+    if (attempt case _Oversize(:final cause, :final stackTrace)) {
+      report(cause, stackTrace);
+      attempt = _tryEnqueueError(
+        id,
+        encodeRpcError(
+          RpcException(code: error.code, message: _oversizeErrorMessage),
+        ),
+      );
+    }
+    if (attempt is _Oversize) {
+      unawaited(
+        close(
+          WebSocketStatus.policyViolation,
+          'WebSocket error frame exceeds the configured size limit.',
+        ),
+      );
+    } else if (attempt case _Queued(accepted: false)) {
       unawaited(
         close(
           WebSocketStatus.policyViolation,
           'WebSocket output buffer exhausted.',
         ),
       );
+    }
+  }
+
+  static const _oversizeErrorMessage =
+      'RPC error exceeded the WebSocket frame size limit.';
+
+  static bool _hasDetails(RpcErrorEncoding encoding) =>
+      (encoding.json['error'] as JsonObject).containsKey('details');
+
+  _ErrorEnqueue _tryEnqueueError(String id, RpcErrorEncoding encoding) {
+    try {
+      return _Queued(_enqueueError(id, encoding));
+    } on RpcWebSocketProtocolException catch (cause, stackTrace) {
+      return _Oversize(cause, stackTrace);
     }
   }
 
@@ -527,6 +557,26 @@ final class _RpcWebSocketConnection {
       }
     }
   }
+}
+
+/// Outcome of queueing an error frame.
+sealed class _ErrorEnqueue {
+  const _ErrorEnqueue();
+}
+
+/// The frame fit; [accepted] is false when the output buffer is full.
+final class _Queued extends _ErrorEnqueue {
+  const _Queued(this.accepted);
+
+  final bool accepted;
+}
+
+/// The frame exceeded `maxFrameBytes`.
+final class _Oversize extends _ErrorEnqueue {
+  const _Oversize(this.cause, this.stackTrace);
+
+  final RpcWebSocketProtocolException cause;
+  final StackTrace stackTrace;
 }
 
 final class _ActiveServerCall {
