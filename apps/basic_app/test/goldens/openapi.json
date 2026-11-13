@@ -1,0 +1,2496 @@
+{
+  "components": {
+    "schemas": {
+      "AuthResponseDto": {
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer"
+          },
+          "tokenType": {
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/AuthUserDto"
+          }
+        },
+        "required": [
+          "accessToken",
+          "expiresIn",
+          "user"
+        ],
+        "type": "object"
+      },
+      "AuthUserDto": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "CreateTodoDto": {
+        "properties": {
+          "title": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "type": "object"
+      },
+      "DeleteTodoResponseDto": {
+        "properties": {
+          "deleted": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "GetTodoDto": {
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "LoginDto": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "maxLength": 254,
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 72,
+            "minLength": 8,
+            "pattern": "^(?=.*[A-Za-z])(?=.*\\d).+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "type": "object"
+      },
+      "RpcErrorBody": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": {
+            "additionalProperties": true,
+            "description": "Optional structured context for the error. Omitted when there is none. The `issues` key is reserved for framework validation issues.",
+            "type": "object"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "RpcErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/RpcErrorBody"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "type": "object"
+      },
+      "SignUpDto": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "maxLength": 254,
+            "type": "string"
+          },
+          "name": {
+            "minLength": 3,
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 72,
+            "minLength": 8,
+            "pattern": "^(?=.*[A-Za-z])(?=.*\\d).+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "name",
+          "password"
+        ],
+        "type": "object"
+      },
+      "TodoAnalysisSummaryDto": {
+        "properties": {
+          "completed": {
+            "type": "integer"
+          },
+          "completionRate": {
+            "type": "number"
+          },
+          "pending": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "completed",
+          "completionRate",
+          "pending",
+          "total"
+        ],
+        "type": "object"
+      },
+      "TodoChangeResponseDto": {
+        "properties": {
+          "todo": {
+            "$ref": "#/components/schemas/TodoResponseDto"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "todo",
+          "type"
+        ],
+        "type": "object"
+      },
+      "TodoListResponseDto": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TodoResponseDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "TodoMetadataDto": {
+        "properties": {
+          "priority": {
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "priority",
+          "tags"
+        ],
+        "type": "object"
+      },
+      "TodoResponseDto": {
+        "properties": {
+          "completed": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/TodoMetadataDto"
+          },
+          "title": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "completed",
+          "createdAt",
+          "id",
+          "title"
+        ],
+        "type": "object"
+      },
+      "UpdateTodoDto": {
+        "properties": {
+          "completed": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "bearerFormat": "JWT",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Example todo API built with dart_orpc.",
+    "title": "Basic App API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "description": "Authenticate with email and password.",
+        "operationId": "auth.login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            },
+            "description": "Successful response."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "BAD_REQUEST"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "REQUEST_TIMEOUT"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CONFLICT"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "PAYLOAD_TOO_LARGE"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNSUPPORTED_MEDIA_TYPE"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "RESOURCE_EXHAUSTED"
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "HEADERS_TOO_LARGE"
+          },
+          "499": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CANCELLED"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAVAILABLE"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "DEADLINE_EXCEEDED"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "Error response."
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/signup": {
+      "post": {
+        "description": "Create an account and return a JWT access token.",
+        "operationId": "auth.signUp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignUpDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            },
+            "description": "Successful response."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "BAD_REQUEST"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "REQUEST_TIMEOUT"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CONFLICT"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "PAYLOAD_TOO_LARGE"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNSUPPORTED_MEDIA_TYPE"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "RESOURCE_EXHAUSTED"
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "HEADERS_TOO_LARGE"
+          },
+          "499": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CANCELLED"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAVAILABLE"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "DEADLINE_EXCEEDED"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "Error response."
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/test": {
+      "post": {
+        "description": "Authenticate with email and password.",
+        "operationId": "auth.test",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "description": "Successful response."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "BAD_REQUEST"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "REQUEST_TIMEOUT"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CONFLICT"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "PAYLOAD_TOO_LARGE"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNSUPPORTED_MEDIA_TYPE"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "RESOURCE_EXHAUSTED"
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "HEADERS_TOO_LARGE"
+          },
+          "499": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CANCELLED"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAVAILABLE"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "DEADLINE_EXCEEDED"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "Error response."
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/todos": {
+      "get": {
+        "description": "List all todos.",
+        "operationId": "todo.list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoListResponseDto"
+                }
+              }
+            },
+            "description": "Successful response."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "BAD_REQUEST"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "REQUEST_TIMEOUT"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CONFLICT"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "PAYLOAD_TOO_LARGE"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNSUPPORTED_MEDIA_TYPE"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "RESOURCE_EXHAUSTED"
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "HEADERS_TOO_LARGE"
+          },
+          "499": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CANCELLED"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAVAILABLE"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "DEADLINE_EXCEEDED"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "Error response."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "todo"
+        ]
+      },
+      "post": {
+        "description": "Create a todo.",
+        "operationId": "todo.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTodoDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoResponseDto"
+                }
+              }
+            },
+            "description": "Successful response."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "BAD_REQUEST"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "REQUEST_TIMEOUT"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CONFLICT"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "PAYLOAD_TOO_LARGE"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNSUPPORTED_MEDIA_TYPE"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "RESOURCE_EXHAUSTED"
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "HEADERS_TOO_LARGE"
+          },
+          "499": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CANCELLED"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAVAILABLE"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "DEADLINE_EXCEEDED"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "Error response."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "todo"
+        ]
+      }
+    },
+    "/todos/analysis/summary": {
+      "get": {
+        "description": "Aggregate todo counts and completion rate.",
+        "operationId": "todoAnalysis.summary",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoAnalysisSummaryDto"
+                }
+              }
+            },
+            "description": "Successful response."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "BAD_REQUEST"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "REQUEST_TIMEOUT"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CONFLICT"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "PAYLOAD_TOO_LARGE"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNSUPPORTED_MEDIA_TYPE"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "RESOURCE_EXHAUSTED"
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "HEADERS_TOO_LARGE"
+          },
+          "499": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CANCELLED"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAVAILABLE"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "DEADLINE_EXCEEDED"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "Error response."
+          }
+        },
+        "tags": [
+          "analysis"
+        ]
+      }
+    },
+    "/todos/events": {
+      "get": {
+        "description": "Stream the current todo snapshot as validated events.",
+        "operationId": "todo.watch",
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful response."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "BAD_REQUEST"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "REQUEST_TIMEOUT"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CONFLICT"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "PAYLOAD_TOO_LARGE"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNSUPPORTED_MEDIA_TYPE"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "RESOURCE_EXHAUSTED"
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "HEADERS_TOO_LARGE"
+          },
+          "499": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CANCELLED"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAVAILABLE"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "DEADLINE_EXCEEDED"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "Error response."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "todo"
+        ],
+        "x-dart-orpc-stream": {
+          "eventSchema": {
+            "$ref": "#/components/schemas/TodoResponseDto"
+          },
+          "kind": "server-stream",
+          "terminalEvents": {
+            "complete": "dart-orpc-complete",
+            "error": "dart-orpc-error"
+          }
+        }
+      }
+    },
+    "/todos/live-events": {
+      "get": {
+        "description": "Stream todo create, update, and delete events as they happen.",
+        "operationId": "todo.watchLive",
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful response."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "BAD_REQUEST"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "REQUEST_TIMEOUT"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CONFLICT"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "PAYLOAD_TOO_LARGE"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNSUPPORTED_MEDIA_TYPE"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "RESOURCE_EXHAUSTED"
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "HEADERS_TOO_LARGE"
+          },
+          "499": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CANCELLED"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAVAILABLE"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "DEADLINE_EXCEEDED"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "Error response."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "todo"
+        ],
+        "x-dart-orpc-stream": {
+          "eventSchema": {
+            "$ref": "#/components/schemas/TodoChangeResponseDto"
+          },
+          "kind": "server-stream",
+          "terminalEvents": {
+            "complete": "dart-orpc-complete",
+            "error": "dart-orpc-error"
+          }
+        }
+      }
+    },
+    "/todos/{id}": {
+      "delete": {
+        "description": "Delete a todo.",
+        "operationId": "todo.delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "x-rpc-method": "todo.delete",
+            "x-rpc-parameter": "id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteTodoResponseDto"
+                }
+              }
+            },
+            "description": "Successful response."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "BAD_REQUEST"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "REQUEST_TIMEOUT"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CONFLICT"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "PAYLOAD_TOO_LARGE"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNSUPPORTED_MEDIA_TYPE"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "RESOURCE_EXHAUSTED"
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "HEADERS_TOO_LARGE"
+          },
+          "499": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CANCELLED"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAVAILABLE"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "DEADLINE_EXCEEDED"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "Error response."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "todo"
+        ]
+      },
+      "get": {
+        "description": "Get a single todo by id.",
+        "operationId": "todo.getById",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "x-rpc-method": "todo.getById",
+            "x-rpc-parameter": "id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoResponseDto"
+                }
+              }
+            },
+            "description": "Successful response."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "BAD_REQUEST"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "REQUEST_TIMEOUT"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CONFLICT"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "PAYLOAD_TOO_LARGE"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNSUPPORTED_MEDIA_TYPE"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "RESOURCE_EXHAUSTED"
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "HEADERS_TOO_LARGE"
+          },
+          "499": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CANCELLED"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAVAILABLE"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "DEADLINE_EXCEEDED"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "Error response."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "todo"
+        ]
+      },
+      "patch": {
+        "description": "Update a todo.",
+        "operationId": "todo.update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "x-rpc-method": "todo.update",
+            "x-rpc-parameter": "id"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "completed": {
+                    "type": "boolean"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoResponseDto"
+                }
+              }
+            },
+            "description": "Successful response."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "BAD_REQUEST"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "REQUEST_TIMEOUT"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CONFLICT"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "PAYLOAD_TOO_LARGE"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNSUPPORTED_MEDIA_TYPE"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "RESOURCE_EXHAUSTED"
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "HEADERS_TOO_LARGE"
+          },
+          "499": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CANCELLED"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAVAILABLE"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "DEADLINE_EXCEEDED"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "Error response."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "todo"
+        ]
+      }
+    },
+    "/todos/{id}/events": {
+      "get": {
+        "description": "Stream the current state of a single todo.",
+        "operationId": "todo.watchById",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "x-rpc-method": "todo.watchById",
+            "x-rpc-parameter": "id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful response."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "BAD_REQUEST"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "REQUEST_TIMEOUT"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CONFLICT"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "PAYLOAD_TOO_LARGE"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNSUPPORTED_MEDIA_TYPE"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "RESOURCE_EXHAUSTED"
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "HEADERS_TOO_LARGE"
+          },
+          "499": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "CANCELLED"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "UNAVAILABLE"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "DEADLINE_EXCEEDED"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RpcErrorResponse"
+                }
+              }
+            },
+            "description": "Error response."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "todo"
+        ],
+        "x-dart-orpc-stream": {
+          "eventSchema": {
+            "$ref": "#/components/schemas/TodoResponseDto"
+          },
+          "kind": "server-stream",
+          "terminalEvents": {
+            "complete": "dart-orpc-complete",
+            "error": "dart-orpc-error"
+          }
+        }
+      }
+    }
+  }
+}
