@@ -168,9 +168,13 @@ final class RpcWebSocketFrameCodec {
 
   static RpcErrorBody _errorBody(JsonObject object) {
     final error = _object(object['error'], 'WebSocket error');
+    // Details are optional context; a non-object value is ignored rather
+    // than treated as a protocol error.
+    final details = error['details'];
     return RpcErrorBody(
       code: _nonEmptyString(error, 'code'),
       message: _nonEmptyString(error, 'message'),
+      details: details is Map ? Map<String, Object?>.from(details) : null,
     );
   }
 
