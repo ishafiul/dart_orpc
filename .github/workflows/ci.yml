@@ -28,8 +28,9 @@ jobs:
       - name: Analyze workspace
         run: dart run melos run analyze
 
-      - name: Test workspace
-        run: dart run melos test
+      # Packages covered by the coverage steps below are tested there, once.
+      - name: Test packages without coverage gates
+        run: dart run melos run test:uncovered
 
       - name: Enforce generator coverage
         run: dart run melos run test:generator:coverage
