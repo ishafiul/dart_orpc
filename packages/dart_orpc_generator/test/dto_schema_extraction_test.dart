@@ -228,6 +228,14 @@ class ConvertersDto {
 }
 
 @luthor
+@EpochConverter()
+class ClassConverterDto {
+  const ClassConverterDto({required this.at});
+
+  final DateTime at;
+}
+
+@luthor
 class EmptyDto {
   const EmptyDto();
 }
@@ -526,6 +534,7 @@ void main() {
       ('ConvertedDto', 'DTO "ConvertedDto" field "count"'),
       ('ConverterFieldDto', 'DTO "ConverterFieldDto" field "at"'),
       ('ConvertersDto', 'DTO "ConvertersDto" uses JsonSerializable converters'),
+      ('ClassConverterDto', 'DTO "ClassConverterDto" uses a JsonConverter'),
     ]) {
       test('When $dto is extracted then the build fails naming it', () {
         return _extractFailure(dto, contains(message));

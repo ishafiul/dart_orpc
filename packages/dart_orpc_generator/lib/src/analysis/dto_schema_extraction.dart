@@ -93,6 +93,13 @@ final class _DtoSchemaExtractor {
           (constructor.name ?? '').isEmpty || constructor.name == 'new',
     );
     for (final element in [dto, ...unnamed]) {
+      if (_hasJsonConverter(element)) {
+        _fail(
+          'DTO "$_dtoName" uses a JsonConverter on the class, whose JSON types '
+          'cannot be described',
+          element,
+        );
+      }
       final serializable = _annotation(
         element,
         'json_annotation',
