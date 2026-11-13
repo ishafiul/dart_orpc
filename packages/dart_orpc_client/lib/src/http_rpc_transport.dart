@@ -183,7 +183,14 @@ final class HttpRpcTransport implements RpcUnaryTransportWithOptions {
         );
       }
 
-      throw RpcException(code: parsedCode, message: message);
+      // Details are optional context; a non-object value is ignored rather
+      // than hiding the server's error.
+      final details = error['details'];
+      throw RpcException(
+        code: parsedCode,
+        message: message,
+        details: details is Map<String, Object?> ? details : null,
+      );
     }
 
     if (response.statusCode >= 400) {

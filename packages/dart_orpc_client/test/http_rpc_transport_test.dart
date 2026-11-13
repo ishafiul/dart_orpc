@@ -129,6 +129,77 @@ void main() {
     );
   });
 
+  group('Given an HTTP error envelope with details', () {
+    Future<RpcException> errorFrom(
+      Object? details, {
+      bool include = true,
+    }) async {
+      final transport = HttpRpcTransport(
+        baseUrl: rpcTestBaseUrl,
+        client: MockClient((request) async {
+          return rpcJsonResponse({
+            'error': {
+              'code': 'CONFLICT',
+              'message': 'Version conflict.',
+              if (include) 'details': details,
+            },
+          }, statusCode: 409);
+        }),
+      );
+      try {
+        await transport.send(const RpcRequest(method: 'item.update'));
+      } on RpcException catch (error) {
+        return error;
+      }
+      fail('Expected an RpcException.');
+    }
+
+    test('When the details are an object then they are exposed', () async {
+      final error = await errorFrom({
+        'currentVersion': 3,
+        'fields': ['name'],
+      });
+
+      expect(error.details, {
+        'currentVersion': 3,
+        'fields': ['name'],
+      });
+    });
+
+    test(
+      'When the details are an object then code and message are kept',
+      () async {
+        final error = await errorFrom({'currentVersion': 3});
+
+        expect(error.code, RpcErrorCode.conflict);
+        expect(error.message, 'Version conflict.');
+      },
+    );
+
+    test('When the details are missing then they are null', () async {
+      final error = await errorFrom(null, include: false);
+
+      expect(error.details, isNull);
+      expect(error.code, RpcErrorCode.conflict);
+    });
+
+    test('When the details are not an object then they are null', () async {
+      for (final details in <Object?>[
+        null,
+        'text',
+        3,
+        true,
+        ['a'],
+      ]) {
+        final error = await errorFrom(details);
+
+        expect(error.details, isNull, reason: 'details: $details');
+        expect(error.code, RpcErrorCode.conflict);
+        expect(error.message, 'Version conflict.');
+      }
+    });
+  });
+
   group('Given an RpcCaller', () {
     test(
       'When a response is received then it decodes the typed result',
