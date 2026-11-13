@@ -94,6 +94,55 @@ void main() {
     });
   });
 
+  group('Given metadata built from mutable lists', () {
+    late List<DtoFieldMetadata> fields;
+    late List<Object> roles;
+    late DtoSchemaMetadata schema;
+
+    setUp(() {
+      roles = ['admin'];
+      fields = [
+        const DtoFieldMetadata(wireName: 'id', type: DtoIntegerType()),
+        DtoFieldMetadata(
+          wireName: 'roles',
+          type: DtoListType(DtoEnumType(roles)),
+        ),
+      ];
+      schema = DtoSchemaMetadata(name: 'MutableDto', fields: fields);
+      DtoSchemaRegistry([schema]);
+    });
+
+    test('When the fields list changes after registration then the schema '
+        'keeps its validated fields', () {
+      fields.add(const DtoFieldMetadata(wireName: 'id', type: DtoStringType()));
+
+      expect(schema.fields.map((field) => field.wireName), ['id', 'roles']);
+    });
+
+    test('When enum values change after registration then the enum keeps '
+        'its validated values', () {
+      roles.add('member');
+
+      final type = schema.fields.last.type as DtoListType;
+      expect((type.element as DtoEnumType).values, ['admin']);
+    });
+
+    test('When the exposed collections are mutated then it fails', () {
+      final type = schema.fields.last.type as DtoListType;
+
+      expect(
+        () => schema.fields.add(
+          const DtoFieldMetadata(wireName: 'x', type: DtoStringType()),
+        ),
+        throwsUnsupportedError,
+      );
+      expect(
+        () => (type.element as DtoEnumType).values.add('x'),
+        throwsUnsupportedError,
+      );
+    });
+  });
+
   group('Given a DtoSchemaRegistry', () {
     late DtoSchemaRegistry registry;
 

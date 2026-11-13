@@ -3,13 +3,31 @@
 /// The generator extracts these from `@luthor` DTOs; transports and OpenAPI
 /// read them without depending on the validation library.
 final class DtoSchemaMetadata {
-  const DtoSchemaMetadata({required this.name, required this.fields});
+  const DtoSchemaMetadata({
+    required this.name,
+    required List<DtoFieldMetadata> fields,
+  }) : _fields = fields;
 
   /// The component name, unique within a [DtoSchemaRegistry].
   final String name;
 
-  /// Fields in declaration order.
-  final List<DtoFieldMetadata> fields;
+  final List<DtoFieldMetadata> _fields;
+
+  // Weak keys retain const construction without a permanent global cache.
+  static final _snapshots = Expando<List<DtoFieldMetadata>>();
+
+  /// Fields in declaration order, as an immutable snapshot taken on
+  /// [prepare] or first use.
+  List<DtoFieldMetadata> get fields =>
+      _snapshots[this] ??= List.unmodifiable(_fields);
+
+  /// Snapshots [fields] and every nested enum's values, so later changes to
+  /// the lists passed to the constructors are not observed.
+  void prepare() {
+    for (final field in fields) {
+      field.type._prepare();
+    }
+  }
 }
 
 /// One JSON property of a DTO.
@@ -44,6 +62,8 @@ final class DtoFieldMetadata {
 /// The JSON type of a DTO field.
 sealed class DtoFieldType {
   const DtoFieldType();
+
+  void _prepare() {}
 }
 
 final class DtoStringType extends DtoFieldType {
@@ -79,6 +99,9 @@ final class DtoListType extends DtoFieldType {
 
   final DtoFieldType element;
   final bool elementNullable;
+
+  @override
+  void _prepare() => element._prepare();
 }
 
 /// A JSON object with string keys and values of one type.
@@ -87,13 +110,25 @@ final class DtoMapType extends DtoFieldType {
 
   final DtoFieldType value;
   final bool valueNullable;
+
+  @override
+  void _prepare() => value._prepare();
 }
 
 /// A fixed set of serialized values, such as an enum's JSON values.
 final class DtoEnumType extends DtoFieldType {
-  const DtoEnumType(this.values);
+  const DtoEnumType(List<Object> values) : _values = values;
 
-  final List<Object> values;
+  final List<Object> _values;
+
+  static final _snapshots = Expando<List<Object>>();
+
+  /// The allowed values, as an immutable snapshot taken on preparation or
+  /// first use.
+  List<Object> get values => _snapshots[this] ??= List.unmodifiable(_values);
+
+  @override
+  void _prepare() => values;
 }
 
 /// Declarative constraints on a DTO field.
@@ -150,6 +185,7 @@ final class DtoSchemaRegistry {
       if (indexed.containsKey(schema.name)) {
         throw StateError('Duplicate DTO schema "${schema.name}".');
       }
+      schema.prepare();
       final wireNames = <String>{};
       for (final field in schema.fields) {
         if (!wireNames.add(field.wireName)) {
