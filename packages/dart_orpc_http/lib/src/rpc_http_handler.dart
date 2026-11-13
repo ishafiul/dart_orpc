@@ -732,9 +732,11 @@ RpcHttpHandler createRpcHttpHandler({
       final allowHeader = allowedMethods.join(', ');
       return _jsonResponse(
         HttpStatus.methodNotAllowed,
-        RpcException.badRequest(
-          'REST endpoint only accepts $allowHeader requests.',
-        ).toResponse().toJson(),
+        encodeRpcError(
+          RpcException.badRequest(
+            'REST endpoint only accepts $allowHeader requests.',
+          ),
+        ).json,
         extraHeaders: {'allow': allowHeader},
       );
     }
@@ -885,6 +887,7 @@ Future<RpcHttpResponse> _handleRpcRequest(
       request.onError?.call(error, stack);
       return _rpcErrorResponse(
         RpcException.badRequest('RPC request body must be valid JSON.'),
+        request,
       );
     }
     final rpcRequest = RpcRequest.fromJson(jsonBody);
@@ -911,10 +914,10 @@ Future<RpcHttpResponse> _handleRpcRequest(
           );
   } on RpcException catch (error, stack) {
     request.onError?.call(error, stack);
-    return _rpcErrorResponse(error);
+    return _rpcErrorResponse(error, request);
   } catch (error, stack) {
     request.onError?.call(error, stack);
-    return _rpcErrorResponse(RpcException.internalError());
+    return _rpcErrorResponse(RpcException.internalError(), request);
   }
 }
 
@@ -974,10 +977,10 @@ Future<RpcHttpResponse> _handleRestRequest(
     return context.binding(rpcHttpResponseKey)?.apply(response) ?? response;
   } on RpcException catch (error, stack) {
     request.onError?.call(error, stack);
-    return _rpcErrorResponse(error);
+    return _rpcErrorResponse(error, request);
   } catch (error, stack) {
     request.onError?.call(error, stack);
-    return _rpcErrorResponse(RpcException.internalError());
+    return _rpcErrorResponse(RpcException.internalError(), request);
   }
 }
 
@@ -1022,9 +1025,9 @@ Future<RpcHttpResponse> _handleOpenApiRequest(
   if (request.method != 'GET') {
     return _jsonResponse(
       HttpStatus.methodNotAllowed,
-      RpcException.badRequest(
-        'OpenAPI endpoint only accepts GET requests.',
-      ).toResponse().toJson(),
+      encodeRpcError(
+        RpcException.badRequest('OpenAPI endpoint only accepts GET requests.'),
+      ).json,
       extraHeaders: const {'allow': 'GET'},
     );
   }
@@ -1051,9 +1054,9 @@ Future<RpcHttpResponse> _handleDocsRequest(
   if (request.method != 'GET') {
     return _jsonResponse(
       HttpStatus.methodNotAllowed,
-      RpcException.badRequest(
-        'Docs endpoint only accepts GET requests.',
-      ).toResponse().toJson(),
+      encodeRpcError(
+        RpcException.badRequest('Docs endpoint only accepts GET requests.'),
+      ).json,
       extraHeaders: const {'allow': 'GET'},
     );
   }
@@ -1332,9 +1335,9 @@ Future<RpcHttpResponse> _handleHealthRequest(
   if (request.method != 'GET') {
     return _jsonResponse(
       HttpStatus.methodNotAllowed,
-      RpcException.badRequest(
-        'Health endpoint only accepts GET requests.',
-      ).toResponse().toJson(),
+      encodeRpcError(
+        RpcException.badRequest('Health endpoint only accepts GET requests.'),
+      ).json,
       extraHeaders: const {'allow': 'GET'},
     );
   }
@@ -1366,9 +1369,9 @@ Future<RpcHttpResponse> _handleMetricsRequest(
   if (request.method != 'GET') {
     return _jsonResponse(
       HttpStatus.methodNotAllowed,
-      RpcException.badRequest(
-        'Metrics endpoint only accepts GET requests.',
-      ).toResponse().toJson(),
+      encodeRpcError(
+        RpcException.badRequest('Metrics endpoint only accepts GET requests.'),
+      ).json,
       extraHeaders: const {'allow': 'GET'},
     );
   }
@@ -1836,19 +1839,27 @@ Object? _decodeRestBodyJson(String rawBody, {required String route}) {
   }
 }
 
-RpcHttpResponse _rpcErrorResponse(RpcException error) {
-  return _jsonResponse(error.statusCode, error.toResponse().toJson());
+RpcHttpResponse _rpcErrorResponse(RpcException error, RpcHttpRequest request) {
+  return rpcHttpErrorResponse(error, onError: request.onError);
 }
 
 /// Shared adapter error encoding; the wire code always comes from core.
+///
+/// Details go through [encodeRpcError]. When they cannot be encoded the
+/// response keeps the real code without details, and the
+/// [RpcErrorDetailsEncodingException] is passed to [onError].
 RpcHttpResponse rpcHttpErrorResponse(
   RpcException error, {
   Map<String, String> headers = const {},
-}) => _jsonResponse(
-  error.statusCode,
-  error.toResponse().toJson(),
-  extraHeaders: headers,
-);
+  void Function(Object error, StackTrace stackTrace)? onError,
+}) {
+  final encoding = encodeRpcError(error);
+  final detailsError = encoding.detailsError;
+  if (detailsError != null) {
+    onError?.call(detailsError, encoding.detailsStackTrace!);
+  }
+  return _jsonResponse(error.statusCode, encoding.json, extraHeaders: headers);
+}
 
 RpcHttpResponse _jsonResponse(
   int statusCode,

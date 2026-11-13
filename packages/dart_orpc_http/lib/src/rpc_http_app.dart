@@ -333,8 +333,13 @@ final class RpcHttpApp {
     StreamIterator<List<int>>? requestChunks;
     var upgraded = false;
     void report(Object error, StackTrace stack) {
-      if (exchange.errorReported || exchange.finished) return;
-      exchange.errorReported = true;
+      if (exchange.finished) return;
+      // Dropped error details accompany the error already reported for this
+      // exchange, so they bypass the once-per-exchange limit.
+      if (error is! RpcErrorDetailsEncodingException) {
+        if (exchange.errorReported) return;
+        exchange.errorReported = true;
+      }
       try {
         serverOptions.onError?.call(
           RpcHttpErrorEvent(
@@ -481,7 +486,11 @@ final class RpcHttpApp {
         request.response.headers.clear();
         request.response.persistentConnection = false;
         try {
-          await _writeResponse(request, rpcHttpErrorResponse(mapped), exchange);
+          await _writeResponse(
+            request,
+            rpcHttpErrorResponse(mapped, onError: report),
+            exchange,
+          );
         } catch (_) {
           await _abortConnection(request.response);
         }
