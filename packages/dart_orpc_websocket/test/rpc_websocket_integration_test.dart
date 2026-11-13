@@ -729,6 +729,144 @@ void main() {
       },
     );
   });
+  group('Given WebSocket calls that fail with error details', () {
+    late List<RpcHttpErrorEvent> events;
+    late WebSocket socket;
+    late StreamIterator<Object?> frames;
+    const codec = RpcWebSocketFrameCodec(maxFrameBytes: 1024);
+
+    setUp(() async {
+      events = [];
+      final fixture = await _startRawFixture(
+        options: const RpcWebSocketServerOptions(maxFrameBytes: 1024),
+        onError: events.add,
+      );
+      socket = await _connectRaw(fixture.server);
+      frames = StreamIterator<Object?>(socket);
+      addTearDown(frames.cancel);
+    });
+
+    Future<JsonObject> call(
+      String id,
+      RpcWebSocketCallKind kind,
+      String method, [
+      Object? input,
+    ]) async {
+      socket.add(
+        codec.encode(
+          RpcWebSocketCallFrame(
+            id: id,
+            kind: kind,
+            method: method,
+            input: input,
+          ),
+        ),
+      );
+      expect(await frames.moveNext(), isTrue);
+      return jsonDecode(frames.current as String) as JsonObject;
+    }
+
+    test('When a unary call fails then the error frame has details', () async {
+      final frame = await call(
+        'u1',
+        RpcWebSocketCallKind.unary,
+        'details.unary',
+        {'kind': 'small'},
+      );
+
+      expect(frame, {
+        'type': 'error',
+        'id': 'u1',
+        'error': {
+          'code': 'CONFLICT',
+          'message': 'Version conflict.',
+          'details': {'version': 2},
+        },
+      });
+    });
+
+    test('When a stream fails then the error frame has details', () async {
+      final frame = await call(
+        's1',
+        RpcWebSocketCallKind.stream,
+        'details.stream',
+      );
+
+      expect((frame['error'] as JsonObject)['details'], {'version': 2});
+    });
+
+    test(
+      'When the error frame is too large then it is re-sent without details',
+      () async {
+        final frame = await call(
+          'big',
+          RpcWebSocketCallKind.unary,
+          'details.unary',
+          {'kind': 'large'},
+        );
+
+        expect(frame['error'], {
+          'code': 'CONFLICT',
+          'message': 'Version conflict.',
+        });
+      },
+    );
+
+    test(
+      'When the error frame is too large then the connection keeps working',
+      () async {
+        await call('big', RpcWebSocketCallKind.unary, 'details.unary', {
+          'kind': 'large',
+        });
+        final next = await call(
+          'next',
+          RpcWebSocketCallKind.unary,
+          'echo.value',
+          {'value': 7},
+        );
+
+        expect(next, {
+          'type': 'result',
+          'id': 'next',
+          'data': {'value': 7},
+        });
+      },
+    );
+
+    test(
+      'When the error frame is too large then the drop is reported',
+      () async {
+        await call('big', RpcWebSocketCallKind.unary, 'details.unary', {
+          'kind': 'large',
+        });
+
+        expect(events, hasLength(1));
+        expect(events.single.error, isA<RpcErrorDetailsEncodingException>());
+        expect(events.single.transport, RpcTransportKind.webSocket);
+        expect(events.single.rpcMethod, 'details.unary');
+        expect(events.single.callId, 'big');
+      },
+    );
+
+    test(
+      'When details cannot be encoded then the frame keeps the code',
+      () async {
+        final frame = await call(
+          'o1',
+          RpcWebSocketCallKind.unary,
+          'details.unary',
+          {'kind': 'opaque'},
+        );
+
+        expect(frame['error'], {
+          'code': 'CONFLICT',
+          'message': 'Version conflict.',
+        });
+        expect(events.single.error, isA<RpcErrorDetailsEncodingException>());
+        expect(events.single.callId, 'o1');
+      },
+    );
+  });
 }
 
 Future<_RawFixture> _startRawFixture({
@@ -760,6 +898,40 @@ Future<_RawFixture> _startRawFixture({
       decodeInput: (_) => null,
       encodeOutput: (output) => output,
       handler: (_, _) => throw StateError('unary failed'),
+    ),
+    RpcUnaryProcedure<JsonObject, JsonObject>(
+      method: 'details.unary',
+      metadata: const ProcedureMetadata(
+        rpcMethod: 'details.unary',
+        controllerNamespace: 'details',
+        methodName: 'unary',
+        outputTypeCode: 'JsonObject',
+      ),
+      decodeInput: (input) => expectJsonObject(input, context: 'input'),
+      encodeOutput: (output) => output,
+      handler: (_, input) => throw RpcException.conflict(
+        'Version conflict.',
+        details: switch (input['kind']) {
+          'large' => {'blob': 'x' * 4096},
+          'opaque' => {'opaque': Object()},
+          _ => {'version': 2},
+        },
+      ),
+    ),
+    RpcStreamProcedure<Null, JsonObject>(
+      method: 'details.stream',
+      metadata: const ProcedureMetadata(
+        rpcMethod: 'details.stream',
+        controllerNamespace: 'details',
+        methodName: 'stream',
+        outputTypeCode: 'JsonObject',
+        kind: RpcProcedureKind.serverStream,
+      ),
+      decodeInput: (_) => null,
+      encodeOutput: (output) => output,
+      handler: (_, _) => Stream<JsonObject>.error(
+        RpcException.conflict('Version conflict.', details: {'version': 2}),
+      ),
     ),
     RpcStreamProcedure<Null, JsonObject>(
       method: 'boom.stream',
