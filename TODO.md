@@ -86,8 +86,8 @@ No ready items.
 
 - [ ] **ERR-001 · P1 · Feature:** Add a `details` payload to `RpcException` and the
   error envelope across RPC, REST, WebSocket, OpenAPI, and the client.
-  Tracked by [#16](https://github.com/ishafiul/dart_orpc/issues/16); core task #22 done,
-  core (#22), transport (#23) and reporting (#24) tasks done; F4.1 in review.
+  Tracked by [#16](https://github.com/ishafiul/dart_orpc/issues/16); core (#22),
+  transport (#23) and reporting (#24) tasks done; F4.1 in review.
 - [ ] **GEN-001 · P1 · Maintenance:** Refactor the generator into a maintainable,
   well-structured, and approachable architecture.
 - [ ] **PERF-001 · P2 · Performance:** Establish performance baselines and regression
