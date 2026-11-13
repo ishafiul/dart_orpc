@@ -25,7 +25,10 @@ final class TodoService {
       db.todos,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
     if (row == null) {
-      throw RpcException.notFound('Todo $id was not found.');
+      throw RpcException.notFound(
+        'Todo $id was not found.',
+        details: {'todoId': id},
+      );
     }
     return _toDto(row);
   }
@@ -68,7 +71,10 @@ final class TodoService {
       db.todos,
     )..where((t) => t.id.equals(id))).go();
     if (deleted == 0) {
-      throw RpcException.notFound('Todo $id was not found.');
+      throw RpcException.notFound(
+        'Todo $id was not found.',
+        details: {'todoId': id},
+      );
     }
     _changes.add(TodoChangeResponseDto(type: 'deleted', todo: todo));
     return const DeleteTodoResponseDto();
