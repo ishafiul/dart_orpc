@@ -138,7 +138,7 @@ try {
 }
 ```
 
-`HttpRpcTransport` and `WebSocketRpcTransport` both set `details`, for unary calls and for errors emitted by streams. A missing value, or one that is not a JSON object, gives `null`; the code and message are kept. Details are an untyped `JsonObject`.
+`HttpRpcTransport` sets `details` on the `RpcException` it throws for unary calls. `WebSocketRpcTransport` sets them for unary calls and for errors emitted by streams. In both, a missing value, or one that is not a JSON object, gives `null`; the code and message are kept. Details are an untyped `JsonObject`.
 
 ## Observing errors with onError
 
@@ -172,7 +172,12 @@ final app = const AppModule().buildRpcApp(
 );
 ```
 
-This fragment assumes an application `log`. An HTTP request reports at most one error, plus an `RpcErrorDetailsEncodingException` if its details had to be dropped. A WebSocket connection can report any number of errors. On WebSocket, failures that are not `RpcException`s are reported before the client receives `INTERNAL_ERROR`. The hook runs synchronously; an exception it throws is contained and does not affect the response.
+This fragment assumes an application `log`. What gets reported differs by transport:
+
+- **HTTP** (RPC, REST, SSE): every failed request reports its error, including `RpcException`s, at most once per request, plus an `RpcErrorDetailsEncodingException` if its details had to be dropped.
+- **WebSocket**: only unexpected failures that are not `RpcException`s (the client receives `INTERNAL_ERROR`) and the details and frame-size fallbacks are reported. An `RpcException` is sent to the client without an `onError` event. A connection can report any number of errors.
+
+The hook runs synchronously; an exception it throws is contained and does not affect the response.
 
 ## Cancellation
 

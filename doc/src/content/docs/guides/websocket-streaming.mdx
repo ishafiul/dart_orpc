@@ -63,7 +63,12 @@ The client throws an `RpcException` with `details` for unary calls and emits it 
 
 If an error frame is larger than `maxFrameBytes`, the server re-sends it without details. If the message alone is still too large, it sends the real code with a short fixed message, and only if even that cannot fit does it close the connection with a policy violation. Each fallback is reported through `serverOptions.onError`.
 
-Call failures are reported to `serverOptions.onError` with `transport: RpcTransportKind.webSocket`, the call's `rpcMethod`, and its `callId`. Failures that are not `RpcException`s reach the client as `INTERNAL_ERROR` and are reported with the original exception.
+`serverOptions.onError` receives WebSocket events, with `transport: RpcTransportKind.webSocket`, the call's `rpcMethod`, and its `callId`, for:
+
+- unexpected failures that are not `RpcException`s. The client receives `INTERNAL_ERROR`, and the event carries the original exception;
+- the details and frame-size fallbacks described above.
+
+An `RpcException` thrown by a procedure is an expected, client-facing error: it is sent to the client and does not trigger `onError` on WebSocket.
 
 ## Limits and security
 
