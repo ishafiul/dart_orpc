@@ -5,10 +5,7 @@ import 'package:dart_orpc/dart_orpc.dart';
 Future<void> main() async {
   final env = AppEnv.load();
   final app = const AppModule().buildRpcApp(
-    openApi: const OpenApiDocumentOptions(
-      title: 'Basic App API',
-      description: 'Example todo API built with dart_orpc.',
-    ),
+    openApi: basicAppOpenApiOptions,
     docs: RpcHttpDocsOptions(
       title: 'Basic App Docs',
       // basicAuth: RpcHttpBasicAuth(
