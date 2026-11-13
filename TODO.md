@@ -10,6 +10,15 @@ Do not add release, package publication, or pub.dev tasks to this tracker.
 No ready items.
 ## Backlog
 
+- [ ] **DEPS-001 · P1 · Maintenance:** Migrate to luthor 1.0 and luthor_generator
+  1.0 to unblock the latest analyzer (14), freezed (4), json_serializable,
+  drift/drift_dev, build_runner, melos (8), sqlite3 (3) and test. luthor 1.0 no
+  longer exposes validator rules or schema fields, which the OpenAPI generator
+  reads at runtime, so first decide how OpenAPI gets DTO constraints (for
+  example from luthor annotations at build time). Also migrate the
+  `dart_orpc_luthor` bridge, generated `validateSchema(fromJson:)` calls, the
+  analyzer 14 `FieldElement.isSynthetic` removal, and move `basic_app` to
+  language 3.14.
 - [ ] **DOC-001 · P2 · Documentation:** Reconcile the documented workspace tooling
   with the repository configuration.
 - [ ] **OBS-001 · P1 · Feature:** Add structured logging and trace propagation
