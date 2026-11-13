@@ -77,6 +77,15 @@ void main() {
       );
     });
 
+    test('When many keys differ then at most 50 are reported', () {
+      expect(
+        _jsonDifferences(<String, Object?>{}, {
+          for (var index = 0; index < 100; index++) 'key$index': index,
+        }),
+        hasLength(_maxReportedDifferences),
+      );
+    });
+
     test('When keys or list items differ then each is reported', () {
       expect(
         _jsonDifferences(
@@ -125,6 +134,7 @@ List<String> _jsonDifferences(Object? expected, Object? actual) {
       final keys = {...expected.keys, ...actual.keys}.map((k) => '$k').toList()
         ..sort();
       for (final key in keys) {
+        if (differences.length >= _maxReportedDifferences) return;
         final childPath = '$path.$key';
         if (!expected.containsKey(key)) {
           differences.add('$childPath: unexpected key');
