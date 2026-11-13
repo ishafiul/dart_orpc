@@ -1,6 +1,6 @@
 # PRD — DEPS-001: Migrate to luthor 1.0 and upgrade the toolchain
 
-- **Status:** Needs review
+- **Status:** Approved on [#66](https://github.com/ishafiul/dart_orpc/issues/66#issuecomment-6861518079)
 - **Tracker item:** `DEPS-001` in [`TODO.md`](../../TODO.md)
 - **Requirements map:** [#61](https://github.com/ishafiul/dart_orpc/issues/61)
 - **Unblocks:** ERR-002, structured validation issues ([#54](https://github.com/ishafiul/dart_orpc/issues/54))
