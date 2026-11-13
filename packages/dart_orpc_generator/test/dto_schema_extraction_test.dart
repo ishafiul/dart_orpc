@@ -133,6 +133,100 @@ class KebabDto {
   final String firstName;
 }
 
+bool _schemaCheck(Object? value, Map<String, Object?> data) => true;
+
+int _parse(String value) => int.parse(value);
+
+class EpochConverter implements JsonConverter<DateTime, int> {
+  const EpochConverter();
+
+  @override
+  DateTime fromJson(int json) => DateTime.fromMillisecondsSinceEpoch(json);
+
+  @override
+  int toJson(DateTime object) => object.millisecondsSinceEpoch;
+}
+
+enum BadValue {
+  @JsonValue(<int>[1])
+  one,
+}
+
+@luthor
+class InitializerDto {
+  const InitializerDto(String value) : value = value;
+
+  @JsonKey(name: 'wire_value')
+  @HasMin(2)
+  final String value;
+}
+
+@luthor
+class DynamicDto {
+  const DynamicDto({
+    required this.anything,
+    @JsonKey(required: true) required this.mustSend,
+  });
+
+  final dynamic anything;
+  final dynamic mustSend;
+}
+
+@luthor
+class NodeDto {
+  const NodeDto({required this.children});
+
+  final List<NodeDto> children;
+}
+
+@luthor
+class RulesDto {
+  const RulesDto({
+    @HasMinDouble(0.5) @HasMaxDouble(9.5) required this.ratio,
+    @HasMinNumber(1) @HasMaxNumber(99) required this.amount,
+    @IsDateTime() required this.at,
+    @IsUri() required this.link,
+    @IsUuid() required this.ref,
+    @WithSchemaCustomValidator(_schemaCheck) required this.cross,
+  });
+
+  final double ratio;
+  final num amount;
+  final String at;
+  final String link;
+  final String ref;
+  final String cross;
+}
+
+@luthor
+class BadJsonValueDto {
+  const BadJsonValueDto({required this.bad});
+
+  final BadValue bad;
+}
+
+@luthor
+class ConvertedDto {
+  const ConvertedDto({@JsonKey(fromJson: _parse) required this.count});
+
+  final int count;
+}
+
+@luthor
+class ConverterFieldDto {
+  const ConverterFieldDto({@EpochConverter() required this.at});
+
+  final DateTime at;
+}
+
+@luthor
+@JsonSerializable(converters: [EpochConverter()])
+class ConvertersDto {
+  const ConvertersDto({required this.at});
+
+  final DateTime at;
+}
+
 @luthor
 class EmptyDto {
   const EmptyDto();
@@ -348,6 +442,69 @@ void main() {
     });
   });
 
+  group('Given a constructor parameter assigned in an initializer', () {
+    test('When extracted then the declared field annotations apply', () {
+      return _extract('InitializerDto', (extraction) {
+        final field = extraction.schema.fields.single;
+
+        expect(field.wireName, 'wire_value');
+        expect(field.constraints.min, 2);
+      });
+    });
+  });
+
+  group('Given dynamic fields', () {
+    test('When extracted then they are nullable and optional', () {
+      return _extract('DynamicDto', (extraction) {
+        final fields = _byName(extraction);
+
+        expect(_describe(fields['anything']!.type), 'any');
+        expect(fields['anything']!.nullable, isTrue);
+        expect(fields['anything']!.required, isFalse);
+      });
+    });
+
+    test('When JsonKey requires a dynamic field then it stays required', () {
+      return _extract('DynamicDto', (extraction) {
+        final mustSend = _byName(extraction)['mustSend']!;
+
+        expect(mustSend.required, isTrue);
+        expect(mustSend.nullable, isTrue);
+      });
+    });
+  });
+
+  group('Given a recursive DTO', () {
+    test('When extracted then it references itself without looping', () {
+      return _extract('NodeDto', (extraction) {
+        expect(
+          _describe(extraction.schema.fields.single.type),
+          'list of object NodeDto',
+        );
+        expect(extraction.references.map((element) => element.displayName), [
+          'NodeDto',
+        ]);
+      });
+    });
+  });
+
+  group('Given every other luthor rule annotation', () {
+    test('When extracted then each is recorded', () {
+      return _extract('RulesDto', (extraction) {
+        final fields = _byName(extraction);
+
+        expect(fields['ratio']!.constraints.min, 0.5);
+        expect(fields['ratio']!.constraints.max, 9.5);
+        expect(fields['amount']!.constraints.min, 1);
+        expect(fields['amount']!.constraints.max, 99);
+        expect(fields['at']!.constraints.format, DtoStringFormat.dateTime);
+        expect(fields['link']!.constraints.format, DtoStringFormat.uri);
+        expect(fields['ref']!.constraints.format, DtoStringFormat.uuid);
+        expect(fields['cross']!.customValidation, isTrue);
+      });
+    });
+  });
+
   group('Given a DTO without fields', () {
     test('When extracted then the schema is empty', () {
       return _extract('EmptyDto', (extraction) {
@@ -365,6 +522,10 @@ void main() {
       ('IntKeyMapDto', 'DTO "IntKeyMapDto" field "byId"'),
       ('PlainClassFieldDto', 'DTO "PlainClassFieldDto" field "value"'),
       ('CodedEnumDto', 'DTO "CodedEnumDto" field "coded"'),
+      ('BadJsonValueDto', 'DTO "BadJsonValueDto" field "bad"'),
+      ('ConvertedDto', 'DTO "ConvertedDto" field "count"'),
+      ('ConverterFieldDto', 'DTO "ConverterFieldDto" field "at"'),
+      ('ConvertersDto', 'DTO "ConvertersDto" uses JsonSerializable converters'),
     ]) {
       test('When $dto is extracted then the build fails naming it', () {
         return _extractFailure(dto, contains(message));

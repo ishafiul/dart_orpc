@@ -99,6 +99,14 @@ final class _DtoSchemaExtractor {
         'JsonSerializable',
       );
       if (serializable != null) {
+        final converters = ConstantReader(serializable).peek('converters');
+        if (converters != null && converters.listValue.isNotEmpty) {
+          _fail(
+            'DTO "$_dtoName" uses JsonSerializable converters, whose JSON '
+            'types cannot be described',
+            element,
+          );
+        }
         return _readFieldRename(serializable, element);
       }
     }
@@ -109,10 +117,7 @@ final class _DtoSchemaExtractor {
     FormalParameterElement parameter,
     _FieldRename rename,
   ) {
-    final sources = <Element>[
-      parameter,
-      if (parameter case FieldFormalParameterElement(:final field?)) field,
-    ];
+    final sources = <Element>[parameter, ?_declaredField(parameter)];
     final name = parameter.displayName;
 
     final jsonKey = _firstAnnotation(sources, 'json_annotation', 'JsonKey');
@@ -123,8 +128,24 @@ final class _DtoSchemaExtractor {
       return null;
     }
 
+    if (!(jsonKeyReader?.peek('fromJson')?.isNull ?? true) ||
+        !(jsonKeyReader?.peek('toJson')?.isNull ?? true)) {
+      _fail(
+        'DTO "$_dtoName" field "$name" uses JsonKey fromJson/toJson, whose '
+        'JSON type cannot be described',
+        parameter,
+      );
+    }
+    if (sources.any(_hasJsonConverter)) {
+      _fail(
+        'DTO "$_dtoName" field "$name" uses a JsonConverter, whose JSON type '
+        'cannot be described',
+        parameter,
+      );
+    }
+
     final type = parameter.type;
-    final nullable = type.nullabilitySuffix == NullabilitySuffix.question;
+    final nullable = _isNullable(type);
     final hasDefault =
         parameter.hasDefaultValue ||
         _firstAnnotation(sources, 'freezed_annotation', 'Default') != null ||
@@ -148,6 +169,16 @@ final class _DtoSchemaExtractor {
           _firstAnnotation(sources, 'luthor', 'WithSchemaCustomValidator') !=
               null,
     );
+  }
+
+  /// The instance field a constructor parameter initializes: the target of
+  /// `this.x`, or the same-named field for parameters assigned elsewhere.
+  FieldElement? _declaredField(FormalParameterElement parameter) {
+    if (parameter case FieldFormalParameterElement(:final field?)) {
+      return field;
+    }
+    final field = dto.getField(parameter.displayName);
+    return field != null && !field.isStatic ? field : null;
   }
 
   DtoFieldType _type(DartType type, Element field) {
@@ -321,6 +352,23 @@ enum _FieldRename {
         final lower = match.group(0)!.toLowerCase();
         return match.start > 0 ? '$separator$lower' : lower;
       });
+}
+
+/// Whether [element] carries an annotation implementing json_annotation's
+/// `JsonConverter`.
+bool _hasJsonConverter(Element element) {
+  for (final annotation in element.metadata.annotations) {
+    final type = annotation.computeConstantValue()?.type;
+    if (type is! InterfaceType) continue;
+    final isConverter = type.element.allSupertypes.any(
+      (supertype) =>
+          supertype.element.displayName == 'JsonConverter' &&
+          supertype.element.library.uri.pathSegments.firstOrNull ==
+              'json_annotation',
+    );
+    if (isConverter) return true;
+  }
+  return false;
 }
 
 bool _isNullable(DartType type) =>
