@@ -245,6 +245,65 @@ void main() {
     });
   });
 
+  group('Given an SSE stream that fails with error details', () {
+    late List<Object> reported;
+
+    setUp(() {
+      reported = [];
+    });
+
+    Future<String> failWith(RpcException error) async {
+      final body = encodeSseResponseBody(
+        Stream<Object?>.error(error),
+        heartbeatInterval: Duration.zero,
+        onError: (error, _) => reported.add(error),
+      );
+      return utf8.decodeStream(body).timeout(const Duration(seconds: 2));
+    }
+
+    test('When it fails then the terminal event includes details', () async {
+      final body = await failWith(
+        RpcException.conflict('stale', details: {'version': 2}),
+      );
+
+      expect(
+        body,
+        'event: dart-orpc-error\n'
+        'data: {"error":{"code":"CONFLICT","message":"stale",'
+        '"details":{"version":2}}}\n\n',
+      );
+    });
+
+    test(
+      'When details cannot be encoded then the terminal event is still sent',
+      () async {
+        final body = await failWith(
+          RpcException.conflict('stale', details: {'opaque': Object()}),
+        );
+
+        expect(
+          body,
+          'event: dart-orpc-error\n'
+          'data: {"error":{"code":"CONFLICT","message":"stale"}}\n\n',
+        );
+      },
+    );
+
+    test(
+      'When details cannot be encoded then the dropped details are reported',
+      () async {
+        await failWith(
+          RpcException.conflict('stale', details: {'opaque': Object()}),
+        );
+
+        expect(reported, [
+          isA<RpcException>(),
+          isA<RpcErrorDetailsEncodingException>(),
+        ]);
+      },
+    );
+  });
+
   group('Given a listening SSE consumer', () {
     test('When it cancels then the procedure source is cancelled', () async {
       var sourceCancelled = false;

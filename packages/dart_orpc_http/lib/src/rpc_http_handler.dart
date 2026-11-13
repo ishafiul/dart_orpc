@@ -1444,9 +1444,14 @@ Stream<List<int>> encodeSseResponseBody(
     final rpcError = error is RpcException
         ? error
         : RpcException.internalError();
+    final encoding = encodeRpcError(rpcError);
+    final detailsError = encoding.detailsError;
+    if (detailsError != null) {
+      onError?.call(detailsError, encoding.detailsStackTrace!);
+    }
     addText(
       'event: dart-orpc-error\n'
-      'data: ${jsonEncode(rpcError.toResponse().toJson())}\n\n',
+      'data: ${jsonEncode(encoding.json)}\n\n',
     );
     heartbeat?.cancel();
     await subscription?.cancel();
