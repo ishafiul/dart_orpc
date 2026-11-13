@@ -67,7 +67,7 @@ throw const RpcException(
 );
 ```
 
-`statusCode` comes from the code. `toResponse()` creates the public error envelope. Neither arbitrary string codes nor `details`/custom `statusCode` constructor arguments are supported.
+`statusCode` comes from the code. `toResponse()` creates the public error envelope. Arbitrary string codes and custom `statusCode` arguments are not supported; attach structured context with [`details`](#error-details) instead.
 
 | Wire code | HTTP status |
 | --- | --- |
@@ -86,7 +86,98 @@ throw const RpcException(
 | `UNAVAILABLE` | 503 |
 | `DEADLINE_EXCEEDED` | 504 |
 
-Client code can compare `error.code == RpcErrorCode.notFound` and inspect `error.message`. Unexpected transport/protocol failures use `RpcClientException`. Log original server exceptions through `serverOptions.onError`; keep exception text, credentials, and internals out of public errors.
+Client code can compare `error.code == RpcErrorCode.notFound` and inspect `error.message`. Unexpected transport/protocol failures use `RpcClientException`. Log original server exceptions through [`serverOptions.onError`](#observing-errors-with-onerror); keep exception text, credentials, and internals out of public errors.
+
+## Error details
+
+Attach optional structured context to an error with `details`, a JSON object:
+
+```dart
+throw RpcException.conflict(
+  'Version changed; reload and retry.',
+  details: {'currentVersion': 3},
+);
+```
+
+Every factory accepts `details:` except `cancelled` and `internalError`, whose message is an optional positional argument. For those, use the constructor:
+
+```dart
+throw const RpcException(
+  code: RpcErrorCode.internalError,
+  message: 'Export failed.',
+  details: {'jobId': 'export-42'},
+);
+```
+
+Every transport sends the same `error` object, with `details` next to `code` and `message`:
+
+```json
+{"error": {"code": "CONFLICT", "message": "Version changed; reload and retry.", "details": {"currentVersion": 3}}}
+```
+
+That object is the body of `POST /rpc` and REST error responses, the `data` of the SSE `dart-orpc-error` event, and the `error` of WebSocket `error` frames. Null or empty details are left out, so errors without details look exactly as before.
+
+Rules:
+
+- **Details are client-visible.** Never put secrets, credentials, stack traces, or internal diagnostics in them.
+- **`issues` is reserved.** The `details.issues` key is reserved for framework validation issues; don't use it for your own data.
+- **Values are normalized like procedure outputs.** Objects with `toJson()` are converted, so DTOs can go inside details.
+- **Encoding never hides the error.** If details contain a cycle or a value that can't be converted to JSON, the client still receives the real `code` and `message`, without details, and the server reports an `RpcErrorDetailsEncodingException` through `onError`.
+- **WebSocket frames stay within `maxFrameBytes`.** An error frame that is too large is re-sent without details; the connection stays open. See [WebSocket Streaming](/dart-orpc/guides/websocket-streaming#errors).
+
+Read details from the `RpcException` the client throws:
+
+```dart
+try {
+  await client.todo.update(input);
+} on RpcException catch (error) {
+  if (error.code == RpcErrorCode.conflict) {
+    final currentVersion = error.details?['currentVersion'];
+    // Reload and retry with currentVersion.
+  }
+}
+```
+
+`HttpRpcTransport` sets `details` on the `RpcException` it throws for unary calls. `WebSocketRpcTransport` sets them for unary calls and for errors emitted by streams. In both, a missing value, or one that is not a JSON object, gives `null`; the code and message are kept. Details are an untyped `JsonObject`.
+
+## Observing errors with onError
+
+`RpcHttpServerOptions.onError` is the single error hook for HTTP and WebSocket. Each `RpcHttpErrorEvent` carries the original `error` and `stackTrace`, the `request`, and:
+
+| Field | Meaning |
+| --- | --- |
+| `transport` | `RpcTransportKind.http` (RPC, REST, SSE) or `RpcTransportKind.webSocket` |
+| `rpcMethod` | The failed call's RPC method, when known (WebSocket) |
+| `callId` | The WebSocket call id, when known |
+
+```dart
+final app = const AppModule().buildRpcApp(
+  serverOptions: RpcHttpServerOptions(
+    onError: (event) {
+      if (event.transport == RpcTransportKind.webSocket) {
+        log.severe(
+          'WebSocket ${event.rpcMethod} (call ${event.callId}) failed',
+          event.error,
+          event.stackTrace,
+        );
+      } else {
+        log.severe(
+          '${event.request.method} ${event.request.path} failed',
+          event.error,
+          event.stackTrace,
+        );
+      }
+    },
+  ),
+);
+```
+
+This fragment assumes an application `log`. What gets reported differs by transport:
+
+- **HTTP** (RPC, REST, SSE): errors thrown while handling a request, by procedures, guards, validation, or the framework (rate limiting included), are reported, including `RpcException`s. That's at most once per request, plus an `RpcErrorDetailsEncodingException` if the error's details had to be dropped. Sending an HTTP error response doesn't by itself trigger `onError`: responses the adapter returns directly, such as `405 Method Not Allowed` for a wrong HTTP method or a rejected CORS preflight, aren't reported.
+- **WebSocket**: only unexpected failures that are not `RpcException`s (the client receives `INTERNAL_ERROR`) and the details and frame-size fallbacks are reported. An `RpcException` is sent to the client without an `onError` event. A connection can report any number of errors.
+
+The hook runs synchronously; an exception it throws is contained and does not affect the response.
 
 ## Cancellation
 
