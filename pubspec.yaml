@@ -2,7 +2,7 @@ name: dart_orpc_workspace
 publish_to: none
 
 environment:
-  sdk: ^3.11.0
+  sdk: ^3.14.0
 
 workspace:
   - packages/dart_orpc

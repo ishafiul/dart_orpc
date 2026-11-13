@@ -5,6 +5,9 @@ publish_to: none
 resolution: workspace
 
 environment:
+  # Stays on language 3.11 until freezed 4 can be used: freezed 3 emits
+  # `required final` constructor parameters that Dart 3.14 rejects, and
+  # freezed 4 needs a newer analyzer than luthor_generator 0.17 allows.
   sdk: ^3.11.0
 
 dependencies:
