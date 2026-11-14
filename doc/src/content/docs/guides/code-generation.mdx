@@ -32,7 +32,7 @@ For an `AppModule`, import `app.orpc.dart` and call:
 - `procedureRegistry()`: RPC registry for direct dispatch/testing.
 - `restRouteRegistry()`: generated REST routes.
 - `procedureMetadata()`: inspect contract metadata.
-- `openApiSchemaRegistry()`: schema components.
+- `dtoSchemaRegistry()`: DTO schema metadata used for OpenAPI components.
 - `openApiDocument(options: ...)`: generate a document without listening.
 
 Generated top-level functions/container APIs are also inspectable in the output. Some isolated module helpers require typed external dependencies. Use the actual emitted signature rather than assuming a dynamic override mechanism.
