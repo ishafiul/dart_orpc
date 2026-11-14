@@ -87,38 +87,43 @@ final class _DtoSchemaExtractor {
     }
   }
 
+  /// Class-level json_serializable settings: rejects converters on the class
+  /// or its unnamed constructor, then returns the field rename.
   _FieldRename _classFieldRename() {
     final unnamed = dto.constructors.where(
       (constructor) =>
           (constructor.name ?? '').isEmpty || constructor.name == 'new',
     );
-    for (final element in [dto, ...unnamed]) {
+    final elements = [dto, ...unnamed];
+    for (final element in elements) {
       if (_hasJsonConverter(element)) {
         _fail(
-          'DTO "$_dtoName" uses a JsonConverter on the class, whose JSON types '
-          'cannot be described',
+          'DTO "$_dtoName" uses a JsonConverter on the class or its '
+          'constructor, whose JSON types cannot be described',
           element,
         );
       }
-      final serializable = _annotation(
-        element,
-        'json_annotation',
-        'JsonSerializable',
-      );
-      if (serializable != null) {
-        final converters = ConstantReader(serializable).peek('converters');
-        if (converters != null && converters.listValue.isNotEmpty) {
-          _fail(
-            'DTO "$_dtoName" uses JsonSerializable converters, whose JSON '
-            'types cannot be described',
-            element,
-          );
-        }
-        return _readFieldRename(serializable, element);
+      final serializable = _serializable(element);
+      final converters = serializable == null
+          ? null
+          : ConstantReader(serializable).peek('converters');
+      if (converters != null && converters.listValue.isNotEmpty) {
+        _fail(
+          'DTO "$_dtoName" uses JsonSerializable converters, whose JSON '
+          'types cannot be described',
+          element,
+        );
       }
+    }
+    for (final element in elements) {
+      final serializable = _serializable(element);
+      if (serializable != null) return _readFieldRename(serializable, element);
     }
     return _FieldRename.none;
   }
+
+  DartObject? _serializable(Element element) =>
+      _annotation(element, 'json_annotation', 'JsonSerializable');
 
   DtoFieldMetadata? _field(
     FormalParameterElement parameter,
