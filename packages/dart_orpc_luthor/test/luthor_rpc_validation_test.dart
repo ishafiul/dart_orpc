@@ -3,8 +3,12 @@ import 'package:dart_orpc_luthor/dart_orpc_luthor.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('Luthor RPC validation bridge', () {
-    test('decodes valid RPC input through a Luthor schema', () {
+  group('Given the luthor RPC validation bridge', () {
+    setUp(() {
+      _TestDto.fromJsonInputs.clear();
+    });
+
+    test('When input is valid then it decodes the DTO', () {
       final decoded = decodeRpcInputWithLuthor<_TestDto>(
         rawInput: {'id': '1'},
         method: 'user.getById',
@@ -14,46 +18,60 @@ void main() {
       expect(decoded.id, '1');
     });
 
-    test('read-only input validators receive the original JSON map', () {
-      final input = <String, dynamic>{'id': '1'};
-      Map<String, dynamic>? validatedInput;
+    test('When input has an unknown key then it is dropped', () {
+      final input = <String, Object?>{'id': '1', 'extra': true};
 
       final decoded = decodeRpcInputWithLuthor<_TestDto>(
         rawInput: input,
         method: 'user.getById',
         validate: _validateTestDto,
-        validateReadOnly: (json) {
-          validatedInput = json;
-          return _validateTestDto(json);
-        },
       );
 
       expect(decoded.id, '1');
-      expect(validatedInput, same(input));
+      expect(_TestDto.fromJsonInputs.single, {'id': '1'});
+      expect(input, {'id': '1', 'extra': true});
     });
 
-    test('legacy input validators receive a defensive map copy', () {
-      final input = <String, dynamic>{'id': '1'};
-
-      decodeRpcInputWithLuthor<_TestDto>(
-        rawInput: input,
-        method: 'user.getById',
-        validate: (json) {
-          json['extra'] = true;
-          return _validateTestDto(json);
-        },
-      );
-
-      expect(input, {'id': '1'});
-    });
-
-    test('read-only input validation preserves RPC error mapping', () {
+    test('When input fails validation then it is a bad request', () {
       expect(
         () => decodeRpcInputWithLuthor<_TestDto>(
           rawInput: {'id': ''},
           method: 'user.getById',
           validate: _validateTestDto,
-          validateReadOnly: _validateTestDto,
+        ),
+        _throwsRpc(
+          RpcErrorCode.badRequest,
+          'Invalid RPC input for "user.getById": id: $_tooShort',
+        ),
+      );
+    });
+
+    test('When input is not an object then it is a bad request', () {
+      expect(
+        () => decodeRpcInputWithLuthor<_TestDto>(
+          rawInput: ['1'],
+          method: 'user.getById',
+          validate: _validateTestDto,
+        ),
+        throwsA(
+          isA<RpcException>().having(
+            (error) => error.code,
+            'code',
+            RpcErrorCode.badRequest,
+          ),
+        ),
+      );
+    });
+
+    test('When fromJson throws then it is a bad request', () {
+      expect(
+        () => decodeRpcInputWithLuthor<_TestDto>(
+          rawInput: {'id': '1'},
+          method: 'user.getById',
+          validate: (json) => _testDtoSchema.validateSchema(
+            json,
+            fromJson: (_) => throw const FormatException('broken'),
+          ),
         ),
         throwsA(
           isA<RpcException>()
@@ -61,32 +79,34 @@ void main() {
               .having(
                 (error) => error.message,
                 'message',
-                'Invalid RPC input for "user.getById": id: id must be at least 1 character long',
+                startsWith('Invalid RPC input for "user.getById": '),
               ),
         ),
       );
     });
 
-    test('returns bad request when RPC input fails Luthor validation', () {
+    test('When list elements fail then the issues carry their paths', () {
       expect(
-        () => decodeRpcInputWithLuthor<_TestDto>(
-          rawInput: {'id': ''},
-          method: 'user.getById',
-          validate: _validateTestDto,
+        () => decodeRpcInputWithLuthor<_TestListDto>(
+          rawInput: {
+            'items': [
+              {'id': '1'},
+              {'id': ''},
+              {'id': ''},
+            ],
+          },
+          method: 'user.list',
+          validate: _validateTestListDto,
         ),
-        throwsA(
-          isA<RpcException>()
-              .having((error) => error.code, 'code', RpcErrorCode.badRequest)
-              .having(
-                (error) => error.message,
-                'message',
-                'Invalid RPC input for "user.getById": id: id must be at least 1 character long',
-              ),
+        _throwsRpc(
+          RpcErrorCode.badRequest,
+          'Invalid RPC input for "user.list": '
+          'items.1.id: $_tooShort; items.2.id: $_tooShort',
         ),
       );
     });
 
-    test('returns internal error when RPC output fails Luthor validation', () {
+    test('When output fails validation then it is an internal error', () {
       expect(
         () => encodeRpcOutputWithLuthor<_TestDto>(
           output: const _TestDto(id: ''),
@@ -94,45 +114,19 @@ void main() {
           toJson: (output) => output.toJson(),
           validate: _validateTestDto,
         ),
-        throwsA(
-          isA<RpcException>()
-              .having((error) => error.code, 'code', RpcErrorCode.internalError)
-              .having(
-                (error) => error.message,
-                'message',
-                'Invalid RPC output for "user.getById": id: id must be at least 1 character long',
-              ),
+        _throwsRpc(
+          RpcErrorCode.internalError,
+          'Invalid RPC output for "user.getById": id: $_tooShort',
         ),
       );
     });
 
-    test(
-      'encodes nested DTO output to plain JSON before validating list schemas',
-      () {
-        final encoded = encodeRpcOutputWithLuthor<_TestListDto>(
-          output: const _TestListDto(items: [_TestDto(id: '1')]),
-          method: 'user.list',
-          toJson: (output) => output.toJson(),
-          validate: _validateTestListDto,
-        );
-
-        expect(encoded, {
-          'items': [
-            {'id': '1'},
-          ],
-        });
-      },
-    );
-
-    test('JSON output validation skips reconstructing output DTOs', () {
-      _TestDto.fromJsonCalls = 0;
-      final output = const _TestListDto(items: [_TestDto(id: '1')]);
-
-      final encoded = encodeRpcOutputJsonWithLuthor<_TestListDto>(
-        output: output,
+    test('When nested DTO output is valid then it encodes to plain JSON', () {
+      final encoded = encodeRpcOutputWithLuthor<_TestListDto>(
+        output: const _TestListDto(items: [_TestDto(id: '1')]),
         method: 'user.list',
-        toJson: (value) => value.toJson(),
-        validateJson: _validateTestListDtoJson,
+        toJson: (output) => output.toJson(),
+        validate: _validateTestListDto,
       );
 
       expect(encoded, {
@@ -140,113 +134,96 @@ void main() {
           {'id': '1'},
         ],
       });
-      expect(_TestDto.fromJsonCalls, 0);
     });
 
-    test('JSON output validation maps nested failures to internal errors', () {
+    test('When output JSON is validated then no DTO is rebuilt', () {
+      final encoded = encodeRpcOutputJsonWithLuthor<_TestListDto>(
+        output: const _TestListDto(items: [_TestDto(id: '1')]),
+        method: 'user.list',
+        toJson: (value) => value.toJson(),
+        validateJson: _testListDtoSchema.validate,
+      );
+
+      expect(encoded, {
+        'items': [
+          {'id': '1'},
+        ],
+      });
+      expect(_TestDto.fromJsonInputs, isEmpty);
+    });
+
+    test('When output JSON fails validation then it is an internal error', () {
       expect(
         () => encodeRpcOutputJsonWithLuthor<_TestDto>(
           output: const _TestDto(id: ''),
           method: 'user.getById',
           toJson: (output) => output.toJson(),
-          validateJson: _validateTestDtoJson,
+          validateJson: _testDtoSchema.validate,
         ),
-        throwsA(
-          isA<RpcException>()
-              .having((error) => error.code, 'code', RpcErrorCode.internalError)
-              .having(
-                (error) => error.message,
-                'message',
-                'Invalid RPC output for "user.getById": id: id must be at least 1 character long',
+        _throwsRpc(
+          RpcErrorCode.internalError,
+          'Invalid RPC output for "user.getById": id: $_tooShort',
+        ),
+      );
+    });
+
+    test('When issues are at the root then only their messages are shown', () {
+      expect(
+        () => decodeRpcInputWithLuthor<_TestDto>(
+          rawInput: {'id': '1'},
+          method: 'user.getById',
+          validate: (json) => ValidationFailure<_TestDto>(
+            input: json,
+            issues: const [
+              ValidationIssue(code: IssueCode.custom, message: 'root failed'),
+              ValidationIssue(
+                code: IssueCode.custom,
+                message: 'deep failed',
+                path: ['profile', 0, 'name'],
               ),
-        ),
-      );
-    });
-
-    test('nested validation errors format in traversal order without blanks', () {
-      expect(
-        () => decodeRpcInputWithLuthor<_TestDto>(
-          rawInput: {'id': '1'},
-          method: 'user.getById',
-          validate: (_) => SchemaValidationError<_TestDto>(
-            errors: {
-              'profile': {
-                'name': ['required', 'invalid'],
-                'age': ['too young'],
-              },
-              'other': ['failed', 42],
-            },
+            ],
           ),
         ),
-        throwsA(
-          isA<RpcException>().having(
-            (error) => error.message,
-            'message',
-            'Invalid RPC input for "user.getById": profile.name: required; profile.name: invalid; profile.age: too young; other: failed',
-          ),
-        ),
-      );
-    });
-
-    test('empty validation errors keep the generic failure message', () {
-      expect(
-        () => decodeRpcInputWithLuthor<_TestDto>(
-          rawInput: {'id': '1'},
-          method: 'user.getById',
-          validate: (_) => SchemaValidationError<_TestDto>(errors: {}),
-        ),
-        throwsA(
-          isA<RpcException>().having(
-            (error) => error.message,
-            'message',
-            'Invalid RPC input for "user.getById": Validation failed.',
-          ),
+        _throwsRpc(
+          RpcErrorCode.badRequest,
+          'Invalid RPC input for "user.getById": '
+          'root failed; profile.0.name: deep failed',
         ),
       );
     });
   });
 }
 
-final Validator _testDtoSchema = l.withName('_TestDto').schema({
-  'id': l.string().min(1).required(),
-});
+/// luthor 1.1's message for an empty `id` with `min(1)`.
+const _tooShort = 'id must be at least 1 character long';
 
-SchemaValidationResult<_TestDto> _validateTestDto(Map<String, dynamic> json) {
-  return _testDtoSchema.validateSchema(json, fromJson: _TestDto.fromJson);
-}
+Matcher _throwsRpc(RpcErrorCode code, String message) => throwsA(
+  isA<RpcException>()
+      .having((error) => error.code, 'code', code)
+      .having((error) => error.message, 'message', message),
+);
 
-SchemaValidationResult<JsonObject> _validateTestDtoJson(
-  Map<String, dynamic> json,
-) {
-  return _testDtoSchema.validateSchema(json);
-}
+final _testDtoSchema = l
+    .schema({'id': l.string().min(1).required()})
+    .withName('_TestDto');
 
-final Validator _testListDtoSchema = l.withName('_TestListDto').schema({
-  'items': l.list(validators: [_testDtoSchema.required()]).required(),
-});
+ValidationResult<_TestDto> _validateTestDto(Object? json) =>
+    _testDtoSchema.validateSchema(json, fromJson: _TestDto.fromJson);
 
-SchemaValidationResult<_TestListDto> _validateTestListDto(
-  Map<String, dynamic> json,
-) {
-  return _testListDtoSchema.validateSchema(
-    json,
-    fromJson: _TestListDto.fromJson,
-  );
-}
+final _testListDtoSchema = l
+    .schema({'items': l.list(_testDtoSchema.required()).required()})
+    .withName('_TestListDto');
 
-SchemaValidationResult<JsonObject> _validateTestListDtoJson(
-  Map<String, dynamic> json,
-) {
-  return _testListDtoSchema.validateSchema(json);
-}
+ValidationResult<_TestListDto> _validateTestListDto(Object? json) =>
+    _testListDtoSchema.validateSchema(json, fromJson: _TestListDto.fromJson);
 
 final class _TestDto {
   const _TestDto({required this.id});
 
-  static int fromJsonCalls = 0;
+  static final fromJsonInputs = <Object?>[];
 
   factory _TestDto.fromJson(Object? json) {
-    fromJsonCalls++;
+    fromJsonInputs.add(json);
     final object = expectJsonObject(json, context: '_TestDto');
     return _TestDto(id: object['id'] as String);
   }
