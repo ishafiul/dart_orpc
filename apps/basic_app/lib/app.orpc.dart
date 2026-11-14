@@ -1088,22 +1088,6 @@ ProcedureMetadataRegistry _$createAppModuleProcedureMetadataRegistry() {
 ProcedureMetadataRegistry dartOrpcCreateAppModuleProcedureMetadataRegistry() =>
     _$createAppModuleProcedureMetadataRegistry();
 
-OpenApiSchemaRegistry _$createAppModuleLocalOpenApiSchemaRegistry() {
-  return OpenApiSchemaRegistry([]);
-}
-
-OpenApiSchemaRegistry _$createAppModuleOpenApiSchemaRegistry() {
-  return OpenApiSchemaRegistry([
-    ...dartOrpcCreateAuthModuleOpenApiSchemaRegistry().components,
-    ...dartOrpcCreateTodoModuleOpenApiSchemaRegistry().components,
-    ...dartOrpcCreateTodoAnalysisModuleOpenApiSchemaRegistry().components,
-    ..._$createAppModuleLocalOpenApiSchemaRegistry().components,
-  ]);
-}
-
-OpenApiSchemaRegistry dartOrpcCreateAppModuleOpenApiSchemaRegistry() =>
-    _$createAppModuleOpenApiSchemaRegistry();
-
 JsonObject _$createAppModuleOpenApiDocument({OpenApiDocumentOptions? options}) {
   final effectiveOptions = options ?? const OpenApiDocumentOptions();
   return createOpenApiDocument(
@@ -1112,7 +1096,7 @@ JsonObject _$createAppModuleOpenApiDocument({OpenApiDocumentOptions? options}) {
     description: effectiveOptions.description,
     servers: effectiveOptions.servers,
     procedures: _$createAppModuleProcedureMetadataRegistry(),
-    schemas: _$createAppModuleOpenApiSchemaRegistry(),
+    schemas: _$createAppModuleDtoSchemaRegistry(),
   );
 }
 
@@ -1255,8 +1239,6 @@ extension DartOrpcAppModuleGenerated on AppModule {
       dartOrpcCreateAppModuleRestRouteRegistry();
   ProcedureMetadataRegistry procedureMetadata() =>
       dartOrpcCreateAppModuleProcedureMetadataRegistry();
-  OpenApiSchemaRegistry openApiSchemaRegistry() =>
-      dartOrpcCreateAppModuleOpenApiSchemaRegistry();
   DtoSchemaRegistry dtoSchemaRegistry() =>
       dartOrpcCreateAppModuleDtoSchemaRegistry();
   JsonObject openApiDocument({OpenApiDocumentOptions? options}) =>

@@ -292,27 +292,6 @@ ProcedureMetadataRegistry _$createAuthModuleProcedureMetadataRegistry() {
 ProcedureMetadataRegistry dartOrpcCreateAuthModuleProcedureMetadataRegistry() =>
     _$createAuthModuleProcedureMetadataRegistry();
 
-OpenApiSchemaRegistry _$createAuthModuleLocalOpenApiSchemaRegistry() {
-  return OpenApiSchemaRegistry([
-    OpenApiSchemaComponent(
-      name: 'AuthResponseDto',
-      validator: $AuthResponseDtoSchema,
-    ),
-    OpenApiSchemaComponent(name: 'AuthUserDto', validator: $AuthUserDtoSchema),
-    OpenApiSchemaComponent(name: 'LoginDto', validator: $LoginDtoSchema),
-    OpenApiSchemaComponent(name: 'SignUpDto', validator: $SignUpDtoSchema),
-  ]);
-}
-
-OpenApiSchemaRegistry _$createAuthModuleOpenApiSchemaRegistry() {
-  return OpenApiSchemaRegistry([
-    ..._$createAuthModuleLocalOpenApiSchemaRegistry().components,
-  ]);
-}
-
-OpenApiSchemaRegistry dartOrpcCreateAuthModuleOpenApiSchemaRegistry() =>
-    _$createAuthModuleOpenApiSchemaRegistry();
-
 JsonObject _$createAuthModuleOpenApiDocument({
   OpenApiDocumentOptions? options,
 }) {
@@ -323,7 +302,7 @@ JsonObject _$createAuthModuleOpenApiDocument({
     description: effectiveOptions.description,
     servers: effectiveOptions.servers,
     procedures: _$createAuthModuleProcedureMetadataRegistry(),
-    schemas: _$createAuthModuleOpenApiSchemaRegistry(),
+    schemas: _$createAuthModuleDtoSchemaRegistry(),
   );
 }
 
@@ -572,8 +551,6 @@ extension DartOrpcAuthModuleGenerated on AuthModule {
       dartOrpcCreateAuthModuleRestRouteRegistry();
   ProcedureMetadataRegistry procedureMetadata() =>
       dartOrpcCreateAuthModuleProcedureMetadataRegistry();
-  OpenApiSchemaRegistry openApiSchemaRegistry() =>
-      dartOrpcCreateAuthModuleOpenApiSchemaRegistry();
   DtoSchemaRegistry dtoSchemaRegistry() =>
       dartOrpcCreateAuthModuleDtoSchemaRegistry();
   JsonObject openApiDocument({OpenApiDocumentOptions? options}) =>

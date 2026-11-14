@@ -24,9 +24,6 @@ final class _GeneratedModuleNames {
     required this.createMetadataRegistryName,
     required this.createLocalMetadataRegistryName,
     required this.composeMetadataRegistryName,
-    required this.createOpenApiSchemaRegistryName,
-    required this.createLocalOpenApiSchemaRegistryName,
-    required this.composeOpenApiSchemaRegistryName,
     required this.createDtoSchemaRegistryName,
     required this.createLocalDtoSchemaRegistryName,
     required this.composeDtoSchemaRegistryName,
@@ -68,12 +65,6 @@ final class _GeneratedModuleNames {
           '_\$create${moduleName}LocalProcedureMetadataRegistry',
       composeMetadataRegistryName:
           _publicProcedureMetadataRegistryFactoryNameFor(moduleName),
-      createOpenApiSchemaRegistryName:
-          '_\$create${moduleName}OpenApiSchemaRegistry',
-      createLocalOpenApiSchemaRegistryName:
-          '_\$create${moduleName}LocalOpenApiSchemaRegistry',
-      composeOpenApiSchemaRegistryName:
-          _publicOpenApiSchemaRegistryFactoryNameFor(moduleName),
       createDtoSchemaRegistryName: '_\$create${moduleName}DtoSchemaRegistry',
       createLocalDtoSchemaRegistryName:
           '_\$create${moduleName}LocalDtoSchemaRegistry',
@@ -107,9 +98,6 @@ final class _GeneratedModuleNames {
   final String createMetadataRegistryName;
   final String createLocalMetadataRegistryName;
   final String composeMetadataRegistryName;
-  final String createOpenApiSchemaRegistryName;
-  final String createLocalOpenApiSchemaRegistryName;
-  final String composeOpenApiSchemaRegistryName;
   final String createDtoSchemaRegistryName;
   final String createLocalDtoSchemaRegistryName;
   final String composeDtoSchemaRegistryName;

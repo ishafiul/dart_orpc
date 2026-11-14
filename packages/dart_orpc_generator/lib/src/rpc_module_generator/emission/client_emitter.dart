@@ -274,9 +274,6 @@ void _writeGeneratedExtension(
       '  ProcedureMetadataRegistry procedureMetadata() => ${names.composeMetadataRegistryName}();',
     )
     ..writeln(
-      '  OpenApiSchemaRegistry openApiSchemaRegistry() => ${names.composeOpenApiSchemaRegistryName}();',
-    )
-    ..writeln(
       '  DtoSchemaRegistry dtoSchemaRegistry() => ${names.composeDtoSchemaRegistryName}();',
     )
     ..writeln(

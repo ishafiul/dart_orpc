@@ -823,49 +823,6 @@ ProcedureMetadataRegistry _$createTodoModuleProcedureMetadataRegistry() {
 ProcedureMetadataRegistry dartOrpcCreateTodoModuleProcedureMetadataRegistry() =>
     _$createTodoModuleProcedureMetadataRegistry();
 
-OpenApiSchemaRegistry _$createTodoModuleLocalOpenApiSchemaRegistry() {
-  return OpenApiSchemaRegistry([
-    OpenApiSchemaComponent(
-      name: 'CreateTodoDto',
-      validator: $CreateTodoDtoSchema,
-    ),
-    OpenApiSchemaComponent(
-      name: 'DeleteTodoResponseDto',
-      validator: $DeleteTodoResponseDtoSchema,
-    ),
-    OpenApiSchemaComponent(name: 'GetTodoDto', validator: $GetTodoDtoSchema),
-    OpenApiSchemaComponent(
-      name: 'TodoChangeResponseDto',
-      validator: $TodoChangeResponseDtoSchema,
-    ),
-    OpenApiSchemaComponent(
-      name: 'TodoListResponseDto',
-      validator: $TodoListResponseDtoSchema,
-    ),
-    OpenApiSchemaComponent(
-      name: 'TodoMetadataDto',
-      validator: $TodoMetadataDtoSchema,
-    ),
-    OpenApiSchemaComponent(
-      name: 'TodoResponseDto',
-      validator: $TodoResponseDtoSchema,
-    ),
-    OpenApiSchemaComponent(
-      name: 'UpdateTodoDto',
-      validator: $UpdateTodoDtoSchema,
-    ),
-  ]);
-}
-
-OpenApiSchemaRegistry _$createTodoModuleOpenApiSchemaRegistry() {
-  return OpenApiSchemaRegistry([
-    ..._$createTodoModuleLocalOpenApiSchemaRegistry().components,
-  ]);
-}
-
-OpenApiSchemaRegistry dartOrpcCreateTodoModuleOpenApiSchemaRegistry() =>
-    _$createTodoModuleOpenApiSchemaRegistry();
-
 JsonObject _$createTodoModuleOpenApiDocument({
   OpenApiDocumentOptions? options,
 }) {
@@ -876,7 +833,7 @@ JsonObject _$createTodoModuleOpenApiDocument({
     description: effectiveOptions.description,
     servers: effectiveOptions.servers,
     procedures: _$createTodoModuleProcedureMetadataRegistry(),
-    schemas: _$createTodoModuleOpenApiSchemaRegistry(),
+    schemas: _$createTodoModuleDtoSchemaRegistry(),
   );
 }
 
@@ -1237,8 +1194,6 @@ extension DartOrpcTodoModuleGenerated on TodoModule {
       dartOrpcCreateTodoModuleRestRouteRegistry();
   ProcedureMetadataRegistry procedureMetadata() =>
       dartOrpcCreateTodoModuleProcedureMetadataRegistry();
-  OpenApiSchemaRegistry openApiSchemaRegistry() =>
-      dartOrpcCreateTodoModuleOpenApiSchemaRegistry();
   DtoSchemaRegistry dtoSchemaRegistry() =>
       dartOrpcCreateTodoModuleDtoSchemaRegistry();
   JsonObject openApiDocument({OpenApiDocumentOptions? options}) =>

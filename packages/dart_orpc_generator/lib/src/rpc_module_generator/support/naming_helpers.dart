@@ -51,7 +51,6 @@ List<_ResolvedOpenApiSchemaComponent> _collectOpenApiSchemaComponents(
 
     components[name] = _ResolvedOpenApiSchemaComponent(
       name: name,
-      validatorExpression: '\$${name}Schema',
       element: element is InterfaceElement ? element : null,
     );
 
@@ -181,8 +180,6 @@ String _publicModuleRuntimeFactoryNameFor(String moduleName) =>
     'dartOrpcCreate${moduleName}Runtime';
 String _publicProcedureMetadataRegistryFactoryNameFor(String moduleName) =>
     'dartOrpcCreate${moduleName}ProcedureMetadataRegistry';
-String _publicOpenApiSchemaRegistryFactoryNameFor(String moduleName) =>
-    'dartOrpcCreate${moduleName}OpenApiSchemaRegistry';
 String _publicDtoSchemaRegistryFactoryNameFor(String moduleName) =>
     'dartOrpcCreate${moduleName}DtoSchemaRegistry';
 String _publicOpenApiDocumentFactoryNameFor(String moduleName) =>
