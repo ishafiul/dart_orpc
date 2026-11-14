@@ -1,11 +1,11 @@
 part of '../../rpc_module_generator.dart';
 
 /// Schema metadata for the module's OpenAPI components and every DTO they
-/// reference, keyed and sorted by component name.
-List<DtoSchemaMetadata> _extractModuleDtoSchemas(
-  List<_ResolvedOpenApiSchemaComponent> components,
-) {
+/// reference, sorted by component name, plus the packages that own them.
+({List<DtoSchemaMetadata> schemas, Set<String> packages})
+_extractModuleDtoSchemas(List<_ResolvedOpenApiSchemaComponent> components) {
   final schemas = <String, DtoSchemaMetadata>{};
+  final packages = <String>{};
   final pending = <InterfaceElement>[
     for (final component in components) ?component.element,
   ];
@@ -14,43 +14,61 @@ List<DtoSchemaMetadata> _extractModuleDtoSchemas(
     if (schemas.containsKey(element.displayName)) continue;
     final extraction = extractDtoSchema(element);
     schemas[element.displayName] = extraction.schema;
+    if (dtoOwningPackage(element) case final package?) packages.add(package);
     pending.addAll(extraction.references);
   }
-  return schemas.values.toList(growable: false)
-    ..sort((left, right) => left.name.compareTo(right.name));
+  return (
+    schemas: schemas.values.toList(growable: false)
+      ..sort((left, right) => left.name.compareTo(right.name)),
+    packages: packages,
+  );
 }
 
-/// Fails the build when the package configures json_serializable's
-/// `field_rename` globally in `build.yaml`.
+/// Fails the build when json_serializable's `field_rename` is configured in
+/// a `build.yaml` that applies to the module's DTOs: the root package's
+/// `global_options`, or the `targets` of any package that owns one of them.
 ///
 /// Wire names are derived from DTO annotations, which don't see builder
-/// options, so a global rename would make the schema metadata wrong.
-Future<void> _rejectGlobalJsonFieldRename(
+/// options, so such a rename would make the schema metadata wrong.
+Future<void> _rejectJsonFieldRename(
   InterfaceElement module,
   BuildStep buildStep,
+  Set<String> dtoPackages,
 ) async {
-  final buildYaml = await _readPackageBuildYaml(buildStep);
-  final rename = buildYaml == null ? null : globalJsonFieldRename(buildYaml);
-  if (rename == null) return;
+  final rootPackage = buildStep.inputId.package;
+  final buildYamlByPackage = <String, String?>{
+    for (final package in {rootPackage, ...dtoPackages})
+      package: await _readPackageBuildYaml(buildStep, package),
+  };
+  final violation = findJsonFieldRename(
+    rootPackage: rootPackage,
+    buildYamlByPackage: buildYamlByPackage,
+  );
+  if (violation == null) return;
+  final (:package, :rename, :source) = violation;
   throw InvalidGenerationSourceError(
-    'build.yaml sets json_serializable field_rename: $rename globally. '
-    'OpenAPI schema metadata reads wire names from DTO annotations, so use '
-    '@JsonSerializable(fieldRename: ...) on each DTO instead.',
+    'The build.yaml of package "$package" sets json_serializable '
+    'field_rename: $rename in $source, which applies to DTOs this module '
+    'uses. OpenAPI schema metadata reads wire names from DTO annotations, '
+    'so use @JsonSerializable(fieldRename: ...) on each DTO instead.',
     element: module,
   );
 }
 
-/// The `build.yaml` of the package being built, if it exists.
+/// The `build.yaml` of [package], if it exists.
 ///
 /// build_runner only lets builders read a package's configured sources, and
 /// `build.yaml` is not one by default, so fall back to reading it from disk.
-/// build_runner restarts the build whenever `build.yaml` changes, so the
+/// build_runner restarts the build whenever a `build.yaml` changes, so the
 /// untracked read can't go stale.
-Future<String?> _readPackageBuildYaml(BuildStep buildStep) async {
-  final asset = AssetId(buildStep.inputId.package, 'build.yaml');
+Future<String?> _readPackageBuildYaml(
+  BuildStep buildStep,
+  String package,
+) async {
+  final asset = AssetId(package, 'build.yaml');
   if (await buildStep.canRead(asset)) return buildStep.readAsString(asset);
   final libraryRoot = await Isolate.resolvePackageUri(
-    Uri.parse('package:${asset.package}/'),
+    Uri.parse('package:$package/'),
   );
   if (libraryRoot == null || libraryRoot.scheme != 'file') return null;
   final file = File.fromUri(libraryRoot.resolve('../build.yaml'));

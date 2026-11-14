@@ -522,6 +522,21 @@ void main() {
     });
   });
 
+  group('Given DTO classes from different packages', () {
+    test('When the owning package is read then it comes from the library', () {
+      return resolveSource(_fixture, (resolver) async {
+        final dto = await _class(resolver, 'AddressDto');
+        final luthorAnnotation = dto.metadata.annotations.first
+            .computeConstantValue()!
+            .type!
+            .element!;
+
+        expect(dtoOwningPackage(dto), '_resolve_source');
+        expect(dtoOwningPackage(luthorAnnotation), 'luthor');
+      }, readAllSourcesFromFilesystem: true);
+    });
+  });
+
   group('Given a DTO without fields', () {
     test('When extracted then the schema is empty', () {
       return _extract('EmptyDto', (extraction) {
