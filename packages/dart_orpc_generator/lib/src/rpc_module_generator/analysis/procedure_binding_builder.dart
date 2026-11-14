@@ -326,9 +326,9 @@ List<_ResolvedCustomMetadata> _resolveCustomMetadata(
       );
     }
 
-    final metadataKey = ConstantReader(
-      metadataAnnotation,
-    ).read('key').stringValue;
+    final metadataKey = ConstantReader(metadataAnnotation)
+        .read('key')
+        .stringValue;
     resolvedMetadata.add(
       _ResolvedCustomMetadata(
         key: metadataKey,
@@ -356,7 +356,10 @@ JsonObject _serializeCustomMetadataAnnotation(
   final serialized = <String, Object?>{};
 
   for (final field in annotationElement.fields) {
-    if (field.isStatic || field.isSynthetic) {
+    // Fields synthesized from getters have no declaration of their own.
+    if (field.isStatic ||
+        !(field.isOriginDeclaration ||
+            field.isOriginDeclaringFormalParameter)) {
       continue;
     }
     final fieldName = field.displayName;
