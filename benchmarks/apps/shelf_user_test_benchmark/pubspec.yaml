@@ -9,6 +9,6 @@ environment:
 dependencies:
   challenge_core:
     path: ../../packages/challenge_core
-  shelf: ^1.4.2
-  shelf_router: ^1.1.4
+  shelf: ^1.4.3
+  shelf_router: ^1.1.5
 

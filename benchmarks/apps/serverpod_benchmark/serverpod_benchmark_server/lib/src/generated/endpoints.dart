@@ -10,59 +10,53 @@
 // ignore_for_file: invalid_use_of_internal_member
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'package:serverpod/serverpod.dart' as _i1;
-import '../benchmark/benchmark_endpoint.dart' as _i2;
+import 'package:serverpod/serverpod.dart' as _is;
 
-class Endpoints extends _i1.EndpointDispatch {
+import '../benchmark/benchmark_endpoint.dart' as _ieqnl1zu;
+
+class Endpoints extends _is.EndpointDispatch {
   @override
-  void initializeEndpoints(_i1.Server server) {
-    var endpoints = <String, _i1.Endpoint>{
-      'benchmark': _i2.BenchmarkEndpoint()
-        ..initialize(
-          server,
-          'benchmark',
-          null,
-        ),
+  void initializeEndpoints(_is.Server server) {
+    initializeOwnEndpoints(server);
+  }
+
+  @override
+  void initializeOwnEndpoints(_is.Server server) {
+    var endpoints = <String, _is.Endpoint>{
+      'benchmark': _ieqnl1zu.BenchmarkEndpoint()
+        ..initialize(server, 'benchmark', null),
     };
-    connectors['benchmark'] = _i1.EndpointConnector(
+    connectors['benchmark'] = _is.EndpointConnector(
       name: 'benchmark',
       endpoint: endpoints['benchmark']!,
       methodConnectors: {
-        'plaintext': _i1.MethodConnector(
+        'plaintext': _is.MethodConnector(
           name: 'plaintext',
           params: {},
-          call:
-              (
-                _i1.Session session,
-                Map<String, dynamic> params,
-              ) async => (endpoints['benchmark'] as _i2.BenchmarkEndpoint)
-                  .plaintext(session),
-        ),
-        'json': _i1.MethodConnector(
-          name: 'json',
-          params: {},
-          call:
-              (
-                _i1.Session session,
-                Map<String, dynamic> params,
-              ) async => (endpoints['benchmark'] as _i2.BenchmarkEndpoint).json(
+          call: (_is.Session session, Map<String, dynamic> params) async =>
+              (endpoints['benchmark'] as _ieqnl1zu.BenchmarkEndpoint).plaintext(
                 session,
               ),
         ),
-        'echo': _i1.MethodConnector(
+        'json': _is.MethodConnector(
+          name: 'json',
+          params: {},
+          call: (_is.Session session, Map<String, dynamic> params) async =>
+              (endpoints['benchmark'] as _ieqnl1zu.BenchmarkEndpoint).json(
+                session,
+              ),
+        ),
+        'echo': _is.MethodConnector(
           name: 'echo',
           params: {
-            'input': _i1.ParameterDescription(
+            'input': _is.ParameterDescription(
               name: 'input',
-              type: _i1.getType<Map<String, String>>(),
+              type: _is.getType<Map<String, String>>(),
               nullable: false,
             ),
           },
-          call:
-              (
-                _i1.Session session,
-                Map<String, dynamic> params,
-              ) async => (endpoints['benchmark'] as _i2.BenchmarkEndpoint).echo(
+          call: (_is.Session session, Map<String, dynamic> params) async =>
+              (endpoints['benchmark'] as _ieqnl1zu.BenchmarkEndpoint).echo(
                 session,
                 params['input'],
               ),

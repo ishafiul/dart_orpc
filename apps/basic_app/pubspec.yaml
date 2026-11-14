@@ -5,26 +5,23 @@ publish_to: none
 resolution: workspace
 
 environment:
-  # Stays on language 3.11 until freezed 4 can be used: freezed 3 emits
-  # `required final` constructor parameters that Dart 3.14 rejects, and
-  # freezed 4 needs a newer analyzer than luthor_generator 0.17 allows.
-  sdk: ^3.11.0
+  sdk: ^3.14.0
 
 dependencies:
   bcrypt: ^1.2.0
   dart_jsonwebtoken: ^3.4.1
   dart_orpc: ^0.1.0-dev.7
-  drift: ^2.29.0
+  drift: ^2.35.4
   freezed_annotation: ^3.1.0
-  json_annotation: ^4.11.0
+  json_annotation: ^4.12.0
   path: ^1.9.1
-  sqlite3: ^2.9.0
+  sqlite3: ^3.9.1
 
 dev_dependencies:
-  build_runner: ^2.12.2
+  build_runner: ^2.16.2
   dart_orpc_generator: ^0.1.0-dev.7
-  drift_dev: ^2.29.0
-  freezed: ^3.2.3
-  json_serializable: ^6.11.1
-  luthor_generator: ^0.17.0
-  test: ^1.26.3
+  drift_dev: ^2.35.3
+  freezed: ^4.0.3
+  json_serializable: ^6.15.2
+  luthor_generator: ^1.1.0
+  test: ^1.33.0

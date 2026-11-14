@@ -8,4 +8,4 @@ environment:
 
 dependencies:
   dart_jsonwebtoken: ^3.4.1
-  sqlite3: ^2.9.0
+  sqlite3: ^3.9.1
