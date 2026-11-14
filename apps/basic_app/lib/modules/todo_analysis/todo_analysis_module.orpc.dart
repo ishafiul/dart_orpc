@@ -186,24 +186,6 @@ ProcedureMetadataRegistry
 dartOrpcCreateTodoAnalysisModuleProcedureMetadataRegistry() =>
     _$createTodoAnalysisModuleProcedureMetadataRegistry();
 
-OpenApiSchemaRegistry _$createTodoAnalysisModuleLocalOpenApiSchemaRegistry() {
-  return OpenApiSchemaRegistry([
-    OpenApiSchemaComponent(
-      name: 'TodoAnalysisSummaryDto',
-      validator: $TodoAnalysisSummaryDtoSchema,
-    ),
-  ]);
-}
-
-OpenApiSchemaRegistry _$createTodoAnalysisModuleOpenApiSchemaRegistry() {
-  return OpenApiSchemaRegistry([
-    ..._$createTodoAnalysisModuleLocalOpenApiSchemaRegistry().components,
-  ]);
-}
-
-OpenApiSchemaRegistry dartOrpcCreateTodoAnalysisModuleOpenApiSchemaRegistry() =>
-    _$createTodoAnalysisModuleOpenApiSchemaRegistry();
-
 JsonObject _$createTodoAnalysisModuleOpenApiDocument({
   OpenApiDocumentOptions? options,
 }) {
@@ -214,7 +196,7 @@ JsonObject _$createTodoAnalysisModuleOpenApiDocument({
     description: effectiveOptions.description,
     servers: effectiveOptions.servers,
     procedures: _$createTodoAnalysisModuleProcedureMetadataRegistry(),
-    schemas: _$createTodoAnalysisModuleOpenApiSchemaRegistry(),
+    schemas: _$createTodoAnalysisModuleDtoSchemaRegistry(),
   );
 }
 
@@ -381,8 +363,6 @@ extension DartOrpcTodoAnalysisModuleGenerated on TodoAnalysisModule {
       dartOrpcCreateTodoAnalysisModuleRestRouteRegistry();
   ProcedureMetadataRegistry procedureMetadata() =>
       dartOrpcCreateTodoAnalysisModuleProcedureMetadataRegistry();
-  OpenApiSchemaRegistry openApiSchemaRegistry() =>
-      dartOrpcCreateTodoAnalysisModuleOpenApiSchemaRegistry();
   DtoSchemaRegistry dtoSchemaRegistry() =>
       dartOrpcCreateTodoAnalysisModuleDtoSchemaRegistry();
   JsonObject openApiDocument({OpenApiDocumentOptions? options}) =>

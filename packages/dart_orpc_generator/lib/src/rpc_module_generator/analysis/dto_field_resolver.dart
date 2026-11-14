@@ -11,6 +11,7 @@ List<_ResolvedDtoField> _resolveDtoFields(
     );
   }
 
+  final jsonKeys = _dtoJsonKeys(element);
   final fieldsByName = <String, _ResolvedDtoFieldBuilder>{};
   for (final candidate in [
     ...discoverDtoMembers(element),
@@ -20,6 +21,7 @@ List<_ResolvedDtoField> _resolveDtoFields(
       candidate.name,
       () => _ResolvedDtoFieldBuilder(
         name: candidate.name,
+        jsonKey: jsonKeys[candidate.name] ?? candidate.name,
         typeCode: candidate.type.getDisplayString(),
       ),
     );
@@ -35,6 +37,18 @@ List<_ResolvedDtoField> _resolveDtoFields(
   return fieldsByName.values
       .map((field) => field.build())
       .toList(growable: false);
+}
+
+/// The JSON key of each of [dto]'s serialized fields, by Dart name.
+///
+/// DTOs the schema extractor rejects yield no keys here; DTO schema
+/// resolution reports that error for the module.
+Map<String, String> _dtoJsonKeys(InterfaceElement dto) {
+  try {
+    return extractDtoSchema(dto).jsonKeys;
+  } on InvalidGenerationSourceError {
+    return const {};
+  }
 }
 
 _ResolvedDtoFieldBinding? _readResolvedDtoFieldBinding(

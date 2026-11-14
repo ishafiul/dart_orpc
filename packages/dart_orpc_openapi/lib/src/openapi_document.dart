@@ -1,45 +1,4 @@
-// ignore_for_file: invalid_use_of_protected_member
-
 import 'package:dart_orpc_core/dart_orpc_core.dart';
-import 'package:luthor/luthor.dart';
-
-final class OpenApiSchemaComponent {
-  const OpenApiSchemaComponent({required this.name, required this.validator});
-
-  final String name;
-  final Validator validator;
-}
-
-final class OpenApiSchemaRegistry {
-  OpenApiSchemaRegistry(Iterable<OpenApiSchemaComponent> components)
-    : _components = _indexComponents(components);
-
-  final Map<String, OpenApiSchemaComponent> _components;
-
-  Iterable<String> get names => _components.keys;
-
-  Iterable<OpenApiSchemaComponent> get components => _components.values;
-
-  OpenApiSchemaComponent? operator [](String name) => _components[name];
-
-  static Map<String, OpenApiSchemaComponent> _indexComponents(
-    Iterable<OpenApiSchemaComponent> components,
-  ) {
-    final indexed = <String, OpenApiSchemaComponent>{};
-
-    for (final component in components) {
-      if (indexed.containsKey(component.name)) {
-        throw StateError(
-          'Duplicate OpenAPI schema component "${component.name}".',
-        );
-      }
-
-      indexed[component.name] = component;
-    }
-
-    return Map.unmodifiable(indexed);
-  }
-}
 
 final class OpenApiServer {
   const OpenApiServer({required this.url, this.description});
@@ -76,9 +35,9 @@ JsonObject createOpenApiDocument({
   String? description,
   Iterable<OpenApiServer> servers = const [],
   required ProcedureMetadataRegistry procedures,
-  OpenApiSchemaRegistry? schemas,
+  DtoSchemaRegistry? schemas,
 }) {
-  final effectiveSchemas = schemas ?? OpenApiSchemaRegistry(const []);
+  final effectiveSchemas = schemas ?? DtoSchemaRegistry(const []);
   final paths = _buildPaths(procedures, effectiveSchemas);
   final componentSchemas = _buildComponentSchemas(effectiveSchemas);
   final serverList = servers.toList(growable: false);
@@ -142,7 +101,7 @@ String createScalarHtml({
 
 JsonObject _buildPaths(
   ProcedureMetadataRegistry procedures,
-  OpenApiSchemaRegistry schemas,
+  DtoSchemaRegistry schemas,
 ) {
   final restProcedures =
       procedures.procedures
@@ -163,9 +122,10 @@ JsonObject _buildPaths(
 
   for (final procedure in restProcedures) {
     final path = _toOpenApiPath(procedure.path!.path);
-    final pathItem =
-        paths.putIfAbsent(path, () => <String, Object?>{})
-            as Map<String, Object?>;
+    final pathItem = paths.putIfAbsent(
+      path,
+      () => <String, Object?>{},
+    ) as Map<String, Object?>;
     pathItem[procedure.path!.method.toLowerCase()] = _buildOperation(
       procedure,
       schemas,
@@ -177,7 +137,7 @@ JsonObject _buildPaths(
 
 JsonObject _buildOperation(
   ProcedureMetadata procedure,
-  OpenApiSchemaRegistry schemas,
+  DtoSchemaRegistry schemas,
 ) {
   final isSse = procedure.path?.responseKind == RestResponseKind.sse;
   final parameters = procedure.parameters
@@ -315,7 +275,7 @@ JsonObject _buildSecuritySchemes(ProcedureMetadataRegistry procedures) {
 JsonObject _buildParameter(
   ProcedureParameterMetadata parameter,
   ProcedureMetadata procedure,
-  OpenApiSchemaRegistry schemas,
+  DtoSchemaRegistry schemas,
 ) {
   final location = switch (parameter.source) {
     ProcedureParameterSourceKind.path => 'path',
@@ -337,7 +297,7 @@ JsonObject _buildParameter(
   };
 }
 
-JsonObject _buildComponentSchemas(OpenApiSchemaRegistry schemas) {
+JsonObject _buildComponentSchemas(DtoSchemaRegistry schemas) {
   final componentSchemas = <String, Object?>{
     'RpcErrorBody': {
       'type': 'object',
@@ -362,16 +322,11 @@ JsonObject _buildComponentSchemas(OpenApiSchemaRegistry schemas) {
     },
   };
 
-  final sortedComponents = schemas.components.toList(growable: false)
+  final sortedSchemas = schemas.schemas.toList(growable: false)
     ..sort((left, right) => left.name.compareTo(right.name));
 
-  for (final component in sortedComponents) {
-    componentSchemas[component.name] = _schemaForValidator(
-      component.validator,
-      schemas,
-      currentComponentName: component.name,
-      allowInlineCurrentComponent: true,
-    );
+  for (final schema in sortedSchemas) {
+    componentSchemas[schema.name] = _schemaForDto(schema);
   }
 
   return componentSchemas;
@@ -380,7 +335,7 @@ JsonObject _buildComponentSchemas(OpenApiSchemaRegistry schemas) {
 JsonObject _requestBodySchema(
   ProcedureMetadata procedure,
   ProcedureParameterMetadata bodyParameter,
-  OpenApiSchemaRegistry schemas,
+  DtoSchemaRegistry schemas,
 ) {
   final externalDtoFields = procedure.parameters
       .where(
@@ -388,9 +343,9 @@ JsonObject _requestBodySchema(
       )
       .map((parameter) => parameter.parameterName)
       .toList(growable: false);
-  final schemaComponent = schemas[_nonNullableTypeCode(bodyParameter.typeCode)];
+  final schema = schemas[_nonNullableTypeCode(bodyParameter.typeCode)];
 
-  if (schemaComponent == null ||
+  if (schema == null ||
       procedure.inputTypeCode == null ||
       _nonNullableTypeCode(bodyParameter.typeCode) !=
           _nonNullableTypeCode(procedure.inputTypeCode!) ||
@@ -398,21 +353,14 @@ JsonObject _requestBodySchema(
     return _schemaForTypeCode(bodyParameter.typeCode, schemas);
   }
 
-  final inlineSchema = _schemaForValidator(
-    schemaComponent.validator,
-    schemas,
-    currentComponentName: schemaComponent.name,
-    allowInlineCurrentComponent: true,
-  );
-
-  return _withoutObjectProperties(inlineSchema, externalDtoFields);
+  return _withoutObjectProperties(_schemaForDto(schema), externalDtoFields);
 }
 
-JsonObject _schemaForTypeCode(String typeCode, OpenApiSchemaRegistry schemas) {
+JsonObject _schemaForTypeCode(String typeCode, DtoSchemaRegistry schemas) {
   final nonNullableTypeCode = _nonNullableTypeCode(typeCode);
 
-  if (schemas[nonNullableTypeCode] case final component?) {
-    return _schemaRef(component.name);
+  if (schemas[nonNullableTypeCode] case final schema?) {
+    return _schemaRef(schema.name);
   }
 
   if (nonNullableTypeCode == 'String') {
@@ -443,187 +391,95 @@ JsonObject _schemaForTypeCode(String typeCode, OpenApiSchemaRegistry schemas) {
   return {'type': 'object'};
 }
 
-JsonObject _schemaForValidator(
-  Validator validator,
-  OpenApiSchemaRegistry schemas, {
-  String? currentComponentName,
-  bool allowInlineCurrentComponent = false,
-}) {
-  final componentName = validator.name;
-  if (componentName != null && schemas[componentName] != null) {
-    final shouldInlineCurrent =
-        allowInlineCurrentComponent && componentName == currentComponentName;
-    if (!shouldInlineCurrent) {
-      return _schemaRef(componentName);
-    }
-  }
-
-  if (validator.schemaValidation case final schemaValidation?) {
-    return _schemaForObjectValidator(
-      validator,
-      schemaValidation,
-      schemas,
-      currentComponentName: currentComponentName,
-    );
-  }
-
-  final listValidation = validator.validations
-      .whereType<ListValidation>()
-      .lastOrNull;
-  if (listValidation != null) {
-    return _schemaForListValidation(
-      listValidation,
-      schemas,
-      currentComponentName: currentComponentName,
-    );
-  }
-
-  final mapValidation = validator.validations
-      .whereType<MapValidation>()
-      .lastOrNull;
-  if (mapValidation != null) {
-    return _schemaForMapValidation(
-      mapValidation,
-      schemas,
-      currentComponentName: currentComponentName,
-    );
-  }
-
-  final schema = <String, Object?>{};
-
-  if (validator.validations.any(
-    (validation) => validation is StringValidation,
-  )) {
-    schema['type'] = 'string';
-  } else if (validator.validations.any(
-    (validation) => validation is IntValidation,
-  )) {
-    schema['type'] = 'integer';
-  } else if (validator.validations.any(
-    (validation) =>
-        validation is DoubleValidation || validation is NumberValidation,
-  )) {
-    schema['type'] = 'number';
-  } else if (validator.validations.any(
-    (validation) => validation is BoolValidation,
-  )) {
-    schema['type'] = 'boolean';
-  }
-
-  for (final validation in validator.validations) {
-    switch (validation) {
-      case StringMinValidation(minLength: final minLength):
-        schema['minLength'] = minLength;
-      case StringMaxValidation(maxLength: final maxLength):
-        schema['maxLength'] = maxLength;
-      case StringLengthValidation(length: final length):
-        schema['minLength'] = length;
-        schema['maxLength'] = length;
-      case StringEmailValidation():
-        schema['format'] = 'email';
-      case StringDateTimeValidation():
-        schema['format'] = 'date-time';
-      case StringUriValidation():
-        schema['format'] = 'uri';
-      case StringUuidValidation():
-        schema['format'] = 'uuid';
-      case StringRegexValidation(pattern: final pattern):
-        schema['pattern'] = pattern;
-      case NumberMinValidation(minValue: final minValue):
-        schema['minimum'] = minValue;
-      case NumberMaxValidation(maxValue: final maxValue):
-        schema['maximum'] = maxValue;
-      default:
-        break;
-    }
-  }
-
-  if (schema.isEmpty) {
-    return {'type': 'object'};
-  }
-
-  return schema;
-}
-
-JsonObject _schemaForObjectValidator(
-  Validator validator,
-  SchemaValidation schemaValidation,
-  OpenApiSchemaRegistry schemas, {
-  String? currentComponentName,
-}) {
-  final properties = <String, Object?>{};
-  final required = <String>[];
-  final keys = schemaValidation.validatorSchema.keys.toList(growable: false)
-    ..sort();
-
-  for (final key in keys) {
-    final fieldValidator = schemaValidation.validatorSchema[key]!.resolve();
-    properties[key] = _schemaForValidator(
-      fieldValidator,
-      schemas,
-      currentComponentName: currentComponentName,
-    );
-
-    if (fieldValidator.hasRequiredValidation) {
-      required.add(key);
-    }
-  }
-
-  final schema = <String, Object?>{'type': 'object', 'properties': properties};
-  if (required.isNotEmpty) {
-    schema['required'] = required;
-  }
-  if (validator.name != null && validator.name != currentComponentName) {
-    schema['title'] = validator.name;
-  }
-
-  return schema;
-}
-
-JsonObject _schemaForListValidation(
-  ListValidation validation,
-  OpenApiSchemaRegistry schemas, {
-  String? currentComponentName,
-}) {
-  final validators = validation.validators;
-  if (validators == null || validators.isEmpty) {
-    return {'type': 'array', 'items': {}};
-  }
-
-  final itemSchemas = validators
-      .map(
-        (validator) => _schemaForValidator(
-          validator.resolve(),
-          schemas,
-          currentComponentName: currentComponentName,
-        ),
-      )
-      .toList(growable: false);
-
-  return {
-    'type': 'array',
-    'items': itemSchemas.length == 1
-        ? itemSchemas.single
-        : {'oneOf': itemSchemas},
-  };
-}
-
-JsonObject _schemaForMapValidation(
-  MapValidation validation,
-  OpenApiSchemaRegistry schemas, {
-  String? currentComponentName,
-}) {
-  final valueValidator = validation.valueValidator?.resolve();
-
+/// The JSON Schema object for [schema]: properties in wire-name order and
+/// the required wire names, also sorted.
+JsonObject _schemaForDto(DtoSchemaMetadata schema) {
+  final fields = schema.fields.toList(growable: false)
+    ..sort((left, right) => left.wireName.compareTo(right.wireName));
+  final required = [
+    for (final field in fields)
+      if (field.required) field.wireName,
+  ];
   return {
     'type': 'object',
-    if (valueValidator != null)
-      'additionalProperties': _schemaForValidator(
-        valueValidator,
-        schemas,
-        currentComponentName: currentComponentName,
-      ),
+    'properties': {
+      for (final field in fields) field.wireName: _schemaForField(field),
+    },
+    if (required.isNotEmpty) 'required': required,
   };
+}
+
+JsonObject _schemaForField(DtoFieldMetadata field) {
+  final schema = {
+    ..._schemaForType(field.type),
+    ..._schemaForConstraints(field.type, field.constraints),
+  };
+  if (field.customValidation) {
+    schema['x-dart-orpc-custom-validation'] = true;
+  }
+  return schema;
+}
+
+JsonObject _schemaForType(DtoFieldType type) => switch (type) {
+  DtoStringType() => {'type': 'string'},
+  DtoIntegerType() => {'type': 'integer'},
+  DtoNumberType() => {'type': 'number'},
+  DtoBooleanType() => {'type': 'boolean'},
+  DtoAnyType() => <String, Object?>{},
+  DtoObjectType(:final component) => _schemaRef(component),
+  DtoListType(:final element) => {
+    'type': 'array',
+    'items': _schemaForType(element),
+  },
+  DtoMapType(:final value) => {
+    'type': 'object',
+    'additionalProperties': _schemaForType(value),
+  },
+  DtoEnumType(:final values) => {
+    if (_enumType(values) case final type?) 'type': type,
+    'enum': values,
+  },
+};
+
+/// The JSON type shared by every enum value, if there is one.
+String? _enumType(List<Object> values) {
+  if (values.every((value) => value is String)) return 'string';
+  if (values.every((value) => value is int)) return 'integer';
+  if (values.every((value) => value is num)) return 'number';
+  if (values.every((value) => value is bool)) return 'boolean';
+  return null;
+}
+
+JsonObject _schemaForConstraints(
+  DtoFieldType type,
+  DtoFieldConstraints constraints,
+) {
+  final (minKey, maxKey) = switch (type) {
+    DtoStringType() => ('minLength', 'maxLength'),
+    DtoListType() => ('minItems', 'maxItems'),
+    DtoIntegerType() || DtoNumberType() => ('minimum', 'maximum'),
+    _ => (null, null),
+  };
+  final schema = <String, Object?>{};
+  if (minKey != null && maxKey != null) {
+    if (constraints.min case final min?) schema[minKey] = min;
+    if (constraints.max case final max?) schema[maxKey] = max;
+    if (constraints.length case final length?
+        when type is DtoStringType || type is DtoListType) {
+      schema[minKey] = length;
+      schema[maxKey] = length;
+    }
+  }
+  if (constraints.pattern case final pattern?) schema['pattern'] = pattern;
+  if (constraints.format case final format?) {
+    schema['format'] = switch (format) {
+      DtoStringFormat.email => 'email',
+      DtoStringFormat.dateTime => 'date-time',
+      DtoStringFormat.uri => 'uri',
+      DtoStringFormat.uuid => 'uuid',
+    };
+  }
+  return schema;
 }
 
 JsonObject _schemaRef(String componentName) {
@@ -710,25 +566,7 @@ String _escapeHtmlText(String value) {
 }
 
 String _escapeHtmlAttribute(String value) {
-  return _escapeHtmlText(
-    value,
-  ).replaceAll('"', '&quot;').replaceAll("'", '&#39;');
-}
-
-extension<T> on Iterable<T> {
-  T? get firstOrNull {
-    if (isEmpty) {
-      return null;
-    }
-
-    return first;
-  }
-
-  T? get lastOrNull {
-    if (isEmpty) {
-      return null;
-    }
-
-    return last;
-  }
+  return _escapeHtmlText(value)
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
 }

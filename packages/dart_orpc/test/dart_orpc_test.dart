@@ -64,12 +64,10 @@ void main() {
             ],
           ),
         ]);
-        final openApiSchemaRegistry = OpenApiSchemaRegistry([
-          OpenApiSchemaComponent(
+        final dtoSchemaRegistry = DtoSchemaRegistry(const [
+          DtoSchemaMetadata(
             name: 'UserResponseDto',
-            validator: l.withName('UserResponseDto').schema({
-              'id': l.string().required(),
-            }),
+            fields: [DtoFieldMetadata(wireName: 'id', type: DtoStringType())],
           ),
         ]);
         const openApiServer = OpenApiServer(url: 'http://localhost:3000');
@@ -82,7 +80,7 @@ void main() {
           title: 'Facade API',
           servers: const [openApiServer],
           procedures: procedureMetadata,
-          schemas: openApiSchemaRegistry,
+          schemas: dtoSchemaRegistry,
         );
         final scalarHtml = createScalarHtml(title: 'Facade API');
         const docsBasicAuth = RpcHttpBasicAuth(
@@ -170,7 +168,7 @@ void main() {
             'allOf': ['tenant.active'],
           },
         );
-        expect(openApiSchemaRegistry.names, ['UserResponseDto']);
+        expect(dtoSchemaRegistry.names, ['UserResponseDto']);
         expect(openApiDocument['paths'], isNotEmpty);
         expect((openApiDocument['servers'] as List<Object?>).single, {
           'url': 'http://localhost:3000',

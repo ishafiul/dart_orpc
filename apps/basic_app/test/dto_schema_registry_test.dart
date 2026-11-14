@@ -11,11 +11,19 @@ void main() {
     });
 
     test(
-      'When listed then it covers the same DTOs as the OpenAPI registry',
+      'When listed then it covers every DTO component in the OpenAPI document',
       () {
+        final components =
+            (const AppModule().openApiDocument()['components']
+                    as Map<String, Object?>)['schemas']
+                as Map<String, Object?>;
+
         expect(
           registry.names.toSet(),
-          const AppModule().openApiSchemaRegistry().names.toSet(),
+          components.keys.toSet().difference({
+            'RpcErrorBody',
+            'RpcErrorResponse',
+          }),
         );
       },
     );

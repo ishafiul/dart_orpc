@@ -44,9 +44,12 @@ void main() {
 
       expect(run.succeeded, isTrue);
       expect(run.generatedOutput, contains("name: 'ChildDto'"));
-      expect(run.generatedOutput, contains(r'validator: $ChildDtoSchema'));
       expect(run.generatedOutput, contains("name: 'ParentDto'"));
-      expect(run.generatedOutput, contains(r'validator: $ParentDtoSchema'));
+      expect(
+        run.generatedOutput,
+        contains(r'schemas: _$createAppModuleDtoSchemaRegistry(),'),
+      );
+      expect(run.generatedOutput, isNot(contains('OpenApiSchemaComponent')));
       expect(
         run.generatedOutput,
         contains('encodeRpcOutputJsonWithLuthor<ParentDto>'),

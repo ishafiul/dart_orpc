@@ -29,584 +29,557 @@ void main() {
       },
     );
 
-    test(
-      'When the builder runs for a valid module then it emits registry, metadata, app, and client code',
-      () async {
-        final run = await runModuleBuilder(_validRpcModuleSource);
+    test('When the builder runs for a valid module then it emits registry, metadata, app, and client code', () async {
+      final run = await runModuleBuilder(_validRpcModuleSource);
 
-        expect(run.succeeded, isTrue);
-        expect(run.outputs, contains(AssetId('a', 'lib/example.orpc.dart')));
+      expect(run.succeeded, isTrue);
+      expect(run.outputs, contains(AssetId('a', 'lib/example.orpc.dart')));
 
-        final generatedOutput = run.generatedOutput;
-        expect(
+      final generatedOutput = run.generatedOutput;
+      expect(
+        generatedOutput,
+        contains(
+          'RpcProcedureRegistry _\$createAppModuleProcedureRegistry() {',
+        ),
+      );
+      expect(generatedOutput, contains('class _\$AppModuleContainer {'));
+      expect(
+        generatedOutput,
+        contains('_\$AppModuleContainer _\$createAppModuleContainer() {'),
+      );
+      expect(
+        generatedOutput,
+        contains(
+          'RpcProcedureRegistry _\$createAppModuleProcedureRegistryFromContainer(',
+        ),
+      );
+      expect(
+        generatedOutput,
+        contains(
+          'ProcedureMetadataRegistry _\$createAppModuleProcedureMetadataRegistry() {',
+        ),
+      );
+      expect(
+        generatedOutput,
+        contains('DtoSchemaRegistry _\$createAppModuleDtoSchemaRegistry() {'),
+      );
+      expect(
+        generatedOutput,
+        contains(
+          'JsonObject _\$createAppModuleOpenApiDocument({OpenApiDocumentOptions? options}) {',
+        ),
+      );
+      expect(
+        generatedOutput,
+        contains('RestRouteRegistry _\$createAppModuleRestRouteRegistry() {'),
+      );
+      expect(
+        generatedOutput,
+        contains(
+          'RestRouteRegistry _\$createAppModuleRestRouteRegistryFromContainer(',
+        ),
+      );
+      expect(generatedOutput, contains("method: 'user.getById',"));
+      expect(generatedOutput, contains("rpcMethod: 'user.getById',"));
+      expect(
+        generatedOutput,
+        contains('source: ProcedureParameterSourceKind.rpcInput,'),
+      );
+      expect(generatedOutput, contains("outputTypeCode: 'UserResponseDto',"));
+      expect(generatedOutput, contains("methodName: 'status',"));
+      expect(
+        generatedOutput,
+        contains('RpcUnaryProcedure<Null, UserStatusDto>('),
+      );
+      expect(
+        generatedOutput,
+        contains('RpcHttpApp dartOrpcBuildAppModuleRpcApp({'),
+      );
+      expect(
+        generatedOutput,
+        contains('extension DartOrpcAppModuleGenerated on AppModule {'),
+      );
+      expect(generatedOutput, contains('RpcHttpApp buildRpcApp({'));
+      for (final option in [
+        'bool sseFlushEachChunk = true',
+        'bool encodeJsonToBytes = false',
+        'int? maxConcurrentRequests',
+        'Duration? requestBodyIdleTimeout',
+        'RpcHttpServerOptions serverOptions = const RpcHttpServerOptions()',
+      ]) {
+        // Private builder, public function, and module extension expose options.
+        expect(option.allMatches(generatedOutput), hasLength(3));
+      }
+      for (final option in [
+        'sseFlushEachChunk',
+        'encodeJsonToBytes',
+        'maxConcurrentRequests',
+        'requestBodyIdleTimeout',
+        'serverOptions',
+      ]) {
+        expect('$option: $option'.allMatches(generatedOutput), hasLength(3));
+      }
+      expect(generatedOutput, contains('dartOrpcBuildAppModuleRpcApp('));
+      expect(
+        generatedOutput,
+        contains(
+          'JsonObject openApiDocument({OpenApiDocumentOptions? options}) =>',
+        ),
+      );
+      expect(
+        generatedOutput,
+        contains('dartOrpcCreateAppModuleOpenApiDocument(options: options);'),
+      );
+      expect(
+        generatedOutput,
+        contains('final container = _\$createAppModuleContainer();'),
+      );
+      expect(generatedOutput, contains('procedures: procedures'));
+      expect(generatedOutput, contains('restRoutes: restRoutes'));
+      expect(generatedOutput, contains('onClose: container.dispose'));
+      expect(
+        generatedOutput,
+        contains(
+          '_\$createAppModuleProcedureRegistryFromContainer(container);',
+        ),
+      );
+      expect(
+        generatedOutput,
+        contains(
+          '_\$createAppModuleRestRouteRegistryFromContainer(container);',
+        ),
+      );
+      expect(
+        generatedOutput,
+        contains('openApiDocument: _\$createAppModuleOpenApiDocument('),
+      );
+      expect(generatedOutput, contains('docsHtml:'));
+      expect(generatedOutput, contains('effectiveDocs.html ??'));
+      expect(
+        generatedOutput,
+        contains('title: effectiveDocs.title ?? effectiveOpenApiTitle,'),
+      );
+      expect(generatedOutput, contains('openApiPath: effectiveOpenApiPath,'));
+      expect(generatedOutput, contains('docsPath: effectiveDocs.docsPath,'));
+      expect(
+        generatedOutput,
+        contains('docsBasicAuth: effectiveDocs.basicAuth,'),
+      );
+      expect(generatedOutput, contains('middleware: middleware,'));
+      expect(
+        countMatches(generatedOutput, 'final userService = UserService();'),
+        1,
+      );
+      expect(
+        countMatches(
           generatedOutput,
-          contains(
-            'RpcProcedureRegistry _\$createAppModuleProcedureRegistry() {',
-          ),
-        );
-        expect(generatedOutput, contains('class _\$AppModuleContainer {'));
-        expect(
-          generatedOutput,
-          contains('_\$AppModuleContainer _\$createAppModuleContainer() {'),
-        );
-        expect(
-          generatedOutput,
-          contains(
-            'RpcProcedureRegistry _\$createAppModuleProcedureRegistryFromContainer(',
-          ),
-        );
-        expect(
-          generatedOutput,
-          contains(
-            'ProcedureMetadataRegistry _\$createAppModuleProcedureMetadataRegistry() {',
-          ),
-        );
-        expect(
-          generatedOutput,
-          contains(
-            'OpenApiSchemaRegistry _\$createAppModuleOpenApiSchemaRegistry() {',
-          ),
-        );
-        expect(
-          generatedOutput,
-          contains(
-            'JsonObject _\$createAppModuleOpenApiDocument({OpenApiDocumentOptions? options}) {',
-          ),
-        );
-        expect(
-          generatedOutput,
-          contains('RestRouteRegistry _\$createAppModuleRestRouteRegistry() {'),
-        );
-        expect(
-          generatedOutput,
-          contains(
-            'RestRouteRegistry _\$createAppModuleRestRouteRegistryFromContainer(',
-          ),
-        );
-        expect(generatedOutput, contains("method: 'user.getById',"));
-        expect(generatedOutput, contains("rpcMethod: 'user.getById',"));
-        expect(
-          generatedOutput,
-          contains('source: ProcedureParameterSourceKind.rpcInput,'),
-        );
-        expect(generatedOutput, contains("outputTypeCode: 'UserResponseDto',"));
-        expect(generatedOutput, contains("methodName: 'status',"));
-        expect(
-          generatedOutput,
-          contains('RpcUnaryProcedure<Null, UserStatusDto>('),
-        );
-        expect(
-          generatedOutput,
-          contains('RpcHttpApp dartOrpcBuildAppModuleRpcApp({'),
-        );
-        expect(
-          generatedOutput,
-          contains('extension DartOrpcAppModuleGenerated on AppModule {'),
-        );
-        expect(generatedOutput, contains('RpcHttpApp buildRpcApp({'));
-        for (final option in [
-          'bool sseFlushEachChunk = true',
-          'bool encodeJsonToBytes = false',
-          'int? maxConcurrentRequests',
-          'Duration? requestBodyIdleTimeout',
-          'RpcHttpServerOptions serverOptions = const RpcHttpServerOptions()',
-        ]) {
-          // Private builder, public function, and module extension expose options.
-          expect(option.allMatches(generatedOutput), hasLength(3));
-        }
-        for (final option in [
-          'sseFlushEachChunk',
-          'encodeJsonToBytes',
-          'maxConcurrentRequests',
-          'requestBodyIdleTimeout',
-          'serverOptions',
-        ]) {
-          expect('$option: $option'.allMatches(generatedOutput), hasLength(3));
-        }
-        expect(generatedOutput, contains('dartOrpcBuildAppModuleRpcApp('));
-        expect(
-          generatedOutput,
-          contains(
-            'JsonObject openApiDocument({OpenApiDocumentOptions? options}) =>',
-          ),
-        );
-        expect(
-          generatedOutput,
-          contains('dartOrpcCreateAppModuleOpenApiDocument(options: options);'),
-        );
-        expect(
-          generatedOutput,
-          contains('final container = _\$createAppModuleContainer();'),
-        );
-        expect(generatedOutput, contains('procedures: procedures'));
-        expect(generatedOutput, contains('restRoutes: restRoutes'));
-        expect(generatedOutput, contains('onClose: container.dispose'));
-        expect(
-          generatedOutput,
-          contains(
-            '_\$createAppModuleProcedureRegistryFromContainer(container);',
-          ),
-        );
-        expect(
-          generatedOutput,
-          contains(
-            '_\$createAppModuleRestRouteRegistryFromContainer(container);',
-          ),
-        );
-        expect(
-          generatedOutput,
-          contains('openApiDocument: _\$createAppModuleOpenApiDocument('),
-        );
-        expect(generatedOutput, contains('docsHtml:'));
-        expect(generatedOutput, contains('effectiveDocs.html ??'));
-        expect(
-          generatedOutput,
-          contains('title: effectiveDocs.title ?? effectiveOpenApiTitle,'),
-        );
-        expect(generatedOutput, contains('openApiPath: effectiveOpenApiPath,'));
-        expect(generatedOutput, contains('docsPath: effectiveDocs.docsPath,'));
-        expect(
-          generatedOutput,
-          contains('docsBasicAuth: effectiveDocs.basicAuth,'),
-        );
-        expect(generatedOutput, contains('middleware: middleware,'));
-        expect(
-          countMatches(generatedOutput, 'final userService = UserService();'),
-          1,
-        );
-        expect(
-          countMatches(
-            generatedOutput,
-            'final userController = UserController(userService);',
-          ),
-          1,
-        );
-        expect(generatedOutput, contains('class AppClient {'));
-        expect(
-          generatedOutput,
-          contains('late final user = UserClient(_transports);'),
-        );
-        expect(generatedOutput, contains('Future<UserStatusDto> status() {'));
-      },
-    );
+          'final userController = UserController(userService);',
+        ),
+        1,
+      );
+      expect(generatedOutput, contains('class AppClient {'));
+      expect(
+        generatedOutput,
+        contains('late final user = UserClient(_transports);'),
+      );
+      expect(generatedOutput, contains('Future<UserStatusDto> status() {'));
+    });
 
-    test(
-      'When client DTOs live in a separate contract library then the generated module library re-exports that contract library',
-      () async {
-        final run = await runModuleBuilder(
-          _splitContractModuleSource,
-          additionalSources: {'lib/contracts.dart': _splitContractDtoSource},
-        );
+    test('When client DTOs live in a separate contract library then the generated module library re-exports that contract library', () async {
+      final run = await runModuleBuilder(
+        _splitContractModuleSource,
+        additionalSources: {'lib/contracts.dart': _splitContractDtoSource},
+      );
 
-        expect(run.succeeded, isTrue);
-        expect(
-          run.generatedOutput,
-          contains("export 'package:a/contracts.dart';"),
-        );
-      },
-    );
+      expect(run.succeeded, isTrue);
+      expect(
+        run.generatedOutput,
+        contains("export 'package:a/contracts.dart';"),
+      );
+    });
 
-    test(
-      'When unary methods return scalars or void then generated codecs preserve their public contracts',
-      () async {
-        final run = await runModuleBuilder(_scalarAndVoidOutputModuleSource);
+    test('When unary methods return scalars or void then generated codecs preserve their public contracts', () async {
+      final run = await runModuleBuilder(_scalarAndVoidOutputModuleSource);
 
-        expect(run.succeeded, isTrue);
-        final output = run.generatedOutput;
-        expect(output, contains('RpcUnaryProcedure<Null, String>('));
-        expect(output, contains('encodeOutput: (output) => output,'));
-        expect(output, contains('Future<String> greeting() {'));
-        expect(output, contains('decode: (json) => json as String'));
-        expect(output, contains('RpcUnaryProcedure<Null, Null>('));
-        expect(output, contains("outputTypeCode: 'void',"));
-        expect(output, contains('Future<void> clear() async {'));
-        expect(output, contains('Future<void> clearLater() async {'));
-        expect(output, contains('decode: (_) => null'));
-        expect(output, contains('container.statusController.clear();'));
-        expect(
-          output,
-          contains('await container.statusController.clearLater();'),
-        );
-      },
-    );
+      expect(run.succeeded, isTrue);
+      final output = run.generatedOutput;
+      expect(output, contains('RpcUnaryProcedure<Null, String>('));
+      expect(output, contains('encodeOutput: (output) => output,'));
+      expect(output, contains('Future<String> greeting() {'));
+      expect(output, contains('decode: (json) => json as String'));
+      expect(output, contains('RpcUnaryProcedure<Null, Null>('));
+      expect(output, contains("outputTypeCode: 'void',"));
+      expect(output, contains('Future<void> clear() async {'));
+      expect(output, contains('Future<void> clearLater() async {'));
+      expect(output, contains('decode: (_) => null'));
+      expect(output, contains('container.statusController.clear();'));
+      expect(
+        output,
+        contains('await container.statusController.clearLater();'),
+      );
+    });
 
-    test(
-      'When controller and method guards are declared then the generated module resolves guard providers and runs them for both RPC and REST',
-      () async {
-        final run = await runModuleBuilder(_guardedRpcModuleSource);
+    test('When controller and method guards are declared then the generated module resolves guard providers and runs them for both RPC and REST', () async {
+      final run = await runModuleBuilder(_guardedRpcModuleSource);
 
-        expect(run.succeeded, isTrue);
+      expect(run.succeeded, isTrue);
 
-        final generatedOutput = run.generatedOutput;
-        expect(generatedOutput, contains('final authGuard = AuthGuard();'));
-        expect(
+      final generatedOutput = run.generatedOutput;
+      expect(generatedOutput, contains('final authGuard = AuthGuard();'));
+      expect(
+        generatedOutput,
+        contains('final userReadGuard = UserReadGuard(userService);'),
+      );
+      expect(
+        generatedOutput,
+        contains("metadata: metadataRegistry['user.getById']!,"),
+      );
+      expect(
+        countMatches(
           generatedOutput,
-          contains('final userReadGuard = UserReadGuard(userService);'),
-        );
-        expect(
-          generatedOutput,
-          contains("metadata: metadataRegistry['user.getById']!,"),
-        );
-        expect(
-          countMatches(
-            generatedOutput,
-            'guards: [container.authGuard, container.userReadGuard],',
+          'guards: [container.authGuard, container.userReadGuard],',
+        ),
+        2,
+      );
+      expect(
+        generatedOutput,
+        contains("guardTypes: ['AuthGuard', 'UserReadGuard'],"),
+      );
+      expect(
+        generatedOutput,
+        contains(
+          "securityRequirements: [ProcedureSecurityRequirement('bearerAuth')],",
+        ),
+      );
+      expect(generatedOutput, contains('customMetadata: ['));
+      expect(generatedOutput, contains("'allOf': ['tenant.active'],"));
+      expect(
+        generatedOutput,
+        contains("'anyOf': ['user.read', 'user.admin'],"),
+      );
+    });
+
+    test('When a module includes a REST-enabled method then it emits procedure metadata for explicit REST parameters', () async {
+      final run = await runModuleBuilder(_validRestMetadataSource);
+
+      expect(run.succeeded, isTrue);
+
+      final generatedOutput = run.generatedOutput;
+      expect(
+        generatedOutput,
+        contains(
+          'ProcedureMetadataRegistry _\$createAppModuleProcedureMetadataRegistry() {',
+        ),
+      );
+      expect(
+        generatedOutput,
+        contains('DtoSchemaRegistry _\$createAppModuleDtoSchemaRegistry() {'),
+      );
+      expect(
+        generatedOutput,
+        contains(
+          'JsonObject _\$createAppModuleOpenApiDocument({OpenApiDocumentOptions? options}) {',
+        ),
+      );
+      expect(
+        generatedOutput,
+        contains('RestRouteRegistry _\$createAppModuleRestRouteRegistry() {'),
+      );
+      expect(generatedOutput, contains("rpcMethod: 'user.getById',"));
+      expect(generatedOutput, contains("rpcMethod: 'user.findBySlug',"));
+      expect(
+        generatedOutput,
+        contains(
+          "path: RestProcedureMetadata(method: 'GET', path: '/users/:id'),",
+        ),
+      );
+      expect(
+        generatedOutput,
+        contains("description: 'Find a user by route-bound id.',"),
+      );
+      expect(generatedOutput, contains("tags: ['user', 'lookup'],"));
+      expect(
+        generatedOutput,
+        contains('DtoSchemaRegistry _\$createAppModuleDtoSchemaRegistry() {'),
+      );
+      expect(generatedOutput, contains("parameterName: 'id',"));
+      expect(generatedOutput, contains("wireName: 'id',"));
+      expect(
+        generatedOutput,
+        contains('source: ProcedureParameterSourceKind.path,'),
+      );
+      expect(generatedOutput, contains("parameterName: 'view',"));
+      expect(generatedOutput, contains("wireName: 'include',"));
+      expect(
+        generatedOutput,
+        contains('source: ProcedureParameterSourceKind.query,'),
+      );
+      expect(generatedOutput, contains("method: 'GET',"));
+      expect(generatedOutput, contains("path: '/users/:id',"));
+      expect(
+        generatedOutput,
+        contains('final id = decodeRestScalarParameter<String>('),
+      );
+      expect(generatedOutput, contains("rawValue: pathParameters['id'],"));
+      expect(
+        generatedOutput,
+        contains('final view = decodeRestScalarParameter<String>('),
+      );
+      expect(
+        generatedOutput,
+        contains("rawValue: request.queryParameters['include'],"),
+      );
+      expect(
+        generatedOutput,
+        contains('RpcUnaryProcedure<GetUserDto, UserResponseDto>('),
+      );
+    });
+
+    for (final (label, annotation) in [
+      ('path parameter', "@FromPath('userId')"),
+      ('query parameter', "@FromQuery('view')"),
+      ('header', "@FromHeader('x-tenant-id')"),
+    ]) {
+      test(
+        'When a $label DTO field has a renamed JSON key then generation fails',
+        () async {
+          final run = await runModuleBuilder(
+            _withRenamedJsonKey(_sharedRpcAndRestGetSource, annotation),
+          );
+
+          expect(run.succeeded, isFalse);
+          expect(
+            run.errors.join('\n'),
+            contains('from a $label, but its JSON key is "renamed_key"'),
+          );
+        },
+      );
+    }
+
+    test('When a REST-enabled method uses DTO field source annotations then it emits shared path, query, and header bindings from the same procedure', () async {
+      final run = await runModuleBuilder(_sharedRpcAndRestGetSource);
+
+      expect(run.succeeded, isTrue);
+
+      final generatedOutput = run.generatedOutput;
+      expect(generatedOutput, contains("method: 'user.getById',"));
+      expect(
+        generatedOutput,
+        contains(
+          "path: RestProcedureMetadata(method: 'GET', path: '/users/:userId'),",
+        ),
+      );
+      expect(
+        generatedOutput,
+        contains("description: 'Resolve a user by id from a shared contract.'"),
+      );
+      expect(
+        generatedOutput,
+        contains("rawInput['id'] = decodeRestScalarParameter<String>("),
+      );
+      expect(generatedOutput, contains("rawValue: pathParameters['userId'],"));
+      expect(
+        generatedOutput,
+        contains("rawInput['include'] = decodeRestScalarParameter<String?>("),
+      );
+      expect(
+        generatedOutput,
+        contains("rawValue: request.queryParameters['view'],"),
+      );
+      expect(
+        generatedOutput,
+        contains("rawInput['tenantId'] = decodeRestScalarParameter<String?>("),
+      );
+      expect(
+        generatedOutput,
+        contains("lookupRestHeader(request.headers, 'x-tenant-id')"),
+      );
+      expect(
+        generatedOutput,
+        contains('final input = ((rawInput) => GetUserDto.fromJson('),
+      );
+      expect(
+        generatedOutput,
+        contains('context: \'RPC method "user.getById" input\','),
+      );
+      expect(
+        generatedOutput,
+        contains('container.userController.getById(context, input)'),
+      );
+      expect(generatedOutput, contains("parameterName: 'include',"));
+      expect(
+        generatedOutput,
+        contains('source: ProcedureParameterSourceKind.query,'),
+      );
+      expect(generatedOutput, contains("wireName: 'view',"));
+      expect(generatedOutput, contains("parameterName: 'tenantId',"));
+      expect(
+        generatedOutput,
+        contains('source: ProcedureParameterSourceKind.header,'),
+      );
+      expect(generatedOutput, contains("wireName: 'x-tenant-id',"));
+    });
+
+    test('When a required DTO header is generated then the client requires typed request options', () async {
+      final source = _sharedRpcAndRestBodySource
+          .replaceFirst(
+            'const UpdateUserDto({required this.id, required this.name, this.tenantId});',
+            'const UpdateUserDto({required this.id, required this.name, required this.tenantId});',
+          )
+          .replaceFirst(
+            "tenantId: object['tenantId'] as String?,",
+            "tenantId: object['tenantId'] as String,",
+          )
+          .replaceFirst('final String? tenantId;', 'final String tenantId;');
+      final run = await runModuleBuilder(source);
+
+      expect(run.succeeded, isTrue);
+      expect(
+        run.generatedOutput,
+        contains('final class UserUpdateRequestOptions'),
+      );
+      expect(
+        run.generatedOutput,
+        contains('required UserUpdateRequestOptions requestOptions'),
+      );
+      expect(
+        run.generatedOutput,
+        contains("'x-tenant-id': requestOptions.tenantId"),
+      );
+      expect(
+        run.generatedOutput,
+        contains("..removeWhere((key, _) => ['tenantId'].contains(key))"),
+      );
+    });
+
+    test('When a REST-enabled method uses @RpcInput(binding: ...) field refs for a POST route then it emits path, header, and body merging code', () async {
+      final run = await runModuleBuilder(_sharedRpcAndRestBodySource);
+
+      expect(run.succeeded, isTrue);
+
+      final generatedOutput = run.generatedOutput;
+      expect(
+        generatedOutput,
+        contains(
+          "path: RestProcedureMetadata(method: 'POST', path: '/users/:userId'),",
+        ),
+      );
+      expect(
+        generatedOutput,
+        contains('final rawInput = request.body.trim().isEmpty'),
+      );
+      expect(generatedOutput, contains("decodeRestBody<JsonObject>("));
+      expect(
+        generatedOutput,
+        contains("rawInput['id'] = decodeRestScalarParameter<String>("),
+      );
+      expect(generatedOutput, contains("rawValue: pathParameters['userId'],"));
+      expect(
+        generatedOutput,
+        contains("rawInput['tenantId'] = decodeRestScalarParameter<String?>("),
+      );
+      expect(
+        generatedOutput,
+        contains("lookupRestHeader(request.headers, 'x-tenant-id')"),
+      );
+      expect(generatedOutput, contains("parameterName: 'input',"));
+      expect(
+        generatedOutput,
+        contains('source: ProcedureParameterSourceKind.body,'),
+      );
+    });
+
+    test('When a module imports another module and consumes its exported provider then the builder emits a flattened app graph', () async {
+      final run = await runModuleBuilder(_nestedModuleSource);
+
+      expect(run.succeeded, isTrue);
+
+      final generatedOutput = run.generatedOutput;
+      expect(
+        generatedOutput,
+        contains('final userController = UserController(userService);'),
+      );
+      expect(
+        generatedOutput,
+        contains('final adminController = AdminController(userService);'),
+      );
+      expect(
+        generatedOutput,
+        contains('final userController = UserController(userService);'),
+      );
+      expect(generatedOutput, isNot(contains('userModuleRuntime')));
+      expect(
+        generatedOutput,
+        contains('container.userController.getById(context, input)'),
+      );
+      expect(
+        generatedOutput,
+        contains('container.adminController.lookup(context, input)'),
+      );
+      expect(generatedOutput, contains("method: 'user.getById',"));
+      expect(generatedOutput, contains("method: 'admin.lookup',"));
+      expect(
+        generatedOutput,
+        contains('late final user = UserClient(_transports);'),
+      );
+      expect(
+        generatedOutput,
+        contains('late final admin = AdminClient(_transports);'),
+      );
+    });
+
+    test('When provider bindings map interfaces and factories then constructor dependencies are injected and optional ones stay optional', () async {
+      final run = await runModuleBuilder(_providerBindingsSource);
+
+      expect(run.succeeded, isTrue, reason: run.errors.join('\n'));
+      expect(
+        run.generatedOutput,
+        contains('final userRepository = MemoryUserRepository();'),
+      );
+      expect(
+        run.generatedOutput,
+        contains('final genericRepository = MemoryGenericRepository();'),
+      );
+      expect(
+        run.generatedOutput,
+        contains('final searchClient = createSearchClient(userRepository);'),
+      );
+      expect(
+        run.generatedOutput,
+        contains('final optionalService = OptionalService();'),
+      );
+      expect(
+        run.generatedOutput,
+        matches(
+          RegExp(
+            r'final repositoryService = RepositoryService\(\s*userRepository,\s*searchClient: searchClient,\s*\);',
           ),
-          2,
-        );
-        expect(
-          generatedOutput,
-          contains("guardTypes: ['AuthGuard', 'UserReadGuard'],"),
-        );
-        expect(
-          generatedOutput,
-          contains(
-            "securityRequirements: [ProcedureSecurityRequirement('bearerAuth')],",
-          ),
-        );
-        expect(generatedOutput, contains('customMetadata: ['));
-        expect(generatedOutput, contains("'allOf': ['tenant.active'],"));
-        expect(
-          generatedOutput,
-          contains("'anyOf': ['user.read', 'user.admin'],"),
-        );
-      },
-    );
-
-    test(
-      'When a module includes a REST-enabled method then it emits procedure metadata for explicit REST parameters',
-      () async {
-        final run = await runModuleBuilder(_validRestMetadataSource);
-
-        expect(run.succeeded, isTrue);
-
-        final generatedOutput = run.generatedOutput;
-        expect(
-          generatedOutput,
-          contains(
-            'ProcedureMetadataRegistry _\$createAppModuleProcedureMetadataRegistry() {',
-          ),
-        );
-        expect(
-          generatedOutput,
-          contains(
-            'OpenApiSchemaRegistry _\$createAppModuleOpenApiSchemaRegistry() {',
-          ),
-        );
-        expect(
-          generatedOutput,
-          contains(
-            'JsonObject _\$createAppModuleOpenApiDocument({OpenApiDocumentOptions? options}) {',
-          ),
-        );
-        expect(
-          generatedOutput,
-          contains('RestRouteRegistry _\$createAppModuleRestRouteRegistry() {'),
-        );
-        expect(generatedOutput, contains("rpcMethod: 'user.getById',"));
-        expect(generatedOutput, contains("rpcMethod: 'user.findBySlug',"));
-        expect(
-          generatedOutput,
-          contains(
-            "path: RestProcedureMetadata(method: 'GET', path: '/users/:id'),",
-          ),
-        );
-        expect(
-          generatedOutput,
-          contains("description: 'Find a user by route-bound id.',"),
-        );
-        expect(generatedOutput, contains("tags: ['user', 'lookup'],"));
-        expect(
-          generatedOutput,
-          contains(
-            'OpenApiSchemaRegistry _\$createAppModuleOpenApiSchemaRegistry() {',
-          ),
-        );
-        expect(generatedOutput, contains("parameterName: 'id',"));
-        expect(generatedOutput, contains("wireName: 'id',"));
-        expect(
-          generatedOutput,
-          contains('source: ProcedureParameterSourceKind.path,'),
-        );
-        expect(generatedOutput, contains("parameterName: 'view',"));
-        expect(generatedOutput, contains("wireName: 'include',"));
-        expect(
-          generatedOutput,
-          contains('source: ProcedureParameterSourceKind.query,'),
-        );
-        expect(generatedOutput, contains("method: 'GET',"));
-        expect(generatedOutput, contains("path: '/users/:id',"));
-        expect(
-          generatedOutput,
-          contains('final id = decodeRestScalarParameter<String>('),
-        );
-        expect(generatedOutput, contains("rawValue: pathParameters['id'],"));
-        expect(
-          generatedOutput,
-          contains('final view = decodeRestScalarParameter<String>('),
-        );
-        expect(
-          generatedOutput,
-          contains("rawValue: request.queryParameters['include'],"),
-        );
-        expect(
-          generatedOutput,
-          contains('RpcUnaryProcedure<GetUserDto, UserResponseDto>('),
-        );
-      },
-    );
-
-    test(
-      'When a REST-enabled method uses DTO field source annotations then it emits shared path, query, and header bindings from the same procedure',
-      () async {
-        final run = await runModuleBuilder(_sharedRpcAndRestGetSource);
-
-        expect(run.succeeded, isTrue);
-
-        final generatedOutput = run.generatedOutput;
-        expect(generatedOutput, contains("method: 'user.getById',"));
-        expect(
-          generatedOutput,
-          contains(
-            "path: RestProcedureMetadata(method: 'GET', path: '/users/:userId'),",
-          ),
-        );
-        expect(
-          generatedOutput,
-          contains(
-            "description: 'Resolve a user by id from a shared contract.'",
-          ),
-        );
-        expect(
-          generatedOutput,
-          contains("rawInput['id'] = decodeRestScalarParameter<String>("),
-        );
-        expect(
-          generatedOutput,
-          contains("rawValue: pathParameters['userId'],"),
-        );
-        expect(
-          generatedOutput,
-          contains("rawInput['include'] = decodeRestScalarParameter<String?>("),
-        );
-        expect(
-          generatedOutput,
-          contains("rawValue: request.queryParameters['view'],"),
-        );
-        expect(
-          generatedOutput,
-          contains(
-            "rawInput['tenantId'] = decodeRestScalarParameter<String?>(",
-          ),
-        );
-        expect(
-          generatedOutput,
-          contains("lookupRestHeader(request.headers, 'x-tenant-id')"),
-        );
-        expect(
-          generatedOutput,
-          contains('final input = ((rawInput) => GetUserDto.fromJson('),
-        );
-        expect(
-          generatedOutput,
-          contains('context: \'RPC method "user.getById" input\','),
-        );
-        expect(
-          generatedOutput,
-          contains('container.userController.getById(context, input)'),
-        );
-        expect(generatedOutput, contains("parameterName: 'include',"));
-        expect(
-          generatedOutput,
-          contains('source: ProcedureParameterSourceKind.query,'),
-        );
-        expect(generatedOutput, contains("wireName: 'view',"));
-        expect(generatedOutput, contains("parameterName: 'tenantId',"));
-        expect(
-          generatedOutput,
-          contains('source: ProcedureParameterSourceKind.header,'),
-        );
-        expect(generatedOutput, contains("wireName: 'x-tenant-id',"));
-      },
-    );
-
-    test(
-      'When a required DTO header is generated then the client requires typed request options',
-      () async {
-        final source = _sharedRpcAndRestBodySource
-            .replaceFirst(
-              'const UpdateUserDto({required this.id, required this.name, this.tenantId});',
-              'const UpdateUserDto({required this.id, required this.name, required this.tenantId});',
+        ),
+        reason: run.generatedOutput
+            .split('\n')
+            .where(
+              (line) =>
+                  line.contains('repositoryService') ||
+                  line.contains('searchClient'),
             )
-            .replaceFirst(
-              "tenantId: object['tenantId'] as String?,",
-              "tenantId: object['tenantId'] as String,",
-            )
-            .replaceFirst('final String? tenantId;', 'final String tenantId;');
-        final run = await runModuleBuilder(source);
-
-        expect(run.succeeded, isTrue);
-        expect(
-          run.generatedOutput,
-          contains('final class UserUpdateRequestOptions'),
-        );
-        expect(
-          run.generatedOutput,
-          contains('required UserUpdateRequestOptions requestOptions'),
-        );
-        expect(
-          run.generatedOutput,
-          contains("'x-tenant-id': requestOptions.tenantId"),
-        );
-        expect(
-          run.generatedOutput,
-          contains("..removeWhere((key, _) => ['tenantId'].contains(key))"),
-        );
-      },
-    );
-
-    test(
-      'When a REST-enabled method uses @RpcInput(binding: ...) field refs for a POST route then it emits path, header, and body merging code',
-      () async {
-        final run = await runModuleBuilder(_sharedRpcAndRestBodySource);
-
-        expect(run.succeeded, isTrue);
-
-        final generatedOutput = run.generatedOutput;
-        expect(
-          generatedOutput,
-          contains(
-            "path: RestProcedureMetadata(method: 'POST', path: '/users/:userId'),",
+            .join('\n'),
+      );
+      expect(
+        run.generatedOutput,
+        contains('Future<void> dispose() => disposeRpcProviders(['),
+      );
+      expect(
+        run.generatedOutput,
+        matches(
+          RegExp(
+            r'disposeRpcProviders\(\[\s*repositoryService,\s*searchClient,\s*genericRepository,\s*userRepository,\s*optionalService,\s*\]\);',
           ),
-        );
-        expect(
-          generatedOutput,
-          contains('final rawInput = request.body.trim().isEmpty'),
-        );
-        expect(generatedOutput, contains("decodeRestBody<JsonObject>("));
-        expect(
-          generatedOutput,
-          contains("rawInput['id'] = decodeRestScalarParameter<String>("),
-        );
-        expect(
-          generatedOutput,
-          contains("rawValue: pathParameters['userId'],"),
-        );
-        expect(
-          generatedOutput,
-          contains(
-            "rawInput['tenantId'] = decodeRestScalarParameter<String?>(",
-          ),
-        );
-        expect(
-          generatedOutput,
-          contains("lookupRestHeader(request.headers, 'x-tenant-id')"),
-        );
-        expect(generatedOutput, contains("parameterName: 'input',"));
-        expect(
-          generatedOutput,
-          contains('source: ProcedureParameterSourceKind.body,'),
-        );
-      },
-    );
-
-    test(
-      'When a module imports another module and consumes its exported provider then the builder emits a flattened app graph',
-      () async {
-        final run = await runModuleBuilder(_nestedModuleSource);
-
-        expect(run.succeeded, isTrue);
-
-        final generatedOutput = run.generatedOutput;
-        expect(
-          generatedOutput,
-          contains('final userController = UserController(userService);'),
-        );
-        expect(
-          generatedOutput,
-          contains('final adminController = AdminController(userService);'),
-        );
-        expect(
-          generatedOutput,
-          contains('final userController = UserController(userService);'),
-        );
-        expect(generatedOutput, isNot(contains('userModuleRuntime')));
-        expect(
-          generatedOutput,
-          contains('container.userController.getById(context, input)'),
-        );
-        expect(
-          generatedOutput,
-          contains('container.adminController.lookup(context, input)'),
-        );
-        expect(generatedOutput, contains("method: 'user.getById',"));
-        expect(generatedOutput, contains("method: 'admin.lookup',"));
-        expect(
-          generatedOutput,
-          contains('late final user = UserClient(_transports);'),
-        );
-        expect(
-          generatedOutput,
-          contains('late final admin = AdminClient(_transports);'),
-        );
-      },
-    );
-
-    test(
-      'When provider bindings map interfaces and factories then constructor dependencies are injected and optional ones stay optional',
-      () async {
-        final run = await runModuleBuilder(_providerBindingsSource);
-
-        expect(run.succeeded, isTrue, reason: run.errors.join('\n'));
-        expect(
-          run.generatedOutput,
-          contains('final userRepository = MemoryUserRepository();'),
-        );
-        expect(
-          run.generatedOutput,
-          contains('final genericRepository = MemoryGenericRepository();'),
-        );
-        expect(
-          run.generatedOutput,
-          contains('final searchClient = createSearchClient(userRepository);'),
-        );
-        expect(
-          run.generatedOutput,
-          contains('final optionalService = OptionalService();'),
-        );
-        expect(
-          run.generatedOutput,
-          matches(
-            RegExp(
-              r'final repositoryService = RepositoryService\(\s*userRepository,\s*searchClient: searchClient,\s*\);',
-            ),
-          ),
-          reason: run.generatedOutput
-              .split('\n')
-              .where(
-                (line) =>
-                    line.contains('repositoryService') ||
-                    line.contains('searchClient'),
-              )
-              .join('\n'),
-        );
-        expect(
-          run.generatedOutput,
-          contains('Future<void> dispose() => disposeRpcProviders(['),
-        );
-        expect(
-          run.generatedOutput,
-          matches(
-            RegExp(
-              r'disposeRpcProviders\(\[\s*repositoryService,\s*searchClient,\s*genericRepository,\s*userRepository,\s*optionalService,\s*\]\);',
-            ),
-          ),
-        );
-        expect(run.generatedOutput, contains('onClose: container.dispose,'));
-        expect(run.generatedOutput, isNot(contains('required Logger logger')));
-        expect(parseString(content: run.generatedOutput).errors, isEmpty);
-      },
-    );
+        ),
+      );
+      expect(run.generatedOutput, contains('onClose: container.dispose,'));
+      expect(run.generatedOutput, isNot(contains('required Logger logger')));
+      expect(parseString(content: run.generatedOutput).errors, isEmpty);
+    });
 
     test(
       'When a class binding targets an abstract class then generation fails',
@@ -628,195 +601,154 @@ void main() {
       },
     );
 
-    test(
-      'When a reachable global module exports a provider then feature modules consume one application instance',
-      () async {
-        final run = await runModuleBuilder(_globalModuleSource);
+    test('When a reachable global module exports a provider then feature modules consume one application instance', () async {
+      final run = await runModuleBuilder(_globalModuleSource);
 
-        expect(run.succeeded, isTrue);
-        expect(
-          run.generatedOutput,
-          contains(r'_$createAppModuleContainer() {'),
-        );
-        expect(run.generatedOutput, contains('final database = Database();'));
-        expect(
-          run.generatedOutput,
-          contains('final todoService = TodoService(database);'),
-        );
-        expect(
-          run.generatedOutput,
-          contains('final todoController = TodoController(todoService);'),
-        );
-        expect(run.generatedOutput, contains(r'class _$TodoModuleContainer'));
-        expect(run.generatedOutput, contains('required Database database'));
-      },
-    );
+      expect(run.succeeded, isTrue);
+      expect(run.generatedOutput, contains(r'_$createAppModuleContainer() {'));
+      expect(run.generatedOutput, contains('final database = Database();'));
+      expect(
+        run.generatedOutput,
+        contains('final todoService = TodoService(database);'),
+      );
+      expect(
+        run.generatedOutput,
+        contains('final todoController = TodoController(todoService);'),
+      );
+      expect(run.generatedOutput, contains(r'class _$TodoModuleContainer'));
+      expect(run.generatedOutput, contains('required Database database'));
+    });
 
-    test(
-      'When a global provider is private then an unrelated feature cannot consume it',
-      () async {
-        final run = await runModuleBuilder(_privateGlobalProviderSource);
+    test('When a global provider is private then an unrelated feature cannot consume it', () async {
+      final run = await runModuleBuilder(_privateGlobalProviderSource);
 
-        expect(run.succeeded, isFalse);
-        expect(
-          run.errors.join('\n'),
-          contains('Export the provider from that module.'),
-        );
-      },
-    );
+      expect(run.succeeded, isFalse);
+      expect(
+        run.errors.join('\n'),
+        contains('Export the provider from that module.'),
+      );
+    });
 
-    test(
-      'When two global modules export the same provider then generation reports the conflict',
-      () async {
-        final run = await runModuleBuilder(_duplicateGlobalProviderSource);
+    test('When two global modules export the same provider then generation reports the conflict', () async {
+      final run = await runModuleBuilder(_duplicateGlobalProviderSource);
 
-        expect(run.succeeded, isFalse);
-        expect(run.errors.join('\n'), contains('Global provider "Database"'));
-      },
-    );
+      expect(run.succeeded, isFalse);
+      expect(run.errors.join('\n'), contains('Global provider "Database"'));
+    });
 
-    test(
-      'When a global module privately redeclares an exported global provider then generation reports the conflict',
-      () async {
-        final run = await runModuleBuilder(_privateGlobalShadowSource);
+    test('When a global module privately redeclares an exported global provider then generation reports the conflict', () async {
+      final run = await runModuleBuilder(_privateGlobalShadowSource);
 
-        expect(run.succeeded, isFalse);
-        expect(run.errors.join('\n'), contains('shadows a global provider'));
-      },
-    );
+      expect(run.succeeded, isFalse);
+      expect(run.errors.join('\n'), contains('shadows a global provider'));
+    });
 
-    test(
-      'When a module re-exports an imported module then downstream modules can resolve its providers',
-      () async {
-        final run = await runModuleBuilder(_reExportedModuleSource);
+    test('When a module re-exports an imported module then downstream modules can resolve its providers', () async {
+      final run = await runModuleBuilder(_reExportedModuleSource);
 
-        expect(run.succeeded, isTrue);
+      expect(run.succeeded, isTrue);
 
-        final generatedOutput = run.generatedOutput;
-        expect(
-          generatedOutput,
-          contains('final adminController = AdminController(userService);'),
-        );
-        expect(generatedOutput, contains("method: 'admin.lookup',"));
-      },
-    );
+      final generatedOutput = run.generatedOutput;
+      expect(
+        generatedOutput,
+        contains('final adminController = AdminController(userService);'),
+      );
+      expect(generatedOutput, contains("method: 'admin.lookup',"));
+    });
 
-    test(
-      'When a module imports another module through an intermediate module then composed client getters avoid transitive type references',
-      () async {
-        final run = await runModuleBuilder(_transitiveClientCompositionSource);
+    test('When a module imports another module through an intermediate module then composed client getters avoid transitive type references', () async {
+      final run = await runModuleBuilder(_transitiveClientCompositionSource);
 
-        expect(run.succeeded, isTrue);
+      expect(run.succeeded, isTrue);
 
-        final generatedOutput = run.generatedOutput;
-        expect(
-          generatedOutput,
-          contains(
-            'late final ApiClient _apiModuleClient = ApiClient(transports: _transports);',
-          ),
-        );
-        expect(
-          generatedOutput,
-          contains('late final user = _apiModuleClient.user;'),
-        );
-        expect(
-          generatedOutput,
-          isNot(
-            contains('late final UserClient user = _apiModuleClient.user;'),
-          ),
-        );
-      },
-    );
+      final generatedOutput = run.generatedOutput;
+      expect(
+        generatedOutput,
+        contains(
+          'late final ApiClient _apiModuleClient = ApiClient(transports: _transports);',
+        ),
+      );
+      expect(
+        generatedOutput,
+        contains('late final user = _apiModuleClient.user;'),
+      );
+      expect(
+        generatedOutput,
+        isNot(contains('late final UserClient user = _apiModuleClient.user;')),
+      );
+    });
 
-    test(
-      'When a module imports another module from a separate library then the generated module library re-exports the child generated library',
-      () async {
-        final run = await runModuleBuilder(
-          _importingModuleSource,
-          additionalSources: {'lib/api_module.dart': _importedApiModuleSource},
-        );
+    test('When a module imports another module from a separate library then the generated module library re-exports the child generated library', () async {
+      final run = await runModuleBuilder(
+        _importingModuleSource,
+        additionalSources: {'lib/api_module.dart': _importedApiModuleSource},
+      );
 
-        expect(run.succeeded, isTrue);
-        expect(
-          run.generatedOutput,
-          contains("export 'package:a/api_module.orpc.dart';"),
-        );
-      },
-    );
+      expect(run.succeeded, isTrue);
+      expect(
+        run.generatedOutput,
+        contains("export 'package:a/api_module.orpc.dart';"),
+      );
+    });
 
-    test(
-      'When a feature has an external provider dependency then the builder emits a typed requirement',
-      () async {
-        final run = await runModuleBuilder(_missingProviderDependencySource);
+    test('When a feature has an external provider dependency then the builder emits a typed requirement', () async {
+      final run = await runModuleBuilder(_missingProviderDependencySource);
 
-        expect(run.succeeded, isTrue);
-        expect(
-          run.generatedOutput,
-          contains('required MissingDependency missingDependency'),
-        );
-        expect(run.generatedOutput, contains('UserService(missingDependency)'));
-        expect(parseString(content: run.generatedOutput).errors, isEmpty);
-      },
-    );
+      expect(run.succeeded, isTrue);
+      expect(
+        run.generatedOutput,
+        contains('required MissingDependency missingDependency'),
+      );
+      expect(run.generatedOutput, contains('UserService(missingDependency)'));
+      expect(parseString(content: run.generatedOutput).errors, isEmpty);
+    });
 
-    test(
-      'When a guard is declared but not registered as a provider then generation fails',
-      () async {
-        final run = await runModuleBuilder(_missingGuardProviderSource);
+    test('When a guard is declared but not registered as a provider then generation fails', () async {
+      final run = await runModuleBuilder(_missingGuardProviderSource);
 
-        expect(run.succeeded, isFalse);
-        expect(run.errors.join('\n'), contains('guard "AuthGuard"'));
-        expect(
-          run.errors.join('\n'),
-          contains('not available as a module provider'),
-        );
-      },
-    );
+      expect(run.succeeded, isFalse);
+      expect(run.errors.join('\n'), contains('guard "AuthGuard"'));
+      expect(
+        run.errors.join('\n'),
+        contains('not available as a module provider'),
+      );
+    });
 
-    test(
-      'When provider constructors form a cycle then generation reports the full cycle',
-      () async {
-        final run = await runModuleBuilder(_providerCycleSource);
+    test('When provider constructors form a cycle then generation reports the full cycle', () async {
+      final run = await runModuleBuilder(_providerCycleSource);
 
-        expect(run.succeeded, isFalse);
-        expect(
-          run.errors.join('\n'),
-          contains(
-            'Provider dependency cycle: FirstService -> SecondService -> FirstService',
-          ),
-        );
-      },
-    );
+      expect(run.succeeded, isFalse);
+      expect(
+        run.errors.join('\n'),
+        contains(
+          'Provider dependency cycle: FirstService -> SecondService -> FirstService',
+        ),
+      );
+    });
 
-    test(
-      'When a module import entry is not annotated with Module then generation fails',
-      () async {
-        final run = await runModuleBuilder(_invalidImportedModuleSource);
+    test('When a module import entry is not annotated with Module then generation fails', () async {
+      final run = await runModuleBuilder(_invalidImportedModuleSource);
 
-        expect(run.succeeded, isFalse);
-        expect(
-          run.errors.join('\n'),
-          contains(
-            '@Module.imports entries must be classes annotated with @Module.',
-          ),
-        );
-      },
-    );
+      expect(run.succeeded, isFalse);
+      expect(
+        run.errors.join('\n'),
+        contains(
+          '@Module.imports entries must be classes annotated with @Module.',
+        ),
+      );
+    });
 
-    test(
-      'When a module exports a provider that is not local or imported then generation fails',
-      () async {
-        final run = await runModuleBuilder(_unknownExportSource);
+    test('When a module exports a provider that is not local or imported then generation fails', () async {
+      final run = await runModuleBuilder(_unknownExportSource);
 
-        expect(run.succeeded, isFalse);
-        expect(
-          run.errors.join('\n'),
-          contains(
-            'Module "AppModule" may only export its own providers or providers/modules from @Module.imports. Unknown export "UserService".',
-          ),
-        );
-      },
-    );
+      expect(run.succeeded, isFalse);
+      expect(
+        run.errors.join('\n'),
+        contains(
+          'Module "AppModule" may only export its own providers or providers/modules from @Module.imports. Unknown export "UserService".',
+        ),
+      );
+    });
 
     test('When module imports are circular then generation fails', () async {
       final run = await runModuleBuilder(_circularModuleImportsSource);
@@ -830,139 +762,112 @@ void main() {
       );
     });
 
-    test(
-      'When a REST-enabled method mixes @RpcInput with explicit REST source parameters then generation fails',
-      () async {
-        final run = await runModuleBuilder(_mixedRpcInputAndRestParamsSource);
+    test('When a REST-enabled method mixes @RpcInput with explicit REST source parameters then generation fails', () async {
+      final run = await runModuleBuilder(_mixedRpcInputAndRestParamsSource);
 
-        expect(run.succeeded, isFalse);
-        expect(
-          run.errors.join('\n'),
-          contains(
-            'RPC method "getById" may not mix @RpcInput with @PathParam, @QueryParam, or @Body.',
-          ),
-        );
-      },
-    );
+      expect(run.succeeded, isFalse);
+      expect(
+        run.errors.join('\n'),
+        contains(
+          'RPC method "getById" may not mix @RpcInput with @PathParam, @QueryParam, or @Body.',
+        ),
+      );
+    });
 
-    test(
-      'When a REST-enabled method declares more than one body parameter then generation fails',
-      () async {
-        final run = await runModuleBuilder(_multipleBodyParametersSource);
+    test('When a REST-enabled method declares more than one body parameter then generation fails', () async {
+      final run = await runModuleBuilder(_multipleBodyParametersSource);
 
-        expect(run.succeeded, isFalse);
-        expect(
-          run.errors.join('\n'),
-          contains(
-            'RPC method "updateUser" may declare at most one @Body parameter.',
-          ),
-        );
-      },
-    );
+      expect(run.succeeded, isFalse);
+      expect(
+        run.errors.join('\n'),
+        contains(
+          'RPC method "updateUser" may declare at most one @Body parameter.',
+        ),
+      );
+    });
 
-    test(
-      'When a REST-enabled method is missing a path placeholder binding then generation fails',
-      () async {
-        final run = await runModuleBuilder(_missingPathBindingSource);
+    test('When a REST-enabled method is missing a path placeholder binding then generation fails', () async {
+      final run = await runModuleBuilder(_missingPathBindingSource);
 
-        expect(run.succeeded, isFalse);
-        expect(
-          run.errors.join('\n'),
-          contains(
-            'RPC method "getById" must declare @PathParam bindings for route "/users/:id": id.',
-          ),
-        );
-      },
-    );
+      expect(run.succeeded, isFalse);
+      expect(
+        run.errors.join('\n'),
+        contains(
+          'RPC method "getById" must declare @PathParam bindings for route "/users/:id": id.',
+        ),
+      );
+    });
 
-    test(
-      'When a REST-enabled method binds a path parameter not present in the route then generation fails',
-      () async {
-        final run = await runModuleBuilder(_unknownPathBindingSource);
+    test('When a REST-enabled method binds a path parameter not present in the route then generation fails', () async {
+      final run = await runModuleBuilder(_unknownPathBindingSource);
 
-        expect(run.succeeded, isFalse);
-        expect(
-          run.errors.join('\n'),
-          contains(
-            'RPC method "getById" declares @PathParam bindings not present in route "/users/:id": slug.',
-          ),
-        );
-      },
-    );
+      expect(run.succeeded, isFalse);
+      expect(
+        run.errors.join('\n'),
+        contains(
+          'RPC method "getById" declares @PathParam bindings not present in route "/users/:id": slug.',
+        ),
+      );
+    });
 
-    test(
-      'When a method uses REST source annotations without a REST mapping then generation fails',
-      () async {
-        final run = await runModuleBuilder(_restSourceWithoutRestMappingSource);
+    test('When a method uses REST source annotations without a REST mapping then generation fails', () async {
+      final run = await runModuleBuilder(_restSourceWithoutRestMappingSource);
 
-        expect(run.succeeded, isFalse);
-        expect(
-          run.errors.join('\n'),
-          contains(
-            'RPC method "getById" may only use @PathParam, @QueryParam, or @Body when RpcMethod(path: ...) is declared.',
-          ),
-        );
-      },
-    );
+      expect(run.succeeded, isFalse);
+      expect(
+        run.errors.join('\n'),
+        contains(
+          'RPC method "getById" may only use @PathParam, @QueryParam, or @Body when RpcMethod(path: ...) is declared.',
+        ),
+      );
+    });
 
-    test(
-      'When a method declares duplicate query parameter wire names then generation fails',
-      () async {
-        final run = await runModuleBuilder(_duplicateQueryWireNamesSource);
+    test('When a method declares duplicate query parameter wire names then generation fails', () async {
+      final run = await runModuleBuilder(_duplicateQueryWireNamesSource);
 
-        expect(run.succeeded, isFalse);
-        expect(
-          run.errors.join('\n'),
-          contains(
-            'RPC method "search" declares duplicate @QueryParam wire name "include".',
-          ),
-        );
-      },
-    );
+      expect(run.succeeded, isFalse);
+      expect(
+        run.errors.join('\n'),
+        contains(
+          'RPC method "search" declares duplicate @QueryParam wire name "include".',
+        ),
+      );
+    });
 
-    test(
-      'When a method returns a typed stream then the builder emits one streaming contract for RPC, SSE, OpenAPI, and the client',
-      () async {
-        final run = await runModuleBuilder(_validStreamingModuleSource);
+    test('When a method returns a typed stream then the builder emits one streaming contract for RPC, SSE, OpenAPI, and the client', () async {
+      final run = await runModuleBuilder(_validStreamingModuleSource);
 
-        expect(run.succeeded, isTrue);
+      expect(run.succeeded, isTrue);
 
-        final generatedOutput = run.generatedOutput;
-        expect(
-          generatedOutput,
-          contains('RpcStreamProcedure<WatchInput, MessageDto>('),
-        );
-        expect(
-          generatedOutput,
-          contains('kind: RpcProcedureKind.serverStream,'),
-        );
-        expect(generatedOutput, contains('RestStreamRoute('));
-        expect(
-          generatedOutput,
-          contains('responseKind: RestResponseKind.sse,'),
-        );
-        expect(
-          generatedOutput,
-          contains("rawValue: pathParameters['channelId'],"),
-        );
-        expect(
-          generatedOutput,
-          contains("rawValue: request.queryParameters['after'],"),
-        );
-        expect(
-          generatedOutput,
-          contains("lookupRestHeader(request.headers, 'x-tenant-id')"),
-        );
-        expect(
-          generatedOutput,
-          contains('Stream<MessageDto> watchMessages(WatchInput input) {'),
-        );
-        expect(
-          generatedOutput,
-          contains("_transports.requireStreaming('chat.watchMessages')"),
-        );
-      },
-    );
+      final generatedOutput = run.generatedOutput;
+      expect(
+        generatedOutput,
+        contains('RpcStreamProcedure<WatchInput, MessageDto>('),
+      );
+      expect(generatedOutput, contains('kind: RpcProcedureKind.serverStream,'));
+      expect(generatedOutput, contains('RestStreamRoute('));
+      expect(generatedOutput, contains('responseKind: RestResponseKind.sse,'));
+      expect(
+        generatedOutput,
+        contains("rawValue: pathParameters['channelId'],"),
+      );
+      expect(
+        generatedOutput,
+        contains("rawValue: request.queryParameters['after'],"),
+      );
+      expect(
+        generatedOutput,
+        contains("lookupRestHeader(request.headers, 'x-tenant-id')"),
+      );
+      expect(
+        generatedOutput,
+        contains('Stream<MessageDto> watchMessages(WatchInput input) {'),
+      );
+      expect(
+        generatedOutput,
+        contains("_transports.requireStreaming('chat.watchMessages')"),
+      );
+    });
 
     test(
       'When a unary method declares an SSE mapping then generation fails',
@@ -977,20 +882,17 @@ void main() {
       },
     );
 
-    test(
-      'When a streaming method declares a JSON REST mapping then generation fails',
-      () async {
-        final run = await runModuleBuilder(_streamJsonRestModuleSource);
+    test('When a streaming method declares a JSON REST mapping then generation fails', () async {
+      final run = await runModuleBuilder(_streamJsonRestModuleSource);
 
-        expect(run.succeeded, isFalse);
-        expect(
-          run.errors.join('\n'),
-          contains(
-            'Streaming RPC method "watch" must use RestMapping.sse when a REST mapping is declared.',
-          ),
-        );
-      },
-    );
+      expect(run.succeeded, isFalse);
+      expect(
+        run.errors.join('\n'),
+        contains(
+          'Streaming RPC method "watch" must use RestMapping.sse when a REST mapping is declared.',
+        ),
+      );
+    });
 
     test('When a method future-wraps a stream then generation fails', () async {
       final run = await runModuleBuilder(_futureStreamModuleSource);
@@ -1034,27 +936,18 @@ void main() {
       );
     }
 
-    test(
-      'When a stream returns scalar events then generation uses identity codecs',
-      () async {
-        final run = await runModuleBuilder(
-          _streamShapeModuleSource.replaceFirst(
-            'RETURN_TYPE',
-            'Stream<String>',
-          ),
-        );
+    test('When a stream returns scalar events then generation uses identity codecs', () async {
+      final run = await runModuleBuilder(
+        _streamShapeModuleSource.replaceFirst('RETURN_TYPE', 'Stream<String>'),
+      );
 
-        expect(run.succeeded, isTrue);
-        expect(
-          run.generatedOutput,
-          contains('RpcStreamProcedure<Null, String>('),
-        );
-        expect(
-          run.generatedOutput,
-          contains('decode: (json) => json as String'),
-        );
-      },
-    );
+      expect(run.succeeded, isTrue);
+      expect(
+        run.generatedOutput,
+        contains('RpcStreamProcedure<Null, String>('),
+      );
+      expect(run.generatedOutput, contains('decode: (json) => json as String'));
+    });
 
     test(
       'When a typed stream omits REST mapping then it remains WebSocket-only',
@@ -1076,18 +969,15 @@ void main() {
       },
     );
 
-    test(
-      'Given a stream DTO inherits its codec when generation runs then it is supported',
-      () async {
-        final run = await runModuleBuilder(_inheritedStreamCodecModuleSource);
+    test('Given a stream DTO inherits its codec when generation runs then it is supported', () async {
+      final run = await runModuleBuilder(_inheritedStreamCodecModuleSource);
 
-        expect(run.succeeded, isTrue);
-        expect(
-          run.generatedOutput,
-          contains('RpcStreamProcedure<Null, MessageDto>('),
-        );
-      },
-    );
+      expect(run.succeeded, isTrue);
+      expect(
+        run.generatedOutput,
+        contains('RpcStreamProcedure<Null, MessageDto>('),
+      );
+    });
 
     test(
       'When an SSE stream binds a request body then generation fails',
@@ -2733,3 +2623,18 @@ final class UserController {
   ) {}
 }
 ''';
+
+/// [source] with `@JsonKey(name: 'renamed_key')` on the field that
+/// [annotation] binds.
+String _withRenamedJsonKey(String source, String annotation) {
+  const import = "import 'package:dart_orpc_core/dart_orpc_core.dart';\n";
+  final marker = '  $annotation\n';
+  expect(source, contains(import));
+  expect(marker.allMatches(source), hasLength(1));
+  return source
+      .replaceFirst(
+        import,
+        "${import}import 'package:json_annotation/json_annotation.dart';\n",
+      )
+      .replaceFirst(marker, "  @JsonKey(name: 'renamed_key')\n$marker");
+}

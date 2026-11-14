@@ -10,6 +10,24 @@ _ResolvedRestRpcInput _buildResolvedRestRpcInput(
   required List<_ResolvedRestInputField> explicitBodyFields,
   required List<_ResolvedDtoField> remainingFields,
 }) {
+  _ensureJsonKeysMatchFieldNames(
+    pathFields,
+    'path parameter',
+    methodName,
+    inputParameter,
+  );
+  _ensureJsonKeysMatchFieldNames(
+    queryFields,
+    'query parameter',
+    methodName,
+    inputParameter,
+  );
+  _ensureJsonKeysMatchFieldNames(
+    headerFields,
+    'header',
+    methodName,
+    inputParameter,
+  );
   final httpMethod = path.method.toUpperCase();
   if (httpMethod == 'GET' || httpMethod == 'DELETE') {
     if (explicitBodyFields.isNotEmpty) {
@@ -26,15 +44,22 @@ _ResolvedRestRpcInput _buildResolvedRestRpcInput(
         element: inputParameter,
       );
     }
-    final inferredQueryFields = [
-      ...queryFields,
+    final inferredFields = [
       for (final field in remainingFields)
         _ResolvedRestInputField(
           name: field.name,
+          jsonKey: field.jsonKey,
           typeCode: field.typeCode,
           wireName: field.name,
         ),
     ];
+    _ensureJsonKeysMatchFieldNames(
+      inferredFields,
+      'query parameter',
+      methodName,
+      inputParameter,
+    );
+    final inferredQueryFields = [...queryFields, ...inferredFields];
     return _ResolvedRestRpcInput(
       parameterName: inputParameter.displayName,
       mode: _ResolvedRestRpcInputMode.query,
@@ -58,6 +83,7 @@ _ResolvedRestRpcInput _buildResolvedRestRpcInput(
     for (final field in remainingFields)
       _ResolvedRestInputField(
         name: field.name,
+        jsonKey: field.jsonKey,
         typeCode: field.typeCode,
         wireName: field.name,
       ),
@@ -118,4 +144,25 @@ List<_ResolvedParameter> _buildRestMetadataParameters(
         typeCode: bodyTypeCode,
       ),
   ];
+}
+
+/// REST bindings, OpenAPI request bodies and generated clients address
+/// path, query and header fields by Dart name, so their JSON keys must match.
+void _ensureJsonKeysMatchFieldNames(
+  List<_ResolvedRestInputField> fields,
+  String sourceLabel,
+  String methodName,
+  Element element,
+) {
+  for (final field in fields) {
+    if (field.jsonKey == field.name) continue;
+    throw InvalidGenerationSourceError(
+      'REST-enabled RPC method "$methodName" binds DTO field "${field.name}" '
+      'from a $sourceLabel, but its JSON key is "${field.jsonKey}". '
+      'Fields bound outside the request body must keep their Dart name as '
+      'their JSON key; remove the JsonKey name or field rename, or move the '
+      'field to the body.',
+      element: element,
+    );
+  }
 }
