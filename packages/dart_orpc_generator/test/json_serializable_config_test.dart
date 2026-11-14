@@ -54,6 +54,40 @@ targets:
       expect(targetJsonFieldRename(_globalOptionsKebab), isNull);
     });
 
+    test('When a target sets field_rename per build mode then it is '
+        'returned', () {
+      for (final mode in ['dev_options', 'release_options']) {
+        expect(
+          targetJsonFieldRename('''
+targets:
+  \$default:
+    builders:
+      json_serializable:
+        $mode:
+          field_rename: snake
+'''),
+          'snake',
+          reason: mode,
+        );
+      }
+    });
+
+    test('When global_options set field_rename per build mode then it is '
+        'returned', () {
+      for (final mode in ['dev_options', 'release_options']) {
+        expect(
+          globalOptionsJsonFieldRename('''
+global_options:
+  json_serializable:
+    $mode:
+      field_rename: pascal
+'''),
+          'pascal',
+          reason: mode,
+        );
+      }
+    });
+
     test('When field_rename is none then nothing is returned', () {
       expect(
         targetJsonFieldRename('''

@@ -59,8 +59,10 @@ Future<void> _rejectJsonFieldRename(
 ///
 /// build_runner only lets builders read a package's configured sources, and
 /// `build.yaml` is not one by default, so fall back to reading it from disk.
-/// build_runner restarts the build whenever a `build.yaml` changes, so the
-/// untracked read can't go stale.
+/// That read isn't tracked: a change to the root package's `build.yaml`
+/// re-runs this builder (verified with `build_runner watch`), but a change to
+/// a dependency's `build.yaml` is only seen on the next build_runner start,
+/// like other dependency changes.
 Future<String?> _readPackageBuildYaml(
   BuildStep buildStep,
   String package,

@@ -6,6 +6,8 @@ const _jsonSerializableBuilderKeys = {
   'json_serializable|json_serializable',
 };
 
+const _optionSections = ['options', 'dev_options', 'release_options'];
+
 /// A json_serializable `field_rename` set outside DTO annotations.
 typedef JsonFieldRenameViolation = ({
   String package,
@@ -74,9 +76,14 @@ String? _renameIn(Object? builders) {
   if (builders is! YamlMap) return null;
   for (final MapEntry(:key, :value) in builders.entries) {
     if (!_jsonSerializableBuilderKeys.contains(key)) continue;
-    final options = value is YamlMap ? value['options'] : null;
-    final rename = options is YamlMap ? options['field_rename'] : null;
-    if (rename != null && rename != 'none') return '$rename';
+    if (value is! YamlMap) continue;
+    // build_config merges dev_options or release_options over options, so a
+    // rename in any of them applies in some build mode.
+    for (final section in _optionSections) {
+      final options = value[section];
+      final rename = options is YamlMap ? options['field_rename'] : null;
+      if (rename != null && rename != 'none') return '$rename';
+    }
   }
   return null;
 }
