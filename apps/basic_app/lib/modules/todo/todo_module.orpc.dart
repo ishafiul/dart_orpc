@@ -89,8 +89,7 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
             output: output,
             method: 'todo.list',
             toJson: (output) => output.toJson(),
-            validateJson: (json) =>
-                $TodoListResponseDtoSchema.validateSchema(json),
+            validateJson: $TodoListResponseDtoSchema.validate,
           ),
       metadata: metadataRegistry['todo.list']!,
       guards: [
@@ -109,7 +108,7 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
         output: output,
         method: 'todo.watch',
         toJson: (output) => output.toJson(),
-        validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+        validateJson: $TodoResponseDtoSchema.validate,
       ),
       metadata: metadataRegistry['todo.watch']!,
       guards: [
@@ -129,8 +128,7 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
             output: output,
             method: 'todo.watchLive',
             toJson: (output) => output.toJson(),
-            validateJson: (json) =>
-                $TodoChangeResponseDtoSchema.validateSchema(json),
+            validateJson: $TodoChangeResponseDtoSchema.validate,
           ),
       metadata: metadataRegistry['todo.watchLive']!,
       guards: [
@@ -147,13 +145,12 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
         rawInput: rawInput,
         method: 'todo.getById',
         validate: $GetTodoDtoValidate,
-        validateReadOnly: $GetTodoDtoValidate,
       ),
       encodeOutput: (output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
         output: output,
         method: 'todo.getById',
         toJson: (output) => output.toJson(),
-        validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+        validateJson: $TodoResponseDtoSchema.validate,
       ),
       metadata: metadataRegistry['todo.getById']!,
       guards: [
@@ -171,13 +168,12 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
         rawInput: rawInput,
         method: 'todo.watchById',
         validate: $GetTodoDtoValidate,
-        validateReadOnly: $GetTodoDtoValidate,
       ),
       encodeOutput: (output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
         output: output,
         method: 'todo.watchById',
         toJson: (output) => output.toJson(),
-        validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+        validateJson: $TodoResponseDtoSchema.validate,
       ),
       metadata: metadataRegistry['todo.watchById']!,
       guards: [
@@ -195,13 +191,12 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
         rawInput: rawInput,
         method: 'todo.create',
         validate: $CreateTodoDtoValidate,
-        validateReadOnly: $CreateTodoDtoValidate,
       ),
       encodeOutput: (output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
         output: output,
         method: 'todo.create',
         toJson: (output) => output.toJson(),
-        validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+        validateJson: $TodoResponseDtoSchema.validate,
       ),
       metadata: metadataRegistry['todo.create']!,
       guards: [
@@ -219,13 +214,12 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
         rawInput: rawInput,
         method: 'todo.update',
         validate: $UpdateTodoDtoValidate,
-        validateReadOnly: $UpdateTodoDtoValidate,
       ),
       encodeOutput: (output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
         output: output,
         method: 'todo.update',
         toJson: (output) => output.toJson(),
-        validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+        validateJson: $TodoResponseDtoSchema.validate,
       ),
       metadata: metadataRegistry['todo.update']!,
       guards: [
@@ -243,15 +237,13 @@ RpcProcedureRegistry _$createTodoModuleProcedureRegistryFromContainer(
         rawInput: rawInput,
         method: 'todo.delete',
         validate: $GetTodoDtoValidate,
-        validateReadOnly: $GetTodoDtoValidate,
       ),
       encodeOutput: (output) =>
           encodeRpcOutputJsonWithLuthor<DeleteTodoResponseDto>(
             output: output,
             method: 'todo.delete',
             toJson: (output) => output.toJson(),
-            validateJson: (json) =>
-                $DeleteTodoResponseDtoSchema.validateSchema(json),
+            validateJson: $DeleteTodoResponseDtoSchema.validate,
           ),
       metadata: metadataRegistry['todo.delete']!,
       guards: [
@@ -314,8 +306,7 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           output: output,
           method: 'todo.list',
           toJson: (output) => output.toJson(),
-          validateJson: (json) =>
-              $TodoListResponseDtoSchema.validateSchema(json),
+          validateJson: $TodoListResponseDtoSchema.validate,
         ))(output);
       },
       metadata: metadataRegistry['todo.list']!,
@@ -334,7 +325,7 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
             output: output,
             method: 'todo.watch',
             toJson: (output) => output.toJson(),
-            validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+            validateJson: $TodoResponseDtoSchema.validate,
           ),
         );
       },
@@ -354,8 +345,7 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
             output: output,
             method: 'todo.watchLive',
             toJson: (output) => output.toJson(),
-            validateJson: (json) =>
-                $TodoChangeResponseDtoSchema.validateSchema(json),
+            validateJson: $TodoChangeResponseDtoSchema.validate,
           ),
         );
       },
@@ -381,14 +371,13 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           rawInput: rawInput,
           method: 'todo.getById',
           validate: $GetTodoDtoValidate,
-          validateReadOnly: $GetTodoDtoValidate,
         ))(rawInput);
         final output = await container.todoController.getById(context, input);
         return ((output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
           output: output,
           method: 'todo.getById',
           toJson: (output) => output.toJson(),
-          validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+          validateJson: $TodoResponseDtoSchema.validate,
         ))(output);
       },
       metadata: metadataRegistry['todo.getById']!,
@@ -412,7 +401,6 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           rawInput: rawInput,
           method: 'todo.watchById',
           validate: $GetTodoDtoValidate,
-          validateReadOnly: $GetTodoDtoValidate,
         ))(rawInput);
         final output = container.todoController.watchById(context, input);
         return output.map(
@@ -420,7 +408,7 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
             output: output,
             method: 'todo.watchById',
             toJson: (output) => output.toJson(),
-            validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+            validateJson: $TodoResponseDtoSchema.validate,
           ),
         );
       },
@@ -450,14 +438,13 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           rawInput: rawInput,
           method: 'todo.create',
           validate: $CreateTodoDtoValidate,
-          validateReadOnly: $CreateTodoDtoValidate,
         ))(rawInput);
         final output = await container.todoController.create(context, input);
         return ((output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
           output: output,
           method: 'todo.create',
           toJson: (output) => output.toJson(),
-          validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+          validateJson: $TodoResponseDtoSchema.validate,
         ))(output);
       },
       metadata: metadataRegistry['todo.create']!,
@@ -494,14 +481,13 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           rawInput: rawInput,
           method: 'todo.update',
           validate: $UpdateTodoDtoValidate,
-          validateReadOnly: $UpdateTodoDtoValidate,
         ))(rawInput);
         final output = await container.todoController.update(context, input);
         return ((output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
           output: output,
           method: 'todo.update',
           toJson: (output) => output.toJson(),
-          validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+          validateJson: $TodoResponseDtoSchema.validate,
         ))(output);
       },
       metadata: metadataRegistry['todo.update']!,
@@ -526,7 +512,6 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
           rawInput: rawInput,
           method: 'todo.delete',
           validate: $GetTodoDtoValidate,
-          validateReadOnly: $GetTodoDtoValidate,
         ))(rawInput);
         final output = await container.todoController.delete(context, input);
         return ((output) =>
@@ -534,8 +519,7 @@ RestRouteRegistry _$createTodoModuleRestRouteRegistryFromContainer(
               output: output,
               method: 'todo.delete',
               toJson: (output) => output.toJson(),
-              validateJson: (json) =>
-                  $DeleteTodoResponseDtoSchema.validateSchema(json),
+              validateJson: $DeleteTodoResponseDtoSchema.validate,
             ))(output);
       },
       metadata: metadataRegistry['todo.delete']!,
@@ -1058,31 +1042,29 @@ class TodoClient {
   final RpcClientTransports _transports;
 
   Future<TodoListResponseDto> list({RpcCallOptions? options}) {
-    return RpcCaller(
-      _transports.requireUnary('todo.list'),
-    ).call<TodoListResponseDto>(
-      method: 'todo.list',
-      options: options,
-      decode: (json) => TodoListResponseDto.fromJson(
-        Map<String, dynamic>.from(
-          expectJsonObject(json, context: 'RPC response for "todo.list"'),
-        ),
-      ),
-    );
+    return RpcCaller(_transports.requireUnary('todo.list'))
+        .call<TodoListResponseDto>(
+          method: 'todo.list',
+          options: options,
+          decode: (json) => TodoListResponseDto.fromJson(
+            Map<String, dynamic>.from(
+              expectJsonObject(json, context: 'RPC response for "todo.list"'),
+            ),
+          ),
+        );
   }
 
   Stream<TodoResponseDto> watch({RpcCallOptions? options}) {
-    return RpcStreamCaller(
-      _transports.requireStreaming('todo.watch'),
-    ).call<TodoResponseDto>(
-      method: 'todo.watch',
-      options: options,
-      decode: (json) => TodoResponseDto.fromJson(
-        Map<String, dynamic>.from(
-          expectJsonObject(json, context: 'RPC response for "todo.watch"'),
-        ),
-      ),
-    );
+    return RpcStreamCaller(_transports.requireStreaming('todo.watch'))
+        .call<TodoResponseDto>(
+          method: 'todo.watch',
+          options: options,
+          decode: (json) => TodoResponseDto.fromJson(
+            Map<String, dynamic>.from(
+              expectJsonObject(json, context: 'RPC response for "todo.watch"'),
+            ),
+          ),
+        );
   }
 
   Stream<TodoChangeResponseDto> watchLive({RpcCallOptions? options}) {
@@ -1136,54 +1118,51 @@ class TodoClient {
     CreateTodoDto input, {
     RpcCallOptions? options,
   }) {
-    return RpcCaller(
-      _transports.requireUnary('todo.create'),
-    ).call<TodoResponseDto>(
-      method: 'todo.create',
-      input: input.toJson(),
-      options: options,
-      decode: (json) => TodoResponseDto.fromJson(
-        Map<String, dynamic>.from(
-          expectJsonObject(json, context: 'RPC response for "todo.create"'),
-        ),
-      ),
-    );
+    return RpcCaller(_transports.requireUnary('todo.create'))
+        .call<TodoResponseDto>(
+          method: 'todo.create',
+          input: input.toJson(),
+          options: options,
+          decode: (json) => TodoResponseDto.fromJson(
+            Map<String, dynamic>.from(
+              expectJsonObject(json, context: 'RPC response for "todo.create"'),
+            ),
+          ),
+        );
   }
 
   Future<TodoResponseDto> update(
     UpdateTodoDto input, {
     RpcCallOptions? options,
   }) {
-    return RpcCaller(
-      _transports.requireUnary('todo.update'),
-    ).call<TodoResponseDto>(
-      method: 'todo.update',
-      input: input.toJson(),
-      options: options,
-      decode: (json) => TodoResponseDto.fromJson(
-        Map<String, dynamic>.from(
-          expectJsonObject(json, context: 'RPC response for "todo.update"'),
-        ),
-      ),
-    );
+    return RpcCaller(_transports.requireUnary('todo.update'))
+        .call<TodoResponseDto>(
+          method: 'todo.update',
+          input: input.toJson(),
+          options: options,
+          decode: (json) => TodoResponseDto.fromJson(
+            Map<String, dynamic>.from(
+              expectJsonObject(json, context: 'RPC response for "todo.update"'),
+            ),
+          ),
+        );
   }
 
   Future<DeleteTodoResponseDto> delete(
     GetTodoDto input, {
     RpcCallOptions? options,
   }) {
-    return RpcCaller(
-      _transports.requireUnary('todo.delete'),
-    ).call<DeleteTodoResponseDto>(
-      method: 'todo.delete',
-      input: input.toJson(),
-      options: options,
-      decode: (json) => DeleteTodoResponseDto.fromJson(
-        Map<String, dynamic>.from(
-          expectJsonObject(json, context: 'RPC response for "todo.delete"'),
-        ),
-      ),
-    );
+    return RpcCaller(_transports.requireUnary('todo.delete'))
+        .call<DeleteTodoResponseDto>(
+          method: 'todo.delete',
+          input: input.toJson(),
+          options: options,
+          decode: (json) => DeleteTodoResponseDto.fromJson(
+            Map<String, dynamic>.from(
+              expectJsonObject(json, context: 'RPC response for "todo.delete"'),
+            ),
+          ),
+        );
   }
 }
 

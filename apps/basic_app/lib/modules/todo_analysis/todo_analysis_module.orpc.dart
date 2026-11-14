@@ -78,8 +78,7 @@ RpcProcedureRegistry _$createTodoAnalysisModuleProcedureRegistryFromContainer(
             output: output,
             method: 'todoAnalysis.summary',
             toJson: (output) => output.toJson(),
-            validateJson: (json) =>
-                $TodoAnalysisSummaryDtoSchema.validateSchema(json),
+            validateJson: $TodoAnalysisSummaryDtoSchema.validate,
           ),
       metadata: metadataRegistry['todoAnalysis.summary']!,
 
@@ -138,8 +137,7 @@ RestRouteRegistry _$createTodoAnalysisModuleRestRouteRegistryFromContainer(
               output: output,
               method: 'todoAnalysis.summary',
               toJson: (output) => output.toJson(),
-              validateJson: (json) =>
-                  $TodoAnalysisSummaryDtoSchema.validateSchema(json),
+              validateJson: $TodoAnalysisSummaryDtoSchema.validate,
             ))(output);
       },
       metadata: metadataRegistry['todoAnalysis.summary']!,
@@ -339,20 +337,19 @@ class TodoAnalysisClient {
   final RpcClientTransports _transports;
 
   Future<TodoAnalysisSummaryDto> summary() {
-    return RpcCaller(
-      _transports.requireUnary('todoAnalysis.summary'),
-    ).call<TodoAnalysisSummaryDto>(
-      method: 'todoAnalysis.summary',
-      options: null,
-      decode: (json) => TodoAnalysisSummaryDto.fromJson(
-        Map<String, dynamic>.from(
-          expectJsonObject(
-            json,
-            context: 'RPC response for "todoAnalysis.summary"',
+    return RpcCaller(_transports.requireUnary('todoAnalysis.summary'))
+        .call<TodoAnalysisSummaryDto>(
+          method: 'todoAnalysis.summary',
+          options: null,
+          decode: (json) => TodoAnalysisSummaryDto.fromJson(
+            Map<String, dynamic>.from(
+              expectJsonObject(
+                json,
+                context: 'RPC response for "todoAnalysis.summary"',
+              ),
+            ),
           ),
-        ),
-      ),
-    );
+        );
   }
 }
 

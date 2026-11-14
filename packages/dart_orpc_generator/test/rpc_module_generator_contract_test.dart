@@ -56,14 +56,10 @@ void main() {
       );
       expect(
         run.generatedOutput,
-        contains(
-          r'validateJson: (json) => $ParentDtoSchema.validateSchema(json)',
-        ),
+        contains(r'validateJson: $ParentDtoSchema.validate'),
       );
-      expect(
-        run.generatedOutput,
-        contains(r'validateReadOnly: $ParentDtoValidate'),
-      );
+      expect(run.generatedOutput, contains(r'validate: $ParentDtoValidate'));
+      expect(run.generatedOutput, isNot(contains('validateReadOnly')));
     });
 
     test('explicit REST body procedures generate body decoding', () async {

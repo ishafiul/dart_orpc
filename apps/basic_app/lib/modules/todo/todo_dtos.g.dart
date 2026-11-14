@@ -142,18 +142,16 @@ Map<String, dynamic> _$DeleteTodoResponseDtoToJson(
 // ignore: constant_identifier_names
 const CreateTodoDtoSchemaKeys = (title: "title");
 
-Validator $CreateTodoDtoSchema = l.withName('CreateTodoDto').schema({
-  CreateTodoDtoSchemaKeys.title: l.string().min(1).required(),
-});
+final SchemaValidator $CreateTodoDtoSchema = l
+    .schema({CreateTodoDtoSchemaKeys.title: l.string().min(1).required()})
+    .withName("CreateTodoDto");
 
-SchemaValidationResult<CreateTodoDto> $CreateTodoDtoValidate(
-  Map<String, dynamic> json,
-) =>
+ValidationResult<CreateTodoDto> $CreateTodoDtoValidate(Object? json) =>
     $CreateTodoDtoSchema.validateSchema(json, fromJson: CreateTodoDto.fromJson);
 
 extension CreateTodoDtoValidationExtension on CreateTodoDto {
-  SchemaValidationResult<CreateTodoDto> validateSelf() =>
-      $CreateTodoDtoValidate(toJson());
+  ValidationResult<CreateTodoDto> validateSelf() =>
+      $CreateTodoDtoValidate(_$luthorJsonMap(toJson()));
 }
 
 // ignore: constant_identifier_names
@@ -162,17 +160,16 @@ const CreateTodoDtoErrorKeys = (title: "title");
 // ignore: constant_identifier_names
 const GetTodoDtoSchemaKeys = (id: "id");
 
-Validator $GetTodoDtoSchema = l.withName('GetTodoDto').schema({
-  GetTodoDtoSchemaKeys.id: l.int().required(),
-});
+final SchemaValidator $GetTodoDtoSchema = l
+    .schema({GetTodoDtoSchemaKeys.id: l.int().required()})
+    .withName("GetTodoDto");
 
-SchemaValidationResult<GetTodoDto> $GetTodoDtoValidate(
-  Map<String, dynamic> json,
-) => $GetTodoDtoSchema.validateSchema(json, fromJson: GetTodoDto.fromJson);
+ValidationResult<GetTodoDto> $GetTodoDtoValidate(Object? json) =>
+    $GetTodoDtoSchema.validateSchema(json, fromJson: GetTodoDto.fromJson);
 
 extension GetTodoDtoValidationExtension on GetTodoDto {
-  SchemaValidationResult<GetTodoDto> validateSelf() =>
-      $GetTodoDtoValidate(toJson());
+  ValidationResult<GetTodoDto> validateSelf() =>
+      $GetTodoDtoValidate(_$luthorJsonMap(toJson()));
 }
 
 // ignore: constant_identifier_names
@@ -185,20 +182,20 @@ const UpdateTodoDtoSchemaKeys = (
   completed: "completed",
 );
 
-Validator $UpdateTodoDtoSchema = l.withName('UpdateTodoDto').schema({
-  UpdateTodoDtoSchemaKeys.id: l.int().required(),
-  UpdateTodoDtoSchemaKeys.title: l.string(),
-  UpdateTodoDtoSchemaKeys.completed: l.boolean(),
-});
+final SchemaValidator $UpdateTodoDtoSchema = l
+    .schema({
+      UpdateTodoDtoSchemaKeys.id: l.int().required(),
+      UpdateTodoDtoSchemaKeys.title: l.string(),
+      UpdateTodoDtoSchemaKeys.completed: l.bool(),
+    })
+    .withName("UpdateTodoDto");
 
-SchemaValidationResult<UpdateTodoDto> $UpdateTodoDtoValidate(
-  Map<String, dynamic> json,
-) =>
+ValidationResult<UpdateTodoDto> $UpdateTodoDtoValidate(Object? json) =>
     $UpdateTodoDtoSchema.validateSchema(json, fromJson: UpdateTodoDto.fromJson);
 
 extension UpdateTodoDtoValidationExtension on UpdateTodoDto {
-  SchemaValidationResult<UpdateTodoDto> validateSelf() =>
-      $UpdateTodoDtoValidate(toJson());
+  ValidationResult<UpdateTodoDto> validateSelf() =>
+      $UpdateTodoDtoValidate(_$luthorJsonMap(toJson()));
 }
 
 // ignore: constant_identifier_names
@@ -211,23 +208,22 @@ const UpdateTodoDtoErrorKeys = (
 // ignore: constant_identifier_names
 const TodoMetadataDtoSchemaKeys = (priority: "priority", tags: "tags");
 
-Validator $TodoMetadataDtoSchema = l.withName('TodoMetadataDto').schema({
-  TodoMetadataDtoSchemaKeys.priority: l.string().required(),
-  TodoMetadataDtoSchemaKeys.tags: l
-      .list(validators: [l.string().required()])
-      .required(),
-});
+final SchemaValidator $TodoMetadataDtoSchema = l
+    .schema({
+      TodoMetadataDtoSchemaKeys.priority: l.string().required(),
+      TodoMetadataDtoSchemaKeys.tags: l.list(l.string().required()).required(),
+    })
+    .withName("TodoMetadataDto");
 
-SchemaValidationResult<TodoMetadataDto> $TodoMetadataDtoValidate(
-  Map<String, dynamic> json,
-) => $TodoMetadataDtoSchema.validateSchema(
-  json,
-  fromJson: TodoMetadataDto.fromJson,
-);
+ValidationResult<TodoMetadataDto> $TodoMetadataDtoValidate(Object? json) =>
+    $TodoMetadataDtoSchema.validateSchema(
+      json,
+      fromJson: TodoMetadataDto.fromJson,
+    );
 
 extension TodoMetadataDtoValidationExtension on TodoMetadataDto {
-  SchemaValidationResult<TodoMetadataDto> validateSelf() =>
-      $TodoMetadataDtoValidate(toJson());
+  ValidationResult<TodoMetadataDto> validateSelf() =>
+      $TodoMetadataDtoValidate(_$luthorJsonMap(toJson()));
 }
 
 // ignore: constant_identifier_names
@@ -242,24 +238,27 @@ const TodoResponseDtoSchemaKeys = (
   metadata: "metadata",
 );
 
-Validator $TodoResponseDtoSchema = l.withName('TodoResponseDto').schema({
-  TodoResponseDtoSchemaKeys.id: l.int().required(),
-  TodoResponseDtoSchemaKeys.title: l.string().min(1).required(),
-  TodoResponseDtoSchemaKeys.completed: l.boolean().required(),
-  TodoResponseDtoSchemaKeys.createdAt: l.string().dateTime().required(),
-  TodoResponseDtoSchemaKeys.metadata: $TodoMetadataDtoSchema,
-});
+final SchemaValidator $TodoResponseDtoSchema = l
+    .schema({
+      TodoResponseDtoSchemaKeys.id: l.int().required(),
+      TodoResponseDtoSchemaKeys.title: l.string().min(1).required(),
+      TodoResponseDtoSchemaKeys.completed: l.bool().required(),
+      TodoResponseDtoSchemaKeys.createdAt: l.string().dateTime().required(),
+      TodoResponseDtoSchemaKeys.metadata: forwardRef(
+        () => $TodoMetadataDtoSchema,
+      ),
+    })
+    .withName("TodoResponseDto");
 
-SchemaValidationResult<TodoResponseDto> $TodoResponseDtoValidate(
-  Map<String, dynamic> json,
-) => $TodoResponseDtoSchema.validateSchema(
-  json,
-  fromJson: TodoResponseDto.fromJson,
-);
+ValidationResult<TodoResponseDto> $TodoResponseDtoValidate(Object? json) =>
+    $TodoResponseDtoSchema.validateSchema(
+      json,
+      fromJson: TodoResponseDto.fromJson,
+    );
 
 extension TodoResponseDtoValidationExtension on TodoResponseDto {
-  SchemaValidationResult<TodoResponseDto> validateSelf() =>
-      $TodoResponseDtoValidate(toJson());
+  ValidationResult<TodoResponseDto> validateSelf() =>
+      $TodoResponseDtoValidate(_$luthorJsonMap(toJson()));
 }
 
 // ignore: constant_identifier_names
@@ -268,64 +267,75 @@ const TodoResponseDtoErrorKeys = (
   title: "title",
   completed: "completed",
   createdAt: "createdAt",
-  metadata: (priority: "metadata.priority", tags: "metadata.tags"),
+  metadata: (
+    $key: "metadata",
+    priority: "metadata.priority",
+    tags: "metadata.tags",
+  ),
 );
 
 // ignore: constant_identifier_names
 const TodoChangeResponseDtoSchemaKeys = (type: "type", todo: "todo");
 
-Validator $TodoChangeResponseDtoSchema = l
-    .withName('TodoChangeResponseDto')
+final SchemaValidator $TodoChangeResponseDtoSchema = l
     .schema({
       TodoChangeResponseDtoSchemaKeys.type: l.string().required(),
-      TodoChangeResponseDtoSchemaKeys.todo: $TodoResponseDtoSchema.required(),
-    });
+      TodoChangeResponseDtoSchemaKeys.todo: forwardRef(
+        () => $TodoResponseDtoSchema.required(),
+      ),
+    })
+    .withName("TodoChangeResponseDto");
 
-SchemaValidationResult<TodoChangeResponseDto> $TodoChangeResponseDtoValidate(
-  Map<String, dynamic> json,
+ValidationResult<TodoChangeResponseDto> $TodoChangeResponseDtoValidate(
+  Object? json,
 ) => $TodoChangeResponseDtoSchema.validateSchema(
   json,
   fromJson: TodoChangeResponseDto.fromJson,
 );
 
 extension TodoChangeResponseDtoValidationExtension on TodoChangeResponseDto {
-  SchemaValidationResult<TodoChangeResponseDto> validateSelf() =>
-      $TodoChangeResponseDtoValidate(toJson());
+  ValidationResult<TodoChangeResponseDto> validateSelf() =>
+      $TodoChangeResponseDtoValidate(_$luthorJsonMap(toJson()));
 }
 
 // ignore: constant_identifier_names
 const TodoChangeResponseDtoErrorKeys = (
   type: "type",
   todo: (
+    $key: "todo",
     id: "todo.id",
     title: "todo.title",
     completed: "todo.completed",
     createdAt: "todo.createdAt",
-    metadata: (priority: "todo.metadata.priority", tags: "todo.metadata.tags"),
+    metadata: (
+      $key: "todo.metadata",
+      priority: "todo.metadata.priority",
+      tags: "todo.metadata.tags",
+    ),
   ),
 );
 
 // ignore: constant_identifier_names
 const TodoListResponseDtoSchemaKeys = (items: "items");
 
-Validator $TodoListResponseDtoSchema = l.withName('TodoListResponseDto').schema(
-  {
-    TodoListResponseDtoSchemaKeys.items: l
-        .list(validators: [$TodoResponseDtoSchema.required()])
-        .required(),
-  },
-);
+final SchemaValidator $TodoListResponseDtoSchema = l
+    .schema({
+      TodoListResponseDtoSchemaKeys.items: l
+          .list(forwardRef(() => $TodoResponseDtoSchema.required()))
+          .required(),
+    })
+    .withName("TodoListResponseDto");
 
-SchemaValidationResult<TodoListResponseDto> $TodoListResponseDtoValidate(
-  Map<String, dynamic> json,
+ValidationResult<TodoListResponseDto> $TodoListResponseDtoValidate(
+  Object? json,
 ) => $TodoListResponseDtoSchema.validateSchema(
   json,
   fromJson: TodoListResponseDto.fromJson,
 );
 
 extension TodoListResponseDtoValidationExtension on TodoListResponseDto {
-  SchemaValidationResult<TodoListResponseDto> validateSelf() =>
-      $TodoListResponseDtoValidate(toJson());
+  ValidationResult<TodoListResponseDto> validateSelf() =>
+      $TodoListResponseDtoValidate(_$luthorJsonMap(toJson()));
 }
 
 // ignore: constant_identifier_names
@@ -334,21 +344,43 @@ const TodoListResponseDtoErrorKeys = (items: "items");
 // ignore: constant_identifier_names
 const DeleteTodoResponseDtoSchemaKeys = (deleted: "deleted");
 
-Validator $DeleteTodoResponseDtoSchema = l
-    .withName('DeleteTodoResponseDto')
-    .schema({DeleteTodoResponseDtoSchemaKeys.deleted: l.boolean()});
+final SchemaValidator $DeleteTodoResponseDtoSchema = l
+    .schema({DeleteTodoResponseDtoSchemaKeys.deleted: l.bool()})
+    .withName("DeleteTodoResponseDto");
 
-SchemaValidationResult<DeleteTodoResponseDto> $DeleteTodoResponseDtoValidate(
-  Map<String, dynamic> json,
+ValidationResult<DeleteTodoResponseDto> $DeleteTodoResponseDtoValidate(
+  Object? json,
 ) => $DeleteTodoResponseDtoSchema.validateSchema(
   json,
   fromJson: DeleteTodoResponseDto.fromJson,
 );
 
 extension DeleteTodoResponseDtoValidationExtension on DeleteTodoResponseDto {
-  SchemaValidationResult<DeleteTodoResponseDto> validateSelf() =>
-      $DeleteTodoResponseDtoValidate(toJson());
+  ValidationResult<DeleteTodoResponseDto> validateSelf() =>
+      $DeleteTodoResponseDtoValidate(_$luthorJsonMap(toJson()));
 }
 
 // ignore: constant_identifier_names
 const DeleteTodoResponseDtoErrorKeys = (deleted: "deleted");
+
+Map<String, Object?> _$luthorJsonMap(Map<Object?, Object?> map) => {
+  for (final entry in map.entries)
+    entry.key.toString(): _$luthorJsonValue(entry.value),
+};
+
+Object? _$luthorJsonValue(Object? value) {
+  if (value == null || value is String || value is num || value is bool) {
+    return value;
+  }
+  if (value is Map) return _$luthorJsonMap(value);
+  if (value is Iterable) {
+    return [for (final item in value) _$luthorJsonValue(item)];
+  }
+  try {
+    // ignore: avoid_dynamic_calls
+    return _$luthorJsonValue((value as dynamic).toJson());
+    // ignore: avoid_catching_errors
+  } on NoSuchMethodError {
+    return value;
+  }
+}

@@ -49,22 +49,23 @@ const CatalogQueryDtoSchemaKeys = (
   limit: "limit",
 );
 
-Validator $CatalogQueryDtoSchema = l.withName('CatalogQueryDto').schema({
-  CatalogQueryDtoSchemaKeys.category: l.string().min(1).required(),
-  CatalogQueryDtoSchemaKeys.page: l.int().min(1).required(),
-  CatalogQueryDtoSchemaKeys.limit: l.int().max(100).min(1).required(),
-});
+final SchemaValidator $CatalogQueryDtoSchema = l
+    .schema({
+      CatalogQueryDtoSchemaKeys.category: l.string().min(1).required(),
+      CatalogQueryDtoSchemaKeys.page: l.int().min(1).required(),
+      CatalogQueryDtoSchemaKeys.limit: l.int().min(1).max(100).required(),
+    })
+    .withName("CatalogQueryDto");
 
-SchemaValidationResult<CatalogQueryDto> $CatalogQueryDtoValidate(
-  Map<String, dynamic> json,
-) => $CatalogQueryDtoSchema.validateSchema(
-  json,
-  fromJson: CatalogQueryDto.fromJson,
-);
+ValidationResult<CatalogQueryDto> $CatalogQueryDtoValidate(Object? json) =>
+    $CatalogQueryDtoSchema.validateSchema(
+      json,
+      fromJson: CatalogQueryDto.fromJson,
+    );
 
 extension CatalogQueryDtoValidationExtension on CatalogQueryDto {
-  SchemaValidationResult<CatalogQueryDto> validateSelf() =>
-      $CatalogQueryDtoValidate(toJson());
+  ValidationResult<CatalogQueryDto> validateSelf() =>
+      $CatalogQueryDtoValidate(_$luthorJsonMap(toJson()));
 }
 
 // ignore: constant_identifier_names
@@ -83,33 +84,38 @@ const CheckoutInputDtoSchemaKeys = (
   shippingAddress: "shippingAddress",
 );
 
-Validator $CheckoutInputDtoSchema = l.withName('CheckoutInputDto').schema({
-  CheckoutInputDtoSchemaKeys.customer: $CheckoutCustomerDtoSchema.required(),
-  CheckoutInputDtoSchemaKeys.currency: l.string().min(1).required(),
-  CheckoutInputDtoSchemaKeys.items: l
-      .list(validators: [$CheckoutItemDtoSchema.required()])
-      .required(),
-  CheckoutInputDtoSchemaKeys.coupon: l.string(),
-  CheckoutInputDtoSchemaKeys.shippingAddress: l
-      .map(keyValidator: l.string().required(), valueValidator: l.any())
-      .required(),
-});
+final SchemaValidator $CheckoutInputDtoSchema = l
+    .schema({
+      CheckoutInputDtoSchemaKeys.customer: forwardRef(
+        () => $CheckoutCustomerDtoSchema.required(),
+      ),
+      CheckoutInputDtoSchemaKeys.currency: l.string().min(1).required(),
+      CheckoutInputDtoSchemaKeys.items: l
+          .list(forwardRef(() => $CheckoutItemDtoSchema.required()))
+          .custom(_hasItems)
+          .required(),
+      CheckoutInputDtoSchemaKeys.coupon: l.string(),
+      CheckoutInputDtoSchemaKeys.shippingAddress: l.map(
+        keyValidator: l.string().required(),
+        valueValidator: l.any(),
+      ),
+    })
+    .withName("CheckoutInputDto");
 
-SchemaValidationResult<CheckoutInputDto> $CheckoutInputDtoValidate(
-  Map<String, dynamic> json,
-) => $CheckoutInputDtoSchema.validateSchema(
-  json,
-  fromJson: CheckoutInputDto.fromJson,
-);
+ValidationResult<CheckoutInputDto> $CheckoutInputDtoValidate(Object? json) =>
+    $CheckoutInputDtoSchema.validateSchema(
+      json,
+      fromJson: CheckoutInputDto.fromJson,
+    );
 
 extension CheckoutInputDtoValidationExtension on CheckoutInputDto {
-  SchemaValidationResult<CheckoutInputDto> validateSelf() =>
-      $CheckoutInputDtoValidate(toJson());
+  ValidationResult<CheckoutInputDto> validateSelf() =>
+      $CheckoutInputDtoValidate(_$luthorJsonMap(toJson()));
 }
 
 // ignore: constant_identifier_names
 const CheckoutInputDtoErrorKeys = (
-  customer: (id: "customer.id"),
+  customer: ($key: "customer", id: "customer.id"),
   currency: "currency",
   items: "items",
   coupon: "coupon",
@@ -119,20 +125,20 @@ const CheckoutInputDtoErrorKeys = (
 // ignore: constant_identifier_names
 const CheckoutCustomerDtoSchemaKeys = (id: "id");
 
-Validator $CheckoutCustomerDtoSchema = l.withName('CheckoutCustomerDto').schema(
-  {CheckoutCustomerDtoSchemaKeys.id: l.string().min(1).required()},
-);
+final SchemaValidator $CheckoutCustomerDtoSchema = l
+    .schema({CheckoutCustomerDtoSchemaKeys.id: l.string().min(1).required()})
+    .withName("CheckoutCustomerDto");
 
-SchemaValidationResult<CheckoutCustomerDto> $CheckoutCustomerDtoValidate(
-  Map<String, dynamic> json,
+ValidationResult<CheckoutCustomerDto> $CheckoutCustomerDtoValidate(
+  Object? json,
 ) => $CheckoutCustomerDtoSchema.validateSchema(
   json,
   fromJson: CheckoutCustomerDto.fromJson,
 );
 
 extension CheckoutCustomerDtoValidationExtension on CheckoutCustomerDto {
-  SchemaValidationResult<CheckoutCustomerDto> validateSelf() =>
-      $CheckoutCustomerDtoValidate(toJson());
+  ValidationResult<CheckoutCustomerDto> validateSelf() =>
+      $CheckoutCustomerDtoValidate(_$luthorJsonMap(toJson()));
 }
 
 // ignore: constant_identifier_names
@@ -145,22 +151,23 @@ const CheckoutItemDtoSchemaKeys = (
   unitPriceCents: "unitPriceCents",
 );
 
-Validator $CheckoutItemDtoSchema = l.withName('CheckoutItemDto').schema({
-  CheckoutItemDtoSchemaKeys.sku: l.string().min(1).required(),
-  CheckoutItemDtoSchemaKeys.quantity: l.int().min(1).required(),
-  CheckoutItemDtoSchemaKeys.unitPriceCents: l.int().min(1).required(),
-});
+final SchemaValidator $CheckoutItemDtoSchema = l
+    .schema({
+      CheckoutItemDtoSchemaKeys.sku: l.string().min(1).required(),
+      CheckoutItemDtoSchemaKeys.quantity: l.int().min(1).required(),
+      CheckoutItemDtoSchemaKeys.unitPriceCents: l.int().min(1).required(),
+    })
+    .withName("CheckoutItemDto");
 
-SchemaValidationResult<CheckoutItemDto> $CheckoutItemDtoValidate(
-  Map<String, dynamic> json,
-) => $CheckoutItemDtoSchema.validateSchema(
-  json,
-  fromJson: CheckoutItemDto.fromJson,
-);
+ValidationResult<CheckoutItemDto> $CheckoutItemDtoValidate(Object? json) =>
+    $CheckoutItemDtoSchema.validateSchema(
+      json,
+      fromJson: CheckoutItemDto.fromJson,
+    );
 
 extension CheckoutItemDtoValidationExtension on CheckoutItemDto {
-  SchemaValidationResult<CheckoutItemDto> validateSelf() =>
-      $CheckoutItemDtoValidate(toJson());
+  ValidationResult<CheckoutItemDto> validateSelf() =>
+      $CheckoutItemDtoValidate(_$luthorJsonMap(toJson()));
 }
 
 // ignore: constant_identifier_names
@@ -173,18 +180,39 @@ const CheckoutItemDtoErrorKeys = (
 // ignore: constant_identifier_names
 const EchoInputDtoSchemaKeys = (message: "message");
 
-Validator $EchoInputDtoSchema = l.withName('EchoInputDto').schema({
-  EchoInputDtoSchemaKeys.message: l.string().min(1).required(),
-});
+final SchemaValidator $EchoInputDtoSchema = l
+    .schema({EchoInputDtoSchemaKeys.message: l.string().min(1).required()})
+    .withName("EchoInputDto");
 
-SchemaValidationResult<EchoInputDto> $EchoInputDtoValidate(
-  Map<String, dynamic> json,
-) => $EchoInputDtoSchema.validateSchema(json, fromJson: EchoInputDto.fromJson);
+ValidationResult<EchoInputDto> $EchoInputDtoValidate(Object? json) =>
+    $EchoInputDtoSchema.validateSchema(json, fromJson: EchoInputDto.fromJson);
 
 extension EchoInputDtoValidationExtension on EchoInputDto {
-  SchemaValidationResult<EchoInputDto> validateSelf() =>
-      $EchoInputDtoValidate(toJson());
+  ValidationResult<EchoInputDto> validateSelf() =>
+      $EchoInputDtoValidate(_$luthorJsonMap(toJson()));
 }
 
 // ignore: constant_identifier_names
 const EchoInputDtoErrorKeys = (message: "message");
+
+Map<String, Object?> _$luthorJsonMap(Map<Object?, Object?> map) => {
+  for (final entry in map.entries)
+    entry.key.toString(): _$luthorJsonValue(entry.value),
+};
+
+Object? _$luthorJsonValue(Object? value) {
+  if (value == null || value is String || value is num || value is bool) {
+    return value;
+  }
+  if (value is Map) return _$luthorJsonMap(value);
+  if (value is Iterable) {
+    return [for (final item in value) _$luthorJsonValue(item)];
+  }
+  try {
+    // ignore: avoid_dynamic_calls
+    return _$luthorJsonValue((value as dynamic).toJson());
+    // ignore: avoid_catching_errors
+  } on NoSuchMethodError {
+    return value;
+  }
+}

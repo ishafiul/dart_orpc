@@ -304,19 +304,6 @@ ProcedureMetadataRegistry
 dartOrpcCreateChallengeModuleProcedureMetadataRegistry() =>
     _$createChallengeModuleProcedureMetadataRegistry();
 
-OpenApiSchemaRegistry _$createChallengeModuleLocalOpenApiSchemaRegistry() {
-  return OpenApiSchemaRegistry([]);
-}
-
-OpenApiSchemaRegistry _$createChallengeModuleOpenApiSchemaRegistry() {
-  return OpenApiSchemaRegistry([
-    ..._$createChallengeModuleLocalOpenApiSchemaRegistry().components,
-  ]);
-}
-
-OpenApiSchemaRegistry dartOrpcCreateChallengeModuleOpenApiSchemaRegistry() =>
-    _$createChallengeModuleOpenApiSchemaRegistry();
-
 JsonObject _$createChallengeModuleOpenApiDocument({
   OpenApiDocumentOptions? options,
 }) {
@@ -327,7 +314,7 @@ JsonObject _$createChallengeModuleOpenApiDocument({
     description: effectiveOptions.description,
     servers: effectiveOptions.servers,
     procedures: _$createChallengeModuleProcedureMetadataRegistry(),
-    schemas: _$createChallengeModuleOpenApiSchemaRegistry(),
+    schemas: _$createChallengeModuleDtoSchemaRegistry(),
   );
 }
 
@@ -432,6 +419,19 @@ RpcHttpApp dartOrpcBuildChallengeModuleRpcApp({
   middleware: middleware,
 );
 
+DtoSchemaRegistry _$createChallengeModuleLocalDtoSchemaRegistry() {
+  return DtoSchemaRegistry(const []);
+}
+
+DtoSchemaRegistry _$createChallengeModuleDtoSchemaRegistry() {
+  return DtoSchemaRegistry([
+    ..._$createChallengeModuleLocalDtoSchemaRegistry().schemas,
+  ]);
+}
+
+DtoSchemaRegistry dartOrpcCreateChallengeModuleDtoSchemaRegistry() =>
+    _$createChallengeModuleDtoSchemaRegistry();
+
 class ChallengeClient {
   ChallengeClient({required RpcClientTransports transports})
     : _transports = transports;
@@ -468,17 +468,16 @@ class PostReadClient {
   final RpcClientTransports _transports;
 
   Future<FeedResponseDto> feed() {
-    return RpcCaller(
-      _transports.requireUnary('posts.feed'),
-    ).call<FeedResponseDto>(
-      method: 'posts.feed',
-      options: null,
-      decode: (json) => FeedResponseDto.fromJson(
-        Map<String, dynamic>.from(
-          expectJsonObject(json, context: 'RPC response for "posts.feed"'),
-        ),
-      ),
-    );
+    return RpcCaller(_transports.requireUnary('posts.feed'))
+        .call<FeedResponseDto>(
+          method: 'posts.feed',
+          options: null,
+          decode: (json) => FeedResponseDto.fromJson(
+            Map<String, dynamic>.from(
+              expectJsonObject(json, context: 'RPC response for "posts.feed"'),
+            ),
+          ),
+        );
   }
 }
 
@@ -489,8 +488,8 @@ extension DartOrpcChallengeModuleGenerated on ChallengeModule {
       dartOrpcCreateChallengeModuleRestRouteRegistry();
   ProcedureMetadataRegistry procedureMetadata() =>
       dartOrpcCreateChallengeModuleProcedureMetadataRegistry();
-  OpenApiSchemaRegistry openApiSchemaRegistry() =>
-      dartOrpcCreateChallengeModuleOpenApiSchemaRegistry();
+  DtoSchemaRegistry dtoSchemaRegistry() =>
+      dartOrpcCreateChallengeModuleDtoSchemaRegistry();
   JsonObject openApiDocument({OpenApiDocumentOptions? options}) =>
       dartOrpcCreateChallengeModuleOpenApiDocument(options: options);
   RpcHttpApp buildRpcApp({

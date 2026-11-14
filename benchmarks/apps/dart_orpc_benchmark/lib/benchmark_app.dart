@@ -106,12 +106,16 @@ final class CatalogQueryDto {
   JsonObject toJson() => {'category': category, 'page': page, 'limit': limit};
 }
 
+/// Checkout needs at least one item. luthor 1.1 has no list-length rule
+/// (exaby73/luthor#71), so this is a custom check.
+bool _hasItems(List<Object?> items) => items.isNotEmpty;
+
 @luthor
 final class CheckoutInputDto {
   const CheckoutInputDto({
     required this.customer,
     @HasMin(1) required this.currency,
-    @HasMin(1) required this.items,
+    @WithCustomValidator(_hasItems) required this.items,
     this.coupon,
     this.shippingAddress = const {},
   });

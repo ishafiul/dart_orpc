@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'todo_dtos.dart';
@@ -9,6 +9,7 @@ part of 'todo_dtos.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $CreateTodoDtoCopyWith<CreateTodoDto> get copyWith => _$CreateTodoDtoCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateTodoDto&&(identical(other.title, title) || other.title == title));
+  final _this = this as CreateTodoDto;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateTodoDto&&(identical(other.title, _this.title) || other.title == _this.title));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,title);
+int get hashCode {
+  final _this = this as CreateTodoDto;
+  return Object.hash(runtimeType,_this.title);
+}
 
 @override
 String toString() {
-  return 'CreateTodoDto(title: $title)';
+  final _this = this as CreateTodoDto;
+  return 'CreateTodoDto(title: ${_this.title})';
 }
 
 
@@ -66,7 +72,7 @@ class _$CreateTodoDtoCopyWithImpl<$Res>
 /// Create a copy of CreateTodoDto
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? title = null,}) {
-  return _then(_self.copyWith(
+  return _then(CreateTodoDto(
 title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
 as String,
   ));
@@ -227,16 +233,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateTodoDto&&(identical(other.title, title) || other.title == title));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateTodoDto&&(identical(other.title, title) || other.title == title));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,title);
+int get hashCode {
+    return Object.hash(runtimeType,title);
+}
 
 @override
 String toString() {
-  return 'CreateTodoDto(title: $title)';
+    return 'CreateTodoDto(title: $title)';
 }
 
 
@@ -291,16 +299,21 @@ $GetTodoDtoCopyWith<GetTodoDto> get copyWith => _$GetTodoDtoCopyWithImpl<GetTodo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is GetTodoDto&&(identical(other.id, id) || other.id == id));
+  final _this = this as GetTodoDto;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GetTodoDto&&(identical(other.id, _this.id) || other.id == _this.id));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id);
+int get hashCode {
+  final _this = this as GetTodoDto;
+  return Object.hash(runtimeType,_this.id);
+}
 
 @override
 String toString() {
-  return 'GetTodoDto(id: $id)';
+  final _this = this as GetTodoDto;
+  return 'GetTodoDto(id: ${_this.id})';
 }
 
 
@@ -329,7 +342,7 @@ class _$GetTodoDtoCopyWithImpl<$Res>
 /// Create a copy of GetTodoDto
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,}) {
-  return _then(_self.copyWith(
+  return _then(GetTodoDto(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,
   ));
@@ -490,16 +503,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _GetTodoDto&&(identical(other.id, id) || other.id == id));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _GetTodoDto&&(identical(other.id, id) || other.id == id));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id);
+int get hashCode {
+    return Object.hash(runtimeType,id);
+}
 
 @override
 String toString() {
-  return 'GetTodoDto(id: $id)';
+    return 'GetTodoDto(id: $id)';
 }
 
 
@@ -554,16 +569,21 @@ $UpdateTodoDtoCopyWith<UpdateTodoDto> get copyWith => _$UpdateTodoDtoCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is UpdateTodoDto&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.completed, completed) || other.completed == completed));
+  final _this = this as UpdateTodoDto;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UpdateTodoDto&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.completed, _this.completed) || other.completed == _this.completed));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,title,completed);
+int get hashCode {
+  final _this = this as UpdateTodoDto;
+  return Object.hash(runtimeType,_this.id,_this.title,_this.completed);
+}
 
 @override
 String toString() {
-  return 'UpdateTodoDto(id: $id, title: $title, completed: $completed)';
+  final _this = this as UpdateTodoDto;
+  return 'UpdateTodoDto(id: ${_this.id}, title: ${_this.title}, completed: ${_this.completed})';
 }
 
 
@@ -592,7 +612,7 @@ class _$UpdateTodoDtoCopyWithImpl<$Res>
 /// Create a copy of UpdateTodoDto
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = freezed,Object? completed = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(UpdateTodoDto(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,title: freezed == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
 as String?,completed: freezed == completed ? _self.completed : completed // ignore: cast_nullable_to_non_nullable
@@ -757,16 +777,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UpdateTodoDto&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.completed, completed) || other.completed == completed));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _UpdateTodoDto&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.completed, completed) || other.completed == completed));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,title,completed);
+int get hashCode {
+    return Object.hash(runtimeType,id,title,completed);
+}
 
 @override
 String toString() {
-  return 'UpdateTodoDto(id: $id, title: $title, completed: $completed)';
+    return 'UpdateTodoDto(id: $id, title: $title, completed: $completed)';
 }
 
 
@@ -823,16 +845,21 @@ $TodoMetadataDtoCopyWith<TodoMetadataDto> get copyWith => _$TodoMetadataDtoCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TodoMetadataDto&&(identical(other.priority, priority) || other.priority == priority)&&const DeepCollectionEquality().equals(other.tags, tags));
+  final _this = this as TodoMetadataDto;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TodoMetadataDto&&(identical(other.priority, _this.priority) || other.priority == _this.priority)&&const DeepCollectionEquality().equals(other.tags, _this.tags));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,priority,const DeepCollectionEquality().hash(tags));
+int get hashCode {
+  final _this = this as TodoMetadataDto;
+  return Object.hash(runtimeType,_this.priority,const DeepCollectionEquality().hash(_this.tags));
+}
 
 @override
 String toString() {
-  return 'TodoMetadataDto(priority: $priority, tags: $tags)';
+  final _this = this as TodoMetadataDto;
+  return 'TodoMetadataDto(priority: ${_this.priority}, tags: ${_this.tags})';
 }
 
 
@@ -861,7 +888,7 @@ class _$TodoMetadataDtoCopyWithImpl<$Res>
 /// Create a copy of TodoMetadataDto
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? priority = null,Object? tags = null,}) {
-  return _then(_self.copyWith(
+  return _then(TodoMetadataDto(
 priority: null == priority ? _self.priority : priority // ignore: cast_nullable_to_non_nullable
 as String,tags: null == tags ? _self.tags : tags // ignore: cast_nullable_to_non_nullable
 as List<String>,
@@ -1005,7 +1032,7 @@ return $default(_that.priority,_that.tags);case _:
 @JsonSerializable()
 
 class _TodoMetadataDto implements TodoMetadataDto {
-  const _TodoMetadataDto({required this.priority, required final  List<String> tags}): _tags = tags;
+  const _TodoMetadataDto({required this.priority, required  List<String> tags}): _tags = tags;
   factory _TodoMetadataDto.fromJson(Map<String, dynamic> json) => _$TodoMetadataDtoFromJson(json);
 
 @override final  String priority;
@@ -1030,16 +1057,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TodoMetadataDto&&(identical(other.priority, priority) || other.priority == priority)&&const DeepCollectionEquality().equals(other._tags, _tags));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TodoMetadataDto&&(identical(other.priority, priority) || other.priority == priority)&&const DeepCollectionEquality().equals(other.tags, _tags));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,priority,const DeepCollectionEquality().hash(_tags));
+int get hashCode {
+    return Object.hash(runtimeType,priority,const DeepCollectionEquality().hash(_tags));
+}
 
 @override
 String toString() {
-  return 'TodoMetadataDto(priority: $priority, tags: $tags)';
+    return 'TodoMetadataDto(priority: $priority, tags: $tags)';
 }
 
 
@@ -1095,16 +1124,21 @@ $TodoResponseDtoCopyWith<TodoResponseDto> get copyWith => _$TodoResponseDtoCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TodoResponseDto&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.metadata, metadata) || other.metadata == metadata));
+  final _this = this as TodoResponseDto;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TodoResponseDto&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.completed, _this.completed) || other.completed == _this.completed)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.metadata, _this.metadata) || other.metadata == _this.metadata));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,title,completed,createdAt,metadata);
+int get hashCode {
+  final _this = this as TodoResponseDto;
+  return Object.hash(runtimeType,_this.id,_this.title,_this.completed,_this.createdAt,_this.metadata);
+}
 
 @override
 String toString() {
-  return 'TodoResponseDto(id: $id, title: $title, completed: $completed, createdAt: $createdAt, metadata: $metadata)';
+  final _this = this as TodoResponseDto;
+  return 'TodoResponseDto(id: ${_this.id}, title: ${_this.title}, completed: ${_this.completed}, createdAt: ${_this.createdAt}, metadata: ${_this.metadata})';
 }
 
 
@@ -1133,7 +1167,7 @@ class _$TodoResponseDtoCopyWithImpl<$Res>
 /// Create a copy of TodoResponseDto
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? completed = null,Object? createdAt = null,Object? metadata = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(TodoResponseDto(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
 as String,completed: null == completed ? _self.completed : completed // ignore: cast_nullable_to_non_nullable
@@ -1314,16 +1348,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TodoResponseDto&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.metadata, metadata) || other.metadata == metadata));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TodoResponseDto&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.metadata, metadata) || other.metadata == metadata));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,title,completed,createdAt,metadata);
+int get hashCode {
+    return Object.hash(runtimeType,id,title,completed,createdAt,metadata);
+}
 
 @override
 String toString() {
-  return 'TodoResponseDto(id: $id, title: $title, completed: $completed, createdAt: $createdAt, metadata: $metadata)';
+    return 'TodoResponseDto(id: $id, title: $title, completed: $completed, createdAt: $createdAt, metadata: $metadata)';
 }
 
 
@@ -1394,16 +1430,21 @@ $TodoChangeResponseDtoCopyWith<TodoChangeResponseDto> get copyWith => _$TodoChan
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TodoChangeResponseDto&&(identical(other.type, type) || other.type == type)&&(identical(other.todo, todo) || other.todo == todo));
+  final _this = this as TodoChangeResponseDto;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TodoChangeResponseDto&&(identical(other.type, _this.type) || other.type == _this.type)&&(identical(other.todo, _this.todo) || other.todo == _this.todo));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,type,todo);
+int get hashCode {
+  final _this = this as TodoChangeResponseDto;
+  return Object.hash(runtimeType,_this.type,_this.todo);
+}
 
 @override
 String toString() {
-  return 'TodoChangeResponseDto(type: $type, todo: $todo)';
+  final _this = this as TodoChangeResponseDto;
+  return 'TodoChangeResponseDto(type: ${_this.type}, todo: ${_this.todo})';
 }
 
 
@@ -1432,7 +1473,7 @@ class _$TodoChangeResponseDtoCopyWithImpl<$Res>
 /// Create a copy of TodoChangeResponseDto
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? type = null,Object? todo = null,}) {
-  return _then(_self.copyWith(
+  return _then(TodoChangeResponseDto(
 type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
 as String,todo: null == todo ? _self.todo : todo // ignore: cast_nullable_to_non_nullable
 as TodoResponseDto,
@@ -1604,16 +1645,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TodoChangeResponseDto&&(identical(other.type, type) || other.type == type)&&(identical(other.todo, todo) || other.todo == todo));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TodoChangeResponseDto&&(identical(other.type, type) || other.type == type)&&(identical(other.todo, todo) || other.todo == todo));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,type,todo);
+int get hashCode {
+    return Object.hash(runtimeType,type,todo);
+}
 
 @override
 String toString() {
-  return 'TodoChangeResponseDto(type: $type, todo: $todo)';
+    return 'TodoChangeResponseDto(type: $type, todo: $todo)';
 }
 
 
@@ -1678,16 +1721,21 @@ $TodoListResponseDtoCopyWith<TodoListResponseDto> get copyWith => _$TodoListResp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TodoListResponseDto&&const DeepCollectionEquality().equals(other.items, items));
+  final _this = this as TodoListResponseDto;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TodoListResponseDto&&const DeepCollectionEquality().equals(other.items, _this.items));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(items));
+int get hashCode {
+  final _this = this as TodoListResponseDto;
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.items));
+}
 
 @override
 String toString() {
-  return 'TodoListResponseDto(items: $items)';
+  final _this = this as TodoListResponseDto;
+  return 'TodoListResponseDto(items: ${_this.items})';
 }
 
 
@@ -1716,7 +1764,7 @@ class _$TodoListResponseDtoCopyWithImpl<$Res>
 /// Create a copy of TodoListResponseDto
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? items = null,}) {
-  return _then(_self.copyWith(
+  return _then(TodoListResponseDto(
 items: null == items ? _self.items : items // ignore: cast_nullable_to_non_nullable
 as List<TodoResponseDto>,
   ));
@@ -1859,7 +1907,7 @@ return $default(_that.items);case _:
 @JsonSerializable()
 
 class _TodoListResponseDto implements TodoListResponseDto {
-  const _TodoListResponseDto({required final  List<TodoResponseDto> items}): _items = items;
+  const _TodoListResponseDto({required  List<TodoResponseDto> items}): _items = items;
   factory _TodoListResponseDto.fromJson(Map<String, dynamic> json) => _$TodoListResponseDtoFromJson(json);
 
  final  List<TodoResponseDto> _items;
@@ -1883,16 +1931,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TodoListResponseDto&&const DeepCollectionEquality().equals(other._items, _items));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TodoListResponseDto&&const DeepCollectionEquality().equals(other.items, _items));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_items));
+int get hashCode {
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_items));
+}
 
 @override
 String toString() {
-  return 'TodoListResponseDto(items: $items)';
+    return 'TodoListResponseDto(items: $items)';
 }
 
 
@@ -1947,16 +1997,21 @@ $DeleteTodoResponseDtoCopyWith<DeleteTodoResponseDto> get copyWith => _$DeleteTo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is DeleteTodoResponseDto&&(identical(other.deleted, deleted) || other.deleted == deleted));
+  final _this = this as DeleteTodoResponseDto;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is DeleteTodoResponseDto&&(identical(other.deleted, _this.deleted) || other.deleted == _this.deleted));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,deleted);
+int get hashCode {
+  final _this = this as DeleteTodoResponseDto;
+  return Object.hash(runtimeType,_this.deleted);
+}
 
 @override
 String toString() {
-  return 'DeleteTodoResponseDto(deleted: $deleted)';
+  final _this = this as DeleteTodoResponseDto;
+  return 'DeleteTodoResponseDto(deleted: ${_this.deleted})';
 }
 
 
@@ -1985,7 +2040,7 @@ class _$DeleteTodoResponseDtoCopyWithImpl<$Res>
 /// Create a copy of DeleteTodoResponseDto
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? deleted = null,}) {
-  return _then(_self.copyWith(
+  return _then(DeleteTodoResponseDto(
 deleted: null == deleted ? _self.deleted : deleted // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
@@ -2146,16 +2201,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _DeleteTodoResponseDto&&(identical(other.deleted, deleted) || other.deleted == deleted));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _DeleteTodoResponseDto&&(identical(other.deleted, deleted) || other.deleted == deleted));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,deleted);
+int get hashCode {
+    return Object.hash(runtimeType,deleted);
+}
 
 @override
 String toString() {
-  return 'DeleteTodoResponseDto(deleted: $deleted)';
+    return 'DeleteTodoResponseDto(deleted: $deleted)';
 }
 
 

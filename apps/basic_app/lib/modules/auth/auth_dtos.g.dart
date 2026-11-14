@@ -97,31 +97,33 @@ const SignUpDtoSchemaKeys = (
   password: "password",
 );
 
-Validator $SignUpDtoSchema = l.withName('SignUpDto').schema({
-  SignUpDtoSchemaKeys.name: l.string().min(3).required(),
-  SignUpDtoSchemaKeys.email: l
-      .string()
-      .email(message: 'Enter a valid email address.')
-      .max(254)
-      .required(),
-  SignUpDtoSchemaKeys.password: l
-      .string()
-      .max(72)
-      .min(8)
-      .regex(
-        r"^(?=.*[A-Za-z])(?=.*\d).+$",
-        message: 'Password must contain at least one letter and one number.',
-      )
-      .required(),
-});
+final SchemaValidator $SignUpDtoSchema = l
+    .schema({
+      SignUpDtoSchemaKeys.name: l.string().min(3).required(),
+      SignUpDtoSchemaKeys.email: l
+          .string()
+          .email(message: "Enter a valid email address.")
+          .max(254)
+          .required(),
+      SignUpDtoSchemaKeys.password: l
+          .string()
+          .min(8)
+          .max(72)
+          .regex(
+            RegExp(r'^(?=.*[A-Za-z])(?=.*\d).+$'),
+            message:
+                "Password must contain at least one letter and one number.",
+          )
+          .required(),
+    })
+    .withName("SignUpDto");
 
-SchemaValidationResult<SignUpDto> $SignUpDtoValidate(
-  Map<String, dynamic> json,
-) => $SignUpDtoSchema.validateSchema(json, fromJson: SignUpDto.fromJson);
+ValidationResult<SignUpDto> $SignUpDtoValidate(Object? json) =>
+    $SignUpDtoSchema.validateSchema(json, fromJson: SignUpDto.fromJson);
 
 extension SignUpDtoValidationExtension on SignUpDto {
-  SchemaValidationResult<SignUpDto> validateSelf() =>
-      $SignUpDtoValidate(toJson());
+  ValidationResult<SignUpDto> validateSelf() =>
+      $SignUpDtoValidate(_$luthorJsonMap(toJson()));
 }
 
 // ignore: constant_identifier_names
@@ -130,29 +132,32 @@ const SignUpDtoErrorKeys = (name: "name", email: "email", password: "password");
 // ignore: constant_identifier_names
 const LoginDtoSchemaKeys = (email: "email", password: "password");
 
-Validator $LoginDtoSchema = l.withName('LoginDto').schema({
-  LoginDtoSchemaKeys.email: l
-      .string()
-      .email(message: 'Enter a valid email address.')
-      .max(254)
-      .required(),
-  LoginDtoSchemaKeys.password: l
-      .string()
-      .max(72)
-      .min(8)
-      .regex(
-        r"^(?=.*[A-Za-z])(?=.*\d).+$",
-        message: 'Password must contain at least one letter and one number.',
-      )
-      .required(),
-});
+final SchemaValidator $LoginDtoSchema = l
+    .schema({
+      LoginDtoSchemaKeys.email: l
+          .string()
+          .email(message: "Enter a valid email address.")
+          .max(254)
+          .required(),
+      LoginDtoSchemaKeys.password: l
+          .string()
+          .min(8)
+          .max(72)
+          .regex(
+            RegExp(r'^(?=.*[A-Za-z])(?=.*\d).+$'),
+            message:
+                "Password must contain at least one letter and one number.",
+          )
+          .required(),
+    })
+    .withName("LoginDto");
 
-SchemaValidationResult<LoginDto> $LoginDtoValidate(Map<String, dynamic> json) =>
+ValidationResult<LoginDto> $LoginDtoValidate(Object? json) =>
     $LoginDtoSchema.validateSchema(json, fromJson: LoginDto.fromJson);
 
 extension LoginDtoValidationExtension on LoginDto {
-  SchemaValidationResult<LoginDto> validateSelf() =>
-      $LoginDtoValidate(toJson());
+  ValidationResult<LoginDto> validateSelf() =>
+      $LoginDtoValidate(_$luthorJsonMap(toJson()));
 }
 
 // ignore: constant_identifier_names
@@ -161,19 +166,20 @@ const LoginDtoErrorKeys = (email: "email", password: "password");
 // ignore: constant_identifier_names
 const AuthUserDtoSchemaKeys = (id: "id", name: "name", email: "email");
 
-Validator $AuthUserDtoSchema = l.withName('AuthUserDto').schema({
-  AuthUserDtoSchemaKeys.id: l.string().required(),
-  AuthUserDtoSchemaKeys.name: l.string().required(),
-  AuthUserDtoSchemaKeys.email: l.string().required(),
-});
+final SchemaValidator $AuthUserDtoSchema = l
+    .schema({
+      AuthUserDtoSchemaKeys.id: l.string().required(),
+      AuthUserDtoSchemaKeys.name: l.string().required(),
+      AuthUserDtoSchemaKeys.email: l.string().required(),
+    })
+    .withName("AuthUserDto");
 
-SchemaValidationResult<AuthUserDto> $AuthUserDtoValidate(
-  Map<String, dynamic> json,
-) => $AuthUserDtoSchema.validateSchema(json, fromJson: AuthUserDto.fromJson);
+ValidationResult<AuthUserDto> $AuthUserDtoValidate(Object? json) =>
+    $AuthUserDtoSchema.validateSchema(json, fromJson: AuthUserDto.fromJson);
 
 extension AuthUserDtoValidationExtension on AuthUserDto {
-  SchemaValidationResult<AuthUserDto> validateSelf() =>
-      $AuthUserDtoValidate(toJson());
+  ValidationResult<AuthUserDto> validateSelf() =>
+      $AuthUserDtoValidate(_$luthorJsonMap(toJson()));
 }
 
 // ignore: constant_identifier_names
@@ -187,23 +193,26 @@ const AuthResponseDtoSchemaKeys = (
   user: "user",
 );
 
-Validator $AuthResponseDtoSchema = l.withName('AuthResponseDto').schema({
-  AuthResponseDtoSchemaKeys.accessToken: l.string().required(),
-  AuthResponseDtoSchemaKeys.tokenType: l.string(),
-  AuthResponseDtoSchemaKeys.expiresIn: l.int().required(),
-  AuthResponseDtoSchemaKeys.user: $AuthUserDtoSchema.required(),
-});
+final SchemaValidator $AuthResponseDtoSchema = l
+    .schema({
+      AuthResponseDtoSchemaKeys.accessToken: l.string().required(),
+      AuthResponseDtoSchemaKeys.tokenType: l.string(),
+      AuthResponseDtoSchemaKeys.expiresIn: l.int().required(),
+      AuthResponseDtoSchemaKeys.user: forwardRef(
+        () => $AuthUserDtoSchema.required(),
+      ),
+    })
+    .withName("AuthResponseDto");
 
-SchemaValidationResult<AuthResponseDto> $AuthResponseDtoValidate(
-  Map<String, dynamic> json,
-) => $AuthResponseDtoSchema.validateSchema(
-  json,
-  fromJson: AuthResponseDto.fromJson,
-);
+ValidationResult<AuthResponseDto> $AuthResponseDtoValidate(Object? json) =>
+    $AuthResponseDtoSchema.validateSchema(
+      json,
+      fromJson: AuthResponseDto.fromJson,
+    );
 
 extension AuthResponseDtoValidationExtension on AuthResponseDto {
-  SchemaValidationResult<AuthResponseDto> validateSelf() =>
-      $AuthResponseDtoValidate(toJson());
+  ValidationResult<AuthResponseDto> validateSelf() =>
+      $AuthResponseDtoValidate(_$luthorJsonMap(toJson()));
 }
 
 // ignore: constant_identifier_names
@@ -211,5 +220,27 @@ const AuthResponseDtoErrorKeys = (
   accessToken: "accessToken",
   tokenType: "tokenType",
   expiresIn: "expiresIn",
-  user: (id: "user.id", name: "user.name", email: "user.email"),
+  user: ($key: "user", id: "user.id", name: "user.name", email: "user.email"),
 );
+
+Map<String, Object?> _$luthorJsonMap(Map<Object?, Object?> map) => {
+  for (final entry in map.entries)
+    entry.key.toString(): _$luthorJsonValue(entry.value),
+};
+
+Object? _$luthorJsonValue(Object? value) {
+  if (value == null || value is String || value is num || value is bool) {
+    return value;
+  }
+  if (value is Map) return _$luthorJsonMap(value);
+  if (value is Iterable) {
+    return [for (final item in value) _$luthorJsonValue(item)];
+  }
+  try {
+    // ignore: avoid_dynamic_calls
+    return _$luthorJsonValue((value as dynamic).toJson());
+    // ignore: avoid_catching_errors
+  } on NoSuchMethodError {
+    return value;
+  }
+}

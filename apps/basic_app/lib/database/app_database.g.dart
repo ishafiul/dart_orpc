@@ -671,20 +671,18 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [todos, users];
 }
 
-typedef $$TodosTableCreateCompanionBuilder =
-    TodosCompanion Function({
-      Value<int> id,
-      required String title,
-      Value<bool> completed,
-      Value<DateTime> createdAt,
-    });
-typedef $$TodosTableUpdateCompanionBuilder =
-    TodosCompanion Function({
-      Value<int> id,
-      Value<String> title,
-      Value<bool> completed,
-      Value<DateTime> createdAt,
-    });
+typedef $$TodosTableCreateCompanionBuilder = TodosCompanion Function({
+  Value<int> id,
+  required String title,
+  Value<bool> completed,
+  Value<DateTime> createdAt,
+});
+typedef $$TodosTableUpdateCompanionBuilder = TodosCompanion Function({
+  Value<int> id,
+  Value<String> title,
+  Value<bool> completed,
+  Value<DateTime> createdAt,
+});
 
 class $$TodosTableFilterComposer extends Composer<_$AppDatabase, $TodosTable> {
   $$TodosTableFilterComposer({
@@ -818,7 +816,16 @@ class $$TodosTableTableManager
                 createdAt: createdAt,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$TodosTable, Todo>(table),
+                  BaseReferences<_$AppDatabase, $TodosTable, Todo>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -839,22 +846,20 @@ typedef $$TodosTableProcessedTableManager =
       Todo,
       PrefetchHooks Function()
     >;
-typedef $$UsersTableCreateCompanionBuilder =
-    UsersCompanion Function({
-      Value<int> id,
-      required String name,
-      required String email,
-      required String passwordHash,
-      Value<DateTime> createdAt,
-    });
-typedef $$UsersTableUpdateCompanionBuilder =
-    UsersCompanion Function({
-      Value<int> id,
-      Value<String> name,
-      Value<String> email,
-      Value<String> passwordHash,
-      Value<DateTime> createdAt,
-    });
+typedef $$UsersTableCreateCompanionBuilder = UsersCompanion Function({
+  Value<int> id,
+  required String name,
+  required String email,
+  required String passwordHash,
+  Value<DateTime> createdAt,
+});
+typedef $$UsersTableUpdateCompanionBuilder = UsersCompanion Function({
+  Value<int> id,
+  Value<String> name,
+  Value<String> email,
+  Value<String> passwordHash,
+  Value<DateTime> createdAt,
+});
 
 class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
   $$UsersTableFilterComposer({
@@ -1007,7 +1012,16 @@ class $$UsersTableTableManager
                 createdAt: createdAt,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$UsersTable, User>(table),
+                  BaseReferences<_$AppDatabase, $UsersTable, User>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
