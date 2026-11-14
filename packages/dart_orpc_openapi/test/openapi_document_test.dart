@@ -1,6 +1,5 @@
 import 'package:dart_orpc_core/dart_orpc_core.dart';
 import 'package:dart_orpc_openapi/dart_orpc_openapi.dart';
-import 'package:luthor/luthor.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -77,534 +76,622 @@ void main() {
   });
 
   group('Given createOpenApiDocument', () {
-    test(
-      'When passed REST procedure metadata and Luthor schemas then it builds an OpenAPI document with components',
-      () {
-        final document = createOpenApiDocument(
-          title: 'Example API',
-          procedures: ProcedureMetadataRegistry([
-            const ProcedureMetadata(
-              rpcMethod: 'user.getByIdRest',
-              controllerNamespace: 'user',
-              methodName: 'getByIdRest',
-              path: RestProcedureMetadata(method: 'GET', path: '/users/:id'),
-              outputTypeCode: 'UserResponseDto',
-              description: 'Resolve a user by id.',
-              tags: ['user'],
-              parameters: [
-                ProcedureParameterMetadata(
-                  parameterName: 'id',
-                  wireName: 'id',
-                  source: ProcedureParameterSourceKind.path,
-                  typeCode: 'String',
-                ),
-                ProcedureParameterMetadata(
-                  parameterName: 'include',
-                  wireName: 'include',
-                  source: ProcedureParameterSourceKind.query,
-                  typeCode: 'String?',
-                ),
-                ProcedureParameterMetadata(
-                  parameterName: 'tenantId',
-                  wireName: 'x-tenant-id',
-                  source: ProcedureParameterSourceKind.header,
-                  typeCode: 'String?',
-                ),
-              ],
-            ),
-          ]),
-          schemas: OpenApiSchemaRegistry([
-            OpenApiSchemaComponent(
-              name: 'UserResponseDto',
-              validator: l.withName('UserResponseDto').schema({
-                'id': l.string().min(1).required(),
-                'name': l.string().min(1).required(),
-              }),
-            ),
-          ]),
-        );
-
-        expect(document['openapi'], '3.0.3');
-        expect(document['info'], {'title': 'Example API', 'version': '1.0.0'});
-
-        final paths = document['paths'] as Map<String, Object?>;
-        final operation =
-            (paths['/users/{id}'] as Map<String, Object?>)['get']
-                as Map<String, Object?>;
-        final parameters = operation['parameters'] as List<Object?>;
-        final successResponse =
-            ((operation['responses'] as Map<String, Object?>)['200']
-                    as Map<String, Object?>)['content']
-                as Map<String, Object?>;
-        final schemas =
-            ((document['components'] as Map<String, Object?>)['schemas']
-                as Map<String, Object?>);
-
-        expect(operation['operationId'], 'user.getByIdRest');
-        expect(operation['description'], 'Resolve a user by id.');
-        expect(operation['tags'], ['user']);
-        expect(parameters, hasLength(3));
-        expect(parameters.first, {
-          'name': 'id',
-          'in': 'path',
-          'required': true,
-          'schema': {'type': 'string'},
-          'x-rpc-parameter': 'id',
-          'x-rpc-method': 'user.getByIdRest',
-        });
-        expect(((parameters[1] as Map<String, Object?>)['required']), isFalse);
-        expect(parameters[2], {
-          'name': 'x-tenant-id',
-          'in': 'header',
-          'required': false,
-          'schema': {'type': 'string'},
-          'x-rpc-parameter': 'tenantId',
-          'x-rpc-method': 'user.getByIdRest',
-        });
-        expect(successResponse, {
-          'application/json': {
-            'schema': {'\$ref': '#/components/schemas/UserResponseDto'},
-          },
-        });
-        expect(schemas['UserResponseDto'], {
-          'type': 'object',
-          'properties': {
-            'id': {'type': 'string', 'minLength': 1},
-            'name': {'type': 'string', 'minLength': 1},
-          },
-          'required': ['id', 'name'],
-        });
-        expect(schemas['RpcErrorResponse'], isNotNull);
-      },
-    );
-
-    test(
-      'When building Scalar docs HTML then it embeds the configured OpenAPI URL',
-      () {
-        final html = createScalarHtml(
-          title: 'Example API Docs',
-          openApiPath: '/openapi.json',
-        );
-
-        expect(html, contains('<title>Example API Docs</title>'));
-        expect(html, contains('data-url="/openapi.json"'));
-        expect(html, contains('@scalar/api-reference'));
-      },
-    );
-
-    test(
-      'When OpenAPI servers are provided then the document includes the servers array',
-      () {
-        final document = createOpenApiDocument(
-          title: 'Example API',
-          servers: const [
-            OpenApiServer(
-              url: 'https://api.example.com',
-              description: 'Production',
-            ),
-            OpenApiServer(url: 'http://localhost:3000'),
-          ],
-          procedures: ProcedureMetadataRegistry(const []),
-        );
-
-        expect(document['servers'], [
-          {'url': 'https://api.example.com', 'description': 'Production'},
-          {'url': 'http://localhost:3000'},
-        ]);
-      },
-    );
-
-    test(
-      'When a procedure requires bearer auth then OpenAPI exposes Scalar security metadata',
-      () {
-        final document = createOpenApiDocument(
-          title: 'Secure API',
-          procedures: ProcedureMetadataRegistry([
-            const ProcedureMetadata(
-              rpcMethod: 'todo.list',
-              controllerNamespace: 'todo',
-              methodName: 'list',
-              path: RestProcedureMetadata(method: 'GET', path: '/todos'),
-              outputTypeCode: 'TodoListDto',
-              securityRequirements: [
-                ProcedureSecurityRequirement('bearerAuth'),
-              ],
-            ),
-            const ProcedureMetadata(
-              rpcMethod: 'auth.login',
-              controllerNamespace: 'auth',
-              methodName: 'login',
-              path: RestProcedureMetadata(method: 'POST', path: '/login'),
-              outputTypeCode: 'TokenDto',
-            ),
-          ]),
-        );
-
-        expect(
-          (document['components'] as Map<String, Object?>)['securitySchemes'],
-          {
-            'bearerAuth': {
-              'type': 'http',
-              'scheme': 'bearer',
-              'bearerFormat': 'JWT',
-            },
-          },
-        );
-        final paths = document['paths'] as Map<String, Object?>;
-        final protectedOperation =
-            (paths['/todos'] as Map<String, Object?>)['get']
-                as Map<String, Object?>;
-        final publicOperation =
-            (paths['/login'] as Map<String, Object?>)['post']
-                as Map<String, Object?>;
-        expect(protectedOperation['security'], [
-          {'bearerAuth': <String>[]},
-        ]);
-        expect(publicOperation.containsKey('security'), isFalse);
-      },
-    );
-
-    test(
-      'When a server stream has an SSE mapping then OpenAPI documents its event schema and terminal events',
-      () {
-        final document = createOpenApiDocument(
-          title: 'Streaming API',
-          procedures: ProcedureMetadataRegistry([
-            const ProcedureMetadata(
-              rpcMethod: 'chat.watchMessages',
-              controllerNamespace: 'chat',
-              methodName: 'watchMessages',
-              kind: RpcProcedureKind.serverStream,
-              path: RestProcedureMetadata(
-                method: 'GET',
-                path: '/channels/:channelId/messages',
-                responseKind: RestResponseKind.sse,
+    test('When passed REST procedure metadata and Luthor schemas then it builds an OpenAPI document with components', () {
+      final document = createOpenApiDocument(
+        title: 'Example API',
+        procedures: ProcedureMetadataRegistry([
+          const ProcedureMetadata(
+            rpcMethod: 'user.getByIdRest',
+            controllerNamespace: 'user',
+            methodName: 'getByIdRest',
+            path: RestProcedureMetadata(method: 'GET', path: '/users/:id'),
+            outputTypeCode: 'UserResponseDto',
+            description: 'Resolve a user by id.',
+            tags: ['user'],
+            parameters: [
+              ProcedureParameterMetadata(
+                parameterName: 'id',
+                wireName: 'id',
+                source: ProcedureParameterSourceKind.path,
+                typeCode: 'String',
               ),
-              outputTypeCode: 'MessageDto',
-            ),
-            const ProcedureMetadata(
-              rpcMethod: 'chat.websocketOnly',
-              controllerNamespace: 'chat',
-              methodName: 'websocketOnly',
-              kind: RpcProcedureKind.serverStream,
-              outputTypeCode: 'MessageDto',
-            ),
-          ]),
-          schemas: OpenApiSchemaRegistry([
-            OpenApiSchemaComponent(
-              name: 'MessageDto',
-              validator: l.withName('MessageDto').schema({
-                'id': l.string().required(),
-                'text': l.string().required(),
-              }),
-            ),
-          ]),
-        );
-
-        final paths = document['paths'] as Map<String, Object?>;
-        final operation =
-            (paths['/channels/{channelId}/messages']
-                    as Map<String, Object?>)['get']
-                as Map<String, Object?>;
-        final success =
-            (operation['responses'] as Map<String, Object?>)['200']
-                as Map<String, Object?>;
-        final extension =
-            operation['x-dart-orpc-stream'] as Map<String, Object?>;
-
-        expect((success['content'] as Map<String, Object?>).keys, [
-          'text/event-stream',
-        ]);
-        expect(extension, {
-          'kind': 'server-stream',
-          'eventSchema': {'\$ref': '#/components/schemas/MessageDto'},
-          'terminalEvents': {
-            'complete': 'dart-orpc-complete',
-            'error': 'dart-orpc-error',
-          },
-        });
-        expect(paths.keys, hasLength(1));
-      },
-    );
-
-    test(
-      'When a REST operation shares one input DTO between path, header, and body then the request body schema excludes externally-bound fields',
-      () {
-        final document = createOpenApiDocument(
-          title: 'Example API',
-          procedures: ProcedureMetadataRegistry([
-            const ProcedureMetadata(
-              rpcMethod: 'user.update',
-              controllerNamespace: 'user',
-              methodName: 'update',
-              path: RestProcedureMetadata(method: 'POST', path: '/users/:id'),
-              inputTypeCode: 'UpdateUserDto',
-              outputTypeCode: 'UserResponseDto',
-              parameters: [
-                ProcedureParameterMetadata(
-                  parameterName: 'id',
-                  wireName: 'id',
-                  source: ProcedureParameterSourceKind.path,
-                  typeCode: 'String',
-                ),
-                ProcedureParameterMetadata(
-                  parameterName: 'tenantId',
-                  wireName: 'x-tenant-id',
-                  source: ProcedureParameterSourceKind.header,
-                  typeCode: 'String?',
-                ),
-                ProcedureParameterMetadata(
-                  parameterName: 'input',
-                  wireName: 'input',
-                  source: ProcedureParameterSourceKind.body,
-                  typeCode: 'UpdateUserDto',
-                ),
-              ],
-            ),
-          ]),
-          schemas: OpenApiSchemaRegistry([
-            OpenApiSchemaComponent(
-              name: 'UpdateUserDto',
-              validator: l.withName('UpdateUserDto').schema({
-                'id': l.string().min(1).required(),
-                'tenantId': l.string(),
-                'name': l.string().min(1).required(),
-                'nickname': l.string(),
-              }),
-            ),
-            OpenApiSchemaComponent(
-              name: 'UserResponseDto',
-              validator: l.withName('UserResponseDto').schema({
-                'id': l.string().min(1).required(),
-                'name': l.string().min(1).required(),
-              }),
-            ),
-          ]),
-        );
-
-        final operation =
-            ((((document['paths'] as Map<String, Object?>)['/users/{id}']
-                        as Map<String, Object?>)['post']
-                    as Map<String, Object?>)['requestBody']
-                as Map<String, Object?>);
-        final schema =
-            (((operation['content'] as Map<String, Object?>)['application/json']
-                    as Map<String, Object?>)['schema']
-                as Map<String, Object?>);
-
-        expect(operation['required'], isTrue);
-        expect(
-          (schema['properties'] as Map<String, Object?>).containsKey('id'),
-          isFalse,
-        );
-        expect(
-          (schema['properties'] as Map<String, Object?>).containsKey(
-            'tenantId',
-          ),
-          isFalse,
-        );
-        expect(
-          (schema['properties'] as Map<String, Object?>).containsKey('name'),
-          isTrue,
-        );
-        expect((schema['required'] as List<Object?>), ['name']);
-      },
-    );
-
-    test(
-      'When schema components use scalar constraints, lists, and maps then OpenAPI preserves their shapes',
-      () {
-        final registry = OpenApiSchemaRegistry([
-          OpenApiSchemaComponent(
-            name: 'Constraints',
-            validator: l.withName('Constraints').schema({
-              'bounded': l.string().min(2).max(8),
-              'exact': l.string().length(4),
-              'email': l.string().email(),
-              'date': l.string().dateTime(),
-              'uri': l.string().uri(),
-              'uuid': l.string().uuid(),
-              'pattern': l.string().regex(r'^[a-z]+$'),
-              'integer': l.int().min(1).max(9),
-              'number': l.double().min(0.5).max(9.5),
-              'flag': l.boolean(),
-              'emptyList': l.list(),
-              'strings': l.list(validators: [l.string()]),
-              'mixed': l.list(validators: [l.string(), l.int()]),
-              'map': l.map(valueValidator: l.boolean()),
-            }),
-          ),
-        ]);
-        final document = createOpenApiDocument(
-          title: 'Constraints API',
-          description: 'All supported validation shapes.',
-          procedures: ProcedureMetadataRegistry(const []),
-          schemas: registry,
-        );
-        final schemas =
-            (document['components'] as Map<String, Object?>)['schemas']
-                as Map<String, Object?>;
-        final constraints = schemas['Constraints'] as Map<String, Object?>;
-        final properties = constraints['properties'] as Map<String, Object?>;
-
-        expect(registry.names, ['Constraints']);
-        expect(registry['Constraints'], isNotNull);
-        expect(document['info'], {
-          'title': 'Constraints API',
-          'version': '1.0.0',
-          'description': 'All supported validation shapes.',
-        });
-        expect(properties['bounded'], {
-          'type': 'string',
-          'minLength': 2,
-          'maxLength': 8,
-        });
-        expect(properties['exact'], {
-          'type': 'string',
-          'minLength': 4,
-          'maxLength': 4,
-        });
-        expect((properties['email'] as Map)['format'], 'email');
-        expect((properties['date'] as Map)['format'], 'date-time');
-        expect((properties['uri'] as Map)['format'], 'uri');
-        expect((properties['uuid'] as Map)['format'], 'uuid');
-        expect((properties['pattern'] as Map)['pattern'], r'^[a-z]+$');
-        expect(properties['integer'], {
-          'type': 'integer',
-          'minimum': 1,
-          'maximum': 9,
-        });
-        expect(properties['number'], {
-          'type': 'number',
-          'minimum': 0.5,
-          'maximum': 9.5,
-        });
-        expect(properties['flag'], {'type': 'boolean'});
-        expect(properties['emptyList'], {'type': 'array', 'items': {}});
-        expect(properties['strings'], {
-          'type': 'array',
-          'items': {'type': 'string'},
-        });
-        expect(properties['mixed'], {
-          'type': 'array',
-          'items': {
-            'oneOf': [
-              {'type': 'string'},
-              {'type': 'integer'},
+              ProcedureParameterMetadata(
+                parameterName: 'include',
+                wireName: 'include',
+                source: ProcedureParameterSourceKind.query,
+                typeCode: 'String?',
+              ),
+              ProcedureParameterMetadata(
+                parameterName: 'tenantId',
+                wireName: 'x-tenant-id',
+                source: ProcedureParameterSourceKind.header,
+                typeCode: 'String?',
+              ),
             ],
+          ),
+        ]),
+        schemas: DtoSchemaRegistry([_userResponseDto]),
+      );
+
+      expect(document['openapi'], '3.0.3');
+      expect(document['info'], {'title': 'Example API', 'version': '1.0.0'});
+
+      final paths = document['paths'] as Map<String, Object?>;
+      final operation =
+          (paths['/users/{id}'] as Map<String, Object?>)['get']
+              as Map<String, Object?>;
+      final parameters = operation['parameters'] as List<Object?>;
+      final successResponse =
+          ((operation['responses'] as Map<String, Object?>)['200']
+                  as Map<String, Object?>)['content']
+              as Map<String, Object?>;
+      final schemas =
+          ((document['components'] as Map<String, Object?>)['schemas']
+              as Map<String, Object?>);
+
+      expect(operation['operationId'], 'user.getByIdRest');
+      expect(operation['description'], 'Resolve a user by id.');
+      expect(operation['tags'], ['user']);
+      expect(parameters, hasLength(3));
+      expect(parameters.first, {
+        'name': 'id',
+        'in': 'path',
+        'required': true,
+        'schema': {'type': 'string'},
+        'x-rpc-parameter': 'id',
+        'x-rpc-method': 'user.getByIdRest',
+      });
+      expect(((parameters[1] as Map<String, Object?>)['required']), isFalse);
+      expect(parameters[2], {
+        'name': 'x-tenant-id',
+        'in': 'header',
+        'required': false,
+        'schema': {'type': 'string'},
+        'x-rpc-parameter': 'tenantId',
+        'x-rpc-method': 'user.getByIdRest',
+      });
+      expect(successResponse, {
+        'application/json': {
+          'schema': {'\$ref': '#/components/schemas/UserResponseDto'},
+        },
+      });
+      expect(schemas['UserResponseDto'], {
+        'type': 'object',
+        'properties': {
+          'id': {'type': 'string', 'minLength': 1},
+          'name': {'type': 'string', 'minLength': 1},
+        },
+        'required': ['id', 'name'],
+      });
+      expect(schemas['RpcErrorResponse'], isNotNull);
+    });
+
+    test('When building Scalar docs HTML then it embeds the configured OpenAPI URL', () {
+      final html = createScalarHtml(
+        title: 'Example API Docs',
+        openApiPath: '/openapi.json',
+      );
+
+      expect(html, contains('<title>Example API Docs</title>'));
+      expect(html, contains('data-url="/openapi.json"'));
+      expect(html, contains('@scalar/api-reference'));
+    });
+
+    test('When OpenAPI servers are provided then the document includes the servers array', () {
+      final document = createOpenApiDocument(
+        title: 'Example API',
+        servers: const [
+          OpenApiServer(
+            url: 'https://api.example.com',
+            description: 'Production',
+          ),
+          OpenApiServer(url: 'http://localhost:3000'),
+        ],
+        procedures: ProcedureMetadataRegistry(const []),
+      );
+
+      expect(document['servers'], [
+        {'url': 'https://api.example.com', 'description': 'Production'},
+        {'url': 'http://localhost:3000'},
+      ]);
+    });
+
+    test('When a procedure requires bearer auth then OpenAPI exposes Scalar security metadata', () {
+      final document = createOpenApiDocument(
+        title: 'Secure API',
+        procedures: ProcedureMetadataRegistry([
+          const ProcedureMetadata(
+            rpcMethod: 'todo.list',
+            controllerNamespace: 'todo',
+            methodName: 'list',
+            path: RestProcedureMetadata(method: 'GET', path: '/todos'),
+            outputTypeCode: 'TodoListDto',
+            securityRequirements: [ProcedureSecurityRequirement('bearerAuth')],
+          ),
+          const ProcedureMetadata(
+            rpcMethod: 'auth.login',
+            controllerNamespace: 'auth',
+            methodName: 'login',
+            path: RestProcedureMetadata(method: 'POST', path: '/login'),
+            outputTypeCode: 'TokenDto',
+          ),
+        ]),
+      );
+
+      expect(
+        (document['components'] as Map<String, Object?>)['securitySchemes'],
+        {
+          'bearerAuth': {
+            'type': 'http',
+            'scheme': 'bearer',
+            'bearerFormat': 'JWT',
           },
-        });
-        expect(properties['map'], {
-          'type': 'object',
-          'additionalProperties': {'type': 'boolean'},
-        });
-      },
-    );
+        },
+      );
+      final paths = document['paths'] as Map<String, Object?>;
+      final protectedOperation =
+          (paths['/todos'] as Map<String, Object?>)['get']
+              as Map<String, Object?>;
+      final publicOperation =
+          (paths['/login'] as Map<String, Object?>)['post']
+              as Map<String, Object?>;
+      expect(protectedOperation['security'], [
+        {'bearerAuth': <String>[]},
+      ]);
+      expect(publicOperation.containsKey('security'), isFalse);
+    });
 
-    test(
-      'When contracts use built-in and unknown type codes then OpenAPI emits stable fallback schemas',
-      () {
-        const typeCodes = [
-          'int',
-          'double',
-          'num',
-          'bool',
-          'JsonObject',
-          'Map<String, Object?>',
-          'List<String>',
-          'UnknownDto',
-        ];
-        final document = createOpenApiDocument(
-          title: 'Types API',
-          procedures: ProcedureMetadataRegistry([
-            for (var index = 0; index < typeCodes.length; index++)
-              ProcedureMetadata(
-                rpcMethod: 'types.$index',
-                controllerNamespace: 'types',
-                methodName: 'type$index',
-                path: RestProcedureMetadata(
-                  method: index.isEven ? 'GET' : 'POST',
-                  path: '/types/$index',
-                ),
-                outputTypeCode: typeCodes[index],
-              ),
-          ]),
-        );
-        final paths = document['paths'] as Map<String, Object?>;
-        Map<String, Object?> schemaAt(int index) {
-          final operation =
-              (paths['/types/$index'] as Map<String, Object?>)[index.isEven
-                      ? 'get'
-                      : 'post']
-                  as Map<String, Object?>;
-          final responses = operation['responses'] as Map<String, Object?>;
-          final response = responses['200'] as Map<String, Object?>;
-          final content = response['content'] as Map<String, Object?>;
-          final mediaType = content['application/json'] as Map<String, Object?>;
-          return mediaType['schema'] as Map<String, Object?>;
-        }
-
-        final schemas = [
-          for (var index = 0; index < typeCodes.length; index++)
-            schemaAt(index),
-        ];
-
-        expect(schemas, [
-          {'type': 'integer'},
-          {'type': 'number'},
-          {'type': 'number'},
-          {'type': 'boolean'},
-          {'type': 'object'},
-          {'type': 'object'},
-          {'type': 'array', 'items': {}},
-          {'type': 'object'},
-        ]);
-      },
-    );
-
-    test(
-      'When a REST procedure returns void then OpenAPI documents a contentless 204 response',
-      () {
-        final document = createOpenApiDocument(
-          title: 'Status API',
-          procedures: ProcedureMetadataRegistry([
-            const ProcedureMetadata(
-              rpcMethod: 'status.clear',
-              controllerNamespace: 'status',
-              methodName: 'clear',
-              path: RestProcedureMetadata(method: 'DELETE', path: '/status'),
-              outputTypeCode: 'void',
+    test('When a server stream has an SSE mapping then OpenAPI documents its event schema and terminal events', () {
+      final document = createOpenApiDocument(
+        title: 'Streaming API',
+        procedures: ProcedureMetadataRegistry([
+          const ProcedureMetadata(
+            rpcMethod: 'chat.watchMessages',
+            controllerNamespace: 'chat',
+            methodName: 'watchMessages',
+            kind: RpcProcedureKind.serverStream,
+            path: RestProcedureMetadata(
+              method: 'GET',
+              path: '/channels/:channelId/messages',
+              responseKind: RestResponseKind.sse,
             ),
-          ]),
-        );
-        final paths = document['paths'] as Map<String, Object?>;
+            outputTypeCode: 'MessageDto',
+          ),
+          const ProcedureMetadata(
+            rpcMethod: 'chat.websocketOnly',
+            controllerNamespace: 'chat',
+            methodName: 'websocketOnly',
+            kind: RpcProcedureKind.serverStream,
+            outputTypeCode: 'MessageDto',
+          ),
+        ]),
+        schemas: DtoSchemaRegistry(const [
+          DtoSchemaMetadata(
+            name: 'MessageDto',
+            fields: [
+              DtoFieldMetadata(wireName: 'id', type: DtoStringType()),
+              DtoFieldMetadata(wireName: 'text', type: DtoStringType()),
+            ],
+          ),
+        ]),
+      );
+
+      final paths = document['paths'] as Map<String, Object?>;
+      final operation =
+          (paths['/channels/{channelId}/messages']
+                  as Map<String, Object?>)['get']
+              as Map<String, Object?>;
+      final success =
+          (operation['responses'] as Map<String, Object?>)['200']
+              as Map<String, Object?>;
+      final extension = operation['x-dart-orpc-stream'] as Map<String, Object?>;
+
+      expect((success['content'] as Map<String, Object?>).keys, [
+        'text/event-stream',
+      ]);
+      expect(extension, {
+        'kind': 'server-stream',
+        'eventSchema': {'\$ref': '#/components/schemas/MessageDto'},
+        'terminalEvents': {
+          'complete': 'dart-orpc-complete',
+          'error': 'dart-orpc-error',
+        },
+      });
+      expect(paths.keys, hasLength(1));
+    });
+
+    test('When a REST operation shares one input DTO between path, header, and body then the request body schema excludes externally-bound fields', () {
+      final document = createOpenApiDocument(
+        title: 'Example API',
+        procedures: ProcedureMetadataRegistry([
+          const ProcedureMetadata(
+            rpcMethod: 'user.update',
+            controllerNamespace: 'user',
+            methodName: 'update',
+            path: RestProcedureMetadata(method: 'POST', path: '/users/:id'),
+            inputTypeCode: 'UpdateUserDto',
+            outputTypeCode: 'UserResponseDto',
+            parameters: [
+              ProcedureParameterMetadata(
+                parameterName: 'id',
+                wireName: 'id',
+                source: ProcedureParameterSourceKind.path,
+                typeCode: 'String',
+              ),
+              ProcedureParameterMetadata(
+                parameterName: 'tenantId',
+                wireName: 'x-tenant-id',
+                source: ProcedureParameterSourceKind.header,
+                typeCode: 'String?',
+              ),
+              ProcedureParameterMetadata(
+                parameterName: 'input',
+                wireName: 'input',
+                source: ProcedureParameterSourceKind.body,
+                typeCode: 'UpdateUserDto',
+              ),
+            ],
+          ),
+        ]),
+        schemas: DtoSchemaRegistry(const [
+          DtoSchemaMetadata(
+            name: 'UpdateUserDto',
+            fields: [
+              DtoFieldMetadata(
+                wireName: 'id',
+                type: DtoStringType(),
+                constraints: DtoFieldConstraints(min: 1),
+              ),
+              DtoFieldMetadata(
+                wireName: 'tenantId',
+                type: DtoStringType(),
+                nullable: true,
+                required: false,
+              ),
+              DtoFieldMetadata(
+                wireName: 'name',
+                type: DtoStringType(),
+                constraints: DtoFieldConstraints(min: 1),
+              ),
+              DtoFieldMetadata(
+                wireName: 'nickname',
+                type: DtoStringType(),
+                nullable: true,
+                required: false,
+              ),
+            ],
+          ),
+          _userResponseDto,
+        ]),
+      );
+
+      final operation =
+          ((((document['paths'] as Map<String, Object?>)['/users/{id}']
+                      as Map<String, Object?>)['post']
+                  as Map<String, Object?>)['requestBody']
+              as Map<String, Object?>);
+      final schema =
+          (((operation['content'] as Map<String, Object?>)['application/json']
+                  as Map<String, Object?>)['schema']
+              as Map<String, Object?>);
+
+      expect(operation['required'], isTrue);
+      expect(
+        (schema['properties'] as Map<String, Object?>).containsKey('id'),
+        isFalse,
+      );
+      expect(
+        (schema['properties'] as Map<String, Object?>).containsKey('tenantId'),
+        isFalse,
+      );
+      expect(
+        (schema['properties'] as Map<String, Object?>).containsKey('name'),
+        isTrue,
+      );
+      expect((schema['required'] as List<Object?>), ['name']);
+    });
+
+    test('When schema components use scalar constraints, lists, and maps then OpenAPI preserves their shapes', () {
+      final registry = DtoSchemaRegistry([
+        DtoSchemaMetadata(
+          name: 'Constraints',
+          fields: [
+            _optional(
+              'bounded',
+              const DtoStringType(),
+              const DtoFieldConstraints(min: 2, max: 8),
+            ),
+            _optional(
+              'exact',
+              const DtoStringType(),
+              const DtoFieldConstraints(length: 4),
+            ),
+            _optional(
+              'email',
+              const DtoStringType(),
+              const DtoFieldConstraints(format: DtoStringFormat.email),
+            ),
+            _optional(
+              'date',
+              const DtoStringType(),
+              const DtoFieldConstraints(format: DtoStringFormat.dateTime),
+            ),
+            _optional(
+              'uri',
+              const DtoStringType(),
+              const DtoFieldConstraints(format: DtoStringFormat.uri),
+            ),
+            _optional(
+              'uuid',
+              const DtoStringType(),
+              const DtoFieldConstraints(format: DtoStringFormat.uuid),
+            ),
+            _optional(
+              'pattern',
+              const DtoStringType(),
+              const DtoFieldConstraints(pattern: r'^[a-z]+$'),
+            ),
+            _optional(
+              'integer',
+              const DtoIntegerType(),
+              const DtoFieldConstraints(min: 1, max: 9),
+            ),
+            _optional(
+              'number',
+              const DtoNumberType(),
+              const DtoFieldConstraints(min: 0.5, max: 9.5),
+            ),
+            _optional('flag', const DtoBooleanType()),
+            _optional('emptyList', const DtoListType(DtoAnyType())),
+            _optional('strings', const DtoListType(DtoStringType())),
+            _optional('map', const DtoMapType(DtoBooleanType())),
+          ],
+        ),
+      ]);
+      final document = createOpenApiDocument(
+        title: 'Constraints API',
+        description: 'All supported validation shapes.',
+        procedures: ProcedureMetadataRegistry(const []),
+        schemas: registry,
+      );
+      final schemas =
+          (document['components'] as Map<String, Object?>)['schemas']
+              as Map<String, Object?>;
+      final constraints = schemas['Constraints'] as Map<String, Object?>;
+      final properties = constraints['properties'] as Map<String, Object?>;
+
+      expect(registry.names, ['Constraints']);
+      expect(registry['Constraints'], isNotNull);
+      expect(document['info'], {
+        'title': 'Constraints API',
+        'version': '1.0.0',
+        'description': 'All supported validation shapes.',
+      });
+      expect(properties['bounded'], {
+        'type': 'string',
+        'minLength': 2,
+        'maxLength': 8,
+      });
+      expect(properties['exact'], {
+        'type': 'string',
+        'minLength': 4,
+        'maxLength': 4,
+      });
+      expect((properties['email'] as Map)['format'], 'email');
+      expect((properties['date'] as Map)['format'], 'date-time');
+      expect((properties['uri'] as Map)['format'], 'uri');
+      expect((properties['uuid'] as Map)['format'], 'uuid');
+      expect((properties['pattern'] as Map)['pattern'], r'^[a-z]+$');
+      expect(properties['integer'], {
+        'type': 'integer',
+        'minimum': 1,
+        'maximum': 9,
+      });
+      expect(properties['number'], {
+        'type': 'number',
+        'minimum': 0.5,
+        'maximum': 9.5,
+      });
+      expect(properties['flag'], {'type': 'boolean'});
+      expect(properties['emptyList'], {'type': 'array', 'items': {}});
+      expect(properties['strings'], {
+        'type': 'array',
+        'items': {'type': 'string'},
+      });
+      expect(properties['map'], {
+        'type': 'object',
+        'additionalProperties': {'type': 'boolean'},
+      });
+    });
+
+    test('When contracts use built-in and unknown type codes then OpenAPI emits stable fallback schemas', () {
+      const typeCodes = [
+        'int',
+        'double',
+        'num',
+        'bool',
+        'JsonObject',
+        'Map<String, Object?>',
+        'List<String>',
+        'UnknownDto',
+      ];
+      final document = createOpenApiDocument(
+        title: 'Types API',
+        procedures: ProcedureMetadataRegistry([
+          for (var index = 0; index < typeCodes.length; index++)
+            ProcedureMetadata(
+              rpcMethod: 'types.$index',
+              controllerNamespace: 'types',
+              methodName: 'type$index',
+              path: RestProcedureMetadata(
+                method: index.isEven ? 'GET' : 'POST',
+                path: '/types/$index',
+              ),
+              outputTypeCode: typeCodes[index],
+            ),
+        ]),
+      );
+      final paths = document['paths'] as Map<String, Object?>;
+      Map<String, Object?> schemaAt(int index) {
         final operation =
-            (paths['/status'] as Map<String, Object?>)['delete']
+            (paths['/types/$index'] as Map<String, Object?>)[index.isEven
+                    ? 'get'
+                    : 'post']
                 as Map<String, Object?>;
         final responses = operation['responses'] as Map<String, Object?>;
+        final response = responses['200'] as Map<String, Object?>;
+        final content = response['content'] as Map<String, Object?>;
+        final mediaType = content['application/json'] as Map<String, Object?>;
+        return mediaType['schema'] as Map<String, Object?>;
+      }
 
-        expect(responses, contains('204'));
-        expect(responses, isNot(contains('200')));
-        expect(responses['204'], {
-          'description': 'Successful response with no content.',
-        });
-      },
-    );
+      final schemas = [
+        for (var index = 0; index < typeCodes.length; index++) schemaAt(index),
+      ];
 
-    test(
-      'When duplicate schema names are registered then construction fails',
-      () {
-        final component = OpenApiSchemaComponent(
-          name: 'Duplicate',
-          validator: l.withName('Duplicate').schema({}),
-        );
+      expect(schemas, [
+        {'type': 'integer'},
+        {'type': 'number'},
+        {'type': 'number'},
+        {'type': 'boolean'},
+        {'type': 'object'},
+        {'type': 'object'},
+        {'type': 'array', 'items': {}},
+        {'type': 'object'},
+      ]);
+    });
 
-        expect(
-          () => OpenApiSchemaRegistry([component, component]),
-          throwsStateError,
-        );
-      },
-    );
+    test('When a REST procedure returns void then OpenAPI documents a contentless 204 response', () {
+      final document = createOpenApiDocument(
+        title: 'Status API',
+        procedures: ProcedureMetadataRegistry([
+          const ProcedureMetadata(
+            rpcMethod: 'status.clear',
+            controllerNamespace: 'status',
+            methodName: 'clear',
+            path: RestProcedureMetadata(method: 'DELETE', path: '/status'),
+            outputTypeCode: 'void',
+          ),
+        ]),
+      );
+      final paths = document['paths'] as Map<String, Object?>;
+      final operation =
+          (paths['/status'] as Map<String, Object?>)['delete']
+              as Map<String, Object?>;
+      final responses = operation['responses'] as Map<String, Object?>;
+
+      expect(responses, contains('204'));
+      expect(responses, isNot(contains('200')));
+      expect(responses['204'], {
+        'description': 'Successful response with no content.',
+      });
+    });
+
+    test('When a DTO has enum fields then their values are documented', () {
+      final properties = _componentProperties(const [
+        DtoSchemaMetadata(
+          name: 'EnumDto',
+          fields: [
+            DtoFieldMetadata(
+              wireName: 'role',
+              type: DtoEnumType(['admin', 'member']),
+            ),
+            DtoFieldMetadata(wireName: 'level', type: DtoEnumType([1, 2])),
+          ],
+        ),
+      ], 'EnumDto');
+
+      expect(properties['role'], {
+        'type': 'string',
+        'enum': ['admin', 'member'],
+      });
+      expect(properties['level'], {
+        'type': 'integer',
+        'enum': [1, 2],
+      });
+    });
+
+    test('When a field has a custom validator then it is marked', () {
+      final properties = _componentProperties(const [
+        DtoSchemaMetadata(
+          name: 'CustomDto',
+          fields: [
+            DtoFieldMetadata(
+              wireName: 'checked',
+              type: DtoStringType(),
+              constraints: DtoFieldConstraints(min: 1),
+              customValidation: true,
+            ),
+          ],
+        ),
+      ], 'CustomDto');
+
+      expect(properties['checked'], {
+        'type': 'string',
+        'minLength': 1,
+        'x-dart-orpc-custom-validation': true,
+      });
+    });
+
+    test('When list and any fields are described then their shapes are '
+        'documented', () {
+      final properties = _componentProperties(const [
+        DtoSchemaMetadata(
+          name: 'ShapesDto',
+          fields: [
+            DtoFieldMetadata(
+              wireName: 'tags',
+              type: DtoListType(DtoStringType()),
+              constraints: DtoFieldConstraints(min: 1, max: 5),
+            ),
+            DtoFieldMetadata(
+              wireName: 'extra',
+              type: DtoAnyType(),
+              nullable: true,
+              required: false,
+            ),
+          ],
+        ),
+      ], 'ShapesDto');
+
+      expect(properties['tags'], {
+        'type': 'array',
+        'items': {'type': 'string'},
+        'minItems': 1,
+        'maxItems': 5,
+      });
+      expect(properties['extra'], <String, Object?>{});
+    });
+
+    test('When DTOs reference DTOs then fields use component refs', () {
+      final schemas = _componentSchemas(const [
+        DtoSchemaMetadata(
+          name: 'NodeDto',
+          fields: [
+            DtoFieldMetadata(
+              wireName: 'children',
+              type: DtoListType(DtoObjectType('NodeDto')),
+            ),
+            DtoFieldMetadata(
+              wireName: 'parent',
+              type: DtoObjectType('NodeDto'),
+              nullable: true,
+              required: false,
+            ),
+          ],
+        ),
+      ]);
+      final node = schemas['NodeDto'] as Map<String, Object?>;
+
+      expect(node['properties'], {
+        'children': {
+          'type': 'array',
+          'items': {r'$ref': '#/components/schemas/NodeDto'},
+        },
+        'parent': {r'$ref': '#/components/schemas/NodeDto'},
+      });
+      expect(node['required'], ['children']);
+    });
 
     test(
       'When Scalar values contain HTML then text and attributes are escaped',
@@ -625,3 +712,48 @@ void main() {
     );
   });
 }
+
+const _userResponseDto = DtoSchemaMetadata(
+  name: 'UserResponseDto',
+  fields: [
+    DtoFieldMetadata(
+      wireName: 'id',
+      type: DtoStringType(),
+      constraints: DtoFieldConstraints(min: 1),
+    ),
+    DtoFieldMetadata(
+      wireName: 'name',
+      type: DtoStringType(),
+      constraints: DtoFieldConstraints(min: 1),
+    ),
+  ],
+);
+
+DtoFieldMetadata _optional(
+  String wireName,
+  DtoFieldType type, [
+  DtoFieldConstraints constraints = const DtoFieldConstraints(),
+]) => DtoFieldMetadata(
+  wireName: wireName,
+  type: type,
+  nullable: true,
+  required: false,
+  constraints: constraints,
+);
+
+Map<String, Object?> _componentSchemas(List<DtoSchemaMetadata> schemas) {
+  final document = createOpenApiDocument(
+    title: 'API',
+    procedures: ProcedureMetadataRegistry(const []),
+    schemas: DtoSchemaRegistry(schemas),
+  );
+  return (document['components'] as Map<String, Object?>)['schemas']
+      as Map<String, Object?>;
+}
+
+Map<String, Object?> _componentProperties(
+  List<DtoSchemaMetadata> schemas,
+  String name,
+) =>
+    (_componentSchemas(schemas)[name] as Map<String, Object?>)['properties']
+        as Map<String, Object?>;
