@@ -84,9 +84,9 @@ No ready items.
   message-only `RpcClientException`s.
 ## In progress
 
-- [ ] **DEPS-001 · P1 · Maintenance:** Migrate to luthor 1.0 and luthor_generator
-  1.0 to unblock the latest analyzer (14), freezed (4), json_serializable,
-  drift/drift_dev, build_runner, melos (8), sqlite3 (3) and test. luthor 1.0 no
+- [ ] **DEPS-001 · P1 · Maintenance:** Migrate to luthor 1.1 and luthor_generator
+  1.1 to unblock the latest analyzer (14), freezed (4), json_serializable,
+  drift/drift_dev, build_runner, melos (8), sqlite3 (3) and test. luthor 1.x no
   longer exposes validator rules or schema fields, which the OpenAPI generator
   reads at runtime, so first decide how OpenAPI gets DTO constraints (for
   example from luthor annotations at build time). Also migrate the

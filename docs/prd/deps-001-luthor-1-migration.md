@@ -1,6 +1,6 @@
-# PRD — DEPS-001: Migrate to luthor 1.0 and upgrade the toolchain
+# PRD — DEPS-001: Migrate to luthor 1.1 and upgrade the toolchain
 
-- **Status:** Approved on [#66](https://github.com/ishafiul/dart_orpc/issues/66#issuecomment-6861518079)
+- **Status:** Approved on [#66](https://github.com/ishafiul/dart_orpc/issues/66#issuecomment-6875654003), updated to target luthor 1.1 and its unknown-key modes ([exaby73/luthor#144](https://github.com/exaby73/luthor/pull/144)).
 - **Tracker item:** `DEPS-001` in [`TODO.md`](../../TODO.md)
 - **Requirements map:** [#61](https://github.com/ishafiul/dart_orpc/issues/61)
 - **Unblocks:** ERR-002, structured validation issues ([#54](https://github.com/ishafiul/dart_orpc/issues/54))
@@ -27,28 +27,28 @@
     | test | 1.31.1 | 1.33.0 |
 
   - freezed 3 emits `required final` constructor parameters that Dart 3.14 rejects. So `basic_app` stays on language 3.11 while the rest of the workspace requires `^3.14.0`.
-  - ERR-002 needs luthor 1.0's structured `ValidationIssue`s ([#55](https://github.com/ishafiul/dart_orpc/issues/55)).
+  - ERR-002 needs luthor 1.1's structured `ValidationIssue`s ([#55](https://github.com/ishafiul/dart_orpc/issues/55)).
 - **Who experiences it?**
   - Framework maintainers stuck on old toolchain versions.
   - App developers who want current freezed, json_serializable and drift.
   - Anyone waiting for ERR-002.
 - **Why existing solutions don't work?**
-  - luthor 1.0 is a breaking redesign. It makes validator rules private (`_Check`). It stops exporting the concrete `*Validation` classes, `validations` and schema fields.
+  - luthor 1.x is a breaking redesign from 0.17 (introduced in 1.0, kept in 1.1). It makes validator rules private (`_Check`). It stops exporting the concrete `*Validation` classes, `validations` and schema fields.
   - `dart_orpc_openapi` builds JSON Schema by walking exactly those classes at runtime (`openapi_document.dart` L446–L652).
-  - `luthor_generator` 1.0 emits no schema description to read instead.
+  - `luthor_generator` 1.x emits no schema description to read instead.
   - The `dart_orpc_luthor` bridge's public typedefs use luthor 0.17's `SchemaValidationResult`.
 
 ## Target Users & Personas
 
 - **Server developer:**
   - Annotates DTOs with `@luthor`, `@HasMin`, `@IsEmail` and so on.
-  - Expects validation and OpenAPI to keep working after upgrading, with no DTO changes beyond what luthor 1.0 requires.
+  - Expects validation and OpenAPI to keep working after upgrading, with no DTO changes beyond what luthor 1.1 requires.
 - **API consumer:** reads `/openapi.json` and expects the same documented constraints, plus enum values.
 - **Framework maintainer:** wants every dependency on its latest major, and OpenAPI decoupled from luthor internals so future luthor releases can't break it again.
 
 ## Success Metrics
 
-- `dart pub outdated` holds back no direct dependency except `build` 5 and the packages that follow it, which upstream blocks: `luthor_generator` 1.0 requires `build ^4`.
+- `dart pub outdated` holds back no direct dependency except `build` 5 and the packages that follow it, which upstream blocks: `luthor_generator` 1.1 requires `build ^4`.
 - `basic_app`'s `/openapi.json` matches a golden snapshot taken on luthor 0.17, apart from reviewed, intended differences.
 - `dart_orpc_openapi` no longer depends on luthor.
 - `dart run melos run analyze`, `test`, `test:generator:coverage` and `test:runtime:coverage` all pass on Dart 3.14. `basic_app` requires `^3.14.0`.
@@ -57,20 +57,21 @@
 
 - **Requirements map:** [#61](https://github.com/ishafiul/dart_orpc/issues/61)
 - **Resolved grilling issues:**
-  - [#55](https://github.com/ishafiul/dart_orpc/issues/55) (on ERR-002's map): migrate to luthor 1.0 before ERR-002, as its own initiative.
+  - [#55](https://github.com/ishafiul/dart_orpc/issues/55) (on ERR-002's map): migrate to luthor 1.1 before ERR-002, as its own initiative.
   - [#62](https://github.com/ishafiul/dart_orpc/issues/62): OpenAPI gets DTO constraints from **build-time DTO schema metadata** in `dart_orpc_core`, rendered by `dart_orpc_openapi`, which drops luthor.
     - Honour `@JsonKey` name, include and defaultValue options and `fieldRename`; fail the build on anything else that shapes the JSON.
     - Custom validators get `x-dart-orpc-custom-validation: true`.
     - `OpenApiSchemaComponent(validator:)` is removed.
     - A golden snapshot is taken first.
-  - [#63](https://github.com/ishafiul/dart_orpc/issues/63): unknown input keys are **stripped** (luthor 1.0's default). There's no new dart_orpc option.
-  - [#64](https://github.com/ishafiul/dart_orpc/issues/64): the bridge uses luthor 1.0's `ValidationResult<T>` directly, with one input-validator parameter. Errors stay one flattened message, with luthor 1.0's text, until ERR-002.
+  - [#63](https://github.com/ishafiul/dart_orpc/issues/63): unknown input keys are **stripped** by default. There's no new dart_orpc option.
+    - **Addendum (luthor 1.1):** luthor 1.1 adds `UnknownKeys { strip, passthrough, strict }`, set per DTO with `@Luthor(unknownKeys: ...)` or per package with `luthor_generator:luthor` `unknown_keys` in `build.yaml` ([exaby73/luthor#144](https://github.com/exaby73/luthor/pull/144)). That's exactly the upstream home #63 named for strict mode, so dart_orpc uses it: generated code already validates with the mode luthor emits, and F4.5 documents it in the metadata and OpenAPI.
+  - [#64](https://github.com/ishafiul/dart_orpc/issues/64): the bridge uses luthor 1.1's `ValidationResult<T>` directly, with one input-validator parameter. Errors stay one flattened message, with luthor 1.1's text, until ERR-002.
   - [#65](https://github.com/ishafiul/dart_orpc/issues/65): DTO enum fields become JSON Schema enums. Other unmapped annotations keep parity.
 - **Constraints carried forward:**
   - Packages are `0.1.0-dev`. Breaking changes are committed with `!` so `melos version` records them; changelogs are never hand-written.
   - Compile-time generation is preferred over runtime discovery (AGENTS.md).
   - Runtime validation stays 100% luthor, custom validators included. Only the OpenAPI description moves to build-time metadata.
-  - The first upgrade attempt is saved as `major-upgrade-attempt.diff`, made while preparing #53. It gave 111 analyzer errors, all luthor 1.0 API changes, and includes the analyzer 14 `isSynthetic` fix.
+  - The first upgrade attempt is saved as `major-upgrade-attempt.diff`, made while preparing #53. It gave 111 analyzer errors, all luthor 1.0 API changes, which 1.1 keeps, and includes the analyzer 14 `isSynthetic` fix.
 
 </overview>
 
@@ -164,7 +165,7 @@ dart_orpc describes each `@luthor` DTO's JSON shape and constraints itself, at b
 - **Outputs:** A passing golden test.
 - **Behavior:** Any intended difference, such as enum additions or a corrected constraint, is listed in the PR, and the golden is updated in the same PR.
 
-### Capability C4: luthor 1.0 and toolchain upgrade
+### Capability C4: luthor 1.1 and toolchain upgrade
 
 #### Feature F4.1: Dependency upgrade
 
@@ -175,7 +176,7 @@ dart_orpc describes each `@luthor` DTO's JSON shape and constraints itself, at b
   - `basic_app` requires `sdk: ^3.14.0`, and its freezed-version comment is removed.
 - **Behavior:**
   - Generated code is regenerated.
-  - The `basic_app` and benchmark code that depends on these packages is updated mechanically: DTOs (luthor 1.0 annotations), the drift and sqlite3 database code, and melos 8 configuration.
+  - The `basic_app` and benchmark code that depends on these packages is updated mechanically: DTOs (luthor 1.1 annotations), the drift and sqlite3 database code, and melos 8 configuration.
 
 #### Feature F4.2: Analyzer 14 compatibility
 
@@ -186,18 +187,18 @@ dart_orpc describes each `@luthor` DTO's JSON shape and constraints itself, at b
   - `FieldElement.isSynthetic` (`procedure_binding_builder.dart` L359) becomes `!(field.isOriginDeclaration || field.isOriginDeclaringFormalParameter)`.
   - Any other removed APIs are replaced with behaviour-preserving equivalents.
 
-#### Feature F4.3: luthor 1.0 validation bridge
+#### Feature F4.3: luthor 1.1 validation bridge
 
-- **Description:** `dart_orpc_luthor` validates with luthor 1.0.
-- **Inputs:** luthor 1.0 `ValidationResult<T>`s from the generated `$XValidate(Object? json)` functions.
+- **Description:** `dart_orpc_luthor` validates with luthor 1.1.
+- **Inputs:** luthor 1.1 `ValidationResult<T>`s from the generated `$XValidate(Object? json)` functions.
 - **Outputs:** Decoded DTOs, validated output JSON, or `RpcException`s.
 - **Behavior:**
   - **Types:** the typedefs become `ValidationResult<T> Function(Object? json)`, and the functions match on `ValidationSuccess`/`ValidationFailure`.
   - **One input validator:** `validateReadOnly`, `LuthorReadOnlySchemaValidator` and the defensive `Map.from` copy are removed.
   - **Messages:**
-    - Input failures stay `BAD_REQUEST` with one flattened message, `Invalid RPC input for "m": path: message; …`, built from luthor 1.0's flat path-keyed errors.
+    - Input failures stay `BAD_REQUEST` with one flattened message, `Invalid RPC input for "m": path: message; …`, built from luthor 1.1's flat path-keyed errors.
     - Output failures stay `INTERNAL_ERROR`.
-    - The text follows luthor 1.0's defaults.
+    - The text follows luthor 1.1's defaults.
   - **Unknown keys:** stripped. Generated code calls the schema as `luthor_generator` emits it, with no `.strict()` or `.passthrough()`.
   - **Breaking public API**, committed with `!`.
 
@@ -208,6 +209,22 @@ dart_orpc describes each `@luthor` DTO's JSON shape and constraints itself, at b
 - **Outputs:** Bridge calls with one validator argument, `$XValidate` (`rest_generation_helpers.dart` L17, L99).
 - **Behavior:** The same procedures are validated as today.
 
+#### Feature F4.5: Unknown-key modes (luthor 1.1)
+
+- **Description:** DTOs that choose a luthor 1.1 unknown-key mode are validated and documented consistently.
+- **Inputs:**
+  - `@Luthor(unknownKeys: ...)` on a DTO.
+  - The package-level `unknown_keys` option of the `luthor_generator:luthor` builder in `build.yaml`.
+- **Outputs:**
+  - `DtoSchemaMetadata.unknownKeys`: strip, passthrough or strict.
+  - OpenAPI `additionalProperties: false` for strict DTOs.
+- **Behavior:**
+  - **Mode resolution** matches `luthor_generator`: the DTO annotation, otherwise the package option, otherwise strip. The package option is read with the same `build.yaml` access as the `field_rename` check (#76).
+  - **Runtime validation needs no new dart_orpc code:** generated calls use the schema `luthor_generator` emits, which already carries the mode. A strict DTO rejects an unknown input key with `BAD_REQUEST` (luthor's `unrecognizedKey` issue); a strip DTO still accepts and drops it.
+  - **OpenAPI:** a strict DTO's component schema gets `additionalProperties: false`. Strip and passthrough DTOs render as today, since both accept unknown keys.
+  - **Keys the generator can't name:** `luthor_generator` falls back to passthrough when a serializer reads keys it can't name, such as `@JsonKey(readValue:)`. The extractor already fails the build for converters; it now also fails for `@JsonKey(readValue:)`, so metadata never describes a shape luthor validates differently.
+  - **`basic_app` usage** is decided in its own grilling issue on #61.
+
 ### Capability C5: Documentation
 
 #### Feature F5.1: Docs and tracker
@@ -216,7 +233,7 @@ dart_orpc describes each `@luthor` DTO's JSON shape and constraints itself, at b
 - **Inputs:** The implemented behaviour.
 - **Outputs:**
   - Updated validation, OpenAPI and `dart_orpc_luthor` docs pages:
-    - luthor 1.0 annotations;
+    - luthor 1.1 annotations, including `@Luthor(unknownKeys:)`;
     - unknown keys stripped;
     - the custom-validation marker;
     - enums in OpenAPI;
@@ -248,11 +265,11 @@ packages/
 │   └── openapi_document.dart             # F3.1: render from metadata; remove the validator walker (L446–L652)
 │                                         #        and OpenApiSchemaComponent(validator:) (L6–L11)
 ├── dart_orpc_luthor/lib/src/
-│   └── luthor_rpc_validation.dart        # F4.3: luthor 1.0 ValidationResult
+│   └── luthor_rpc_validation.dart        # F4.3: luthor 1.1 ValidationResult
 apps/basic_app/
 ├── test/openapi_golden_test.dart         # F1.1: new
 ├── test/goldens/openapi.json             # F1.1: new
-├── lib/modules/**/..._dtos.dart          # F4.1: luthor 1.0 annotations
+├── lib/modules/**/..._dtos.dart          # F4.1: luthor 1.1 annotations
 ├── lib/database/                         # F4.1: drift/sqlite3 upgrade
 └── pubspec.yaml                          # F4.1: sdk ^3.14.0
 doc/src/content/docs/                     # F5.1
@@ -266,7 +283,7 @@ TODO.md                                   # F5.1
 - **Maps to capability:** C2 (F2.1)
 - **Responsibility:** A transport- and validator-neutral description of DTO JSON shapes and constraints.
 - **Exports (public seams; names proposed, see A3):**
-  - `DtoSchemaMetadata { String name; List<DtoFieldMetadata> fields; }`
+  - `DtoSchemaMetadata { String name; List<DtoFieldMetadata> fields; DtoUnknownKeys unknownKeys; }`. `unknownKeys` (strip, passthrough or strict; default strip) is added by F4.5.
   - `DtoFieldMetadata { String wireName; DtoFieldType type; bool nullable; bool required; DtoFieldConstraints constraints; bool customValidation; }`
   - `DtoFieldType`, a sealed type with these cases:
     - `DtoStringType`, `DtoIntegerType`, `DtoNumberType`, `DtoBooleanType`, `DtoAnyType`
@@ -332,16 +349,17 @@ The luthor version switch can't be split. The moment luthor is 1.0, the OpenAPI 
 - **F3.1 OpenAPI from metadata:** depends on [F2.1, F2.3].
 - **F3.2 Parity verification:** depends on [F1.1, F3.1].
 
-### Switch Layer (Phase 2), luthor 1.0, delivered as one PR
+### Switch Layer (Phase 2), luthor 1.1, delivered as one PR
 
 - **F4.1 Dependency upgrade:** depends on [F3.2], because OpenAPI must no longer use luthor before the switch.
 - **F4.2 Analyzer 14 compatibility:** depends on [F4.1].
-- **F4.3 luthor 1.0 bridge:** depends on [F4.1].
+- **F4.3 luthor 1.1 bridge:** depends on [F4.1].
 - **F4.4 Generated validation calls:** depends on [F4.3].
+- **F4.5 Unknown-key modes:** depends on [F2.3, F3.1, F4.1, F4.3]. It needs luthor 1.1 in place, so it follows the switch, in its own PR.
 
 ### Documentation Layer (Phase 3)
 
-- **F5.1 Docs and tracker:** depends on [F3.2, F4.1, F4.2, F4.3, F4.4].
+- **F5.1 Docs and tracker:** depends on [F3.2, F4.1, F4.2, F4.3, F4.4, F4.5].
 
 </dependency-graph>
 
@@ -399,7 +417,7 @@ The luthor version switch can't be split. The moment luthor is 1.0, the OpenAPI 
     - Test strategy: the golden test.
 - **Exit criteria:** merged; analysis, tests and coverage are green on luthor 0.17.
 
-### Phase 2: Switch to luthor 1.0 (one PR)
+### Phase 2: Switch to luthor 1.1 (one PR)
 
 - **Goal:** Upgrade everything at once now that OpenAPI no longer depends on luthor.
 - **Entry criteria:** Phase 1 merged.
@@ -411,15 +429,29 @@ The luthor version switch can't be split. The moment luthor is 1.0, the OpenAPI 
       - All benchmark packages resolve and analyze.
   - [ ] **F4.2: Analyzer 14 compatibility** (depends on: F4.1)
     - Acceptance criteria: the generator compiles, and custom metadata serialization skips the same fields as before.
-  - [ ] **F4.3: luthor 1.0 bridge** (depends on: F4.1)
+  - [ ] **F4.3: luthor 1.1 bridge** (depends on: F4.1)
     - Acceptance criteria: the F4.3 behaviour holds, and an unknown body key is accepted and dropped over RPC and REST.
   - [ ] **F4.4: Generated validation calls** (depends on: F4.3)
     - Acceptance criteria: generated code passes one validator, and every procedure still validates.
 - **Test strategy:**
-  - Updated `dart_orpc_luthor` tests: success, input failure, output failure, flattened messages with luthor 1.0 text, list-element paths, and unknown keys.
+  - Updated `dart_orpc_luthor` tests: success, input failure, output failure, flattened messages with luthor 1.1 text, list-element paths, and unknown keys.
   - The F1.1 golden test still passes.
   - Full workspace tests and both coverage gates.
-- **Exit criteria:** merged; everything is green on Dart 3.14 and luthor 1.0.
+- **Exit criteria:** merged; everything is green on Dart 3.14 and luthor 1.1.
+
+### Phase 2b: Unknown-key modes (luthor 1.1)
+
+- **Goal:** Document and test luthor 1.1's per-DTO and per-package unknown-key modes.
+- **Entry criteria:** Phase 2 merged.
+- **Tasks:**
+  - [ ] **F4.5: Unknown-key modes** (depends on: F2.3, F3.1, F4.1, F4.3)
+    - Acceptance criteria:
+      - A DTO with `@Luthor(unknownKeys: .strict)` has `unknownKeys: strict` in its metadata, and `additionalProperties: false` in OpenAPI.
+      - A package-level `unknown_keys: strict` applies to DTOs without an annotation; the annotation wins over it.
+      - An unknown body key on a strict DTO returns `BAD_REQUEST` over RPC and REST; on a strip DTO it's accepted and dropped.
+      - `@JsonKey(readValue:)` fails the build, naming the DTO and field.
+    - Test strategy: core model tests, extractor fixtures, emission tests, renderer tests, and `basic_app` RPC and REST tests.
+- **Exit criteria:** merged; the golden and all tests pass.
 
 ### Phase 3: Documentation
 
@@ -474,7 +506,7 @@ The luthor version switch can't be split. The moment luthor is 1.0, the OpenAPI 
 
 - **Happy path:** valid input decodes, and valid output passes through unchanged.
 - **Error cases:**
-  - Invalid input gives `BAD_REQUEST`, with a flattened message using luthor 1.0's text and paths, such as `items.1.id`.
+  - Invalid input gives `BAD_REQUEST`, with a flattened message using luthor 1.1's text and paths, such as `items.1.id`.
   - Invalid output gives `INTERNAL_ERROR`.
   - Non-object input gives `BAD_REQUEST`.
 - **Edge cases:** unknown keys are accepted and dropped; a `fromJson` that throws becomes a `fromJsonFailed` issue, mapped to `BAD_REQUEST`.
@@ -489,7 +521,7 @@ The luthor version switch can't be split. The moment luthor is 1.0, the OpenAPI 
 
 - **Architecture overview:**
   - **Build time:** the generator analyzes `@luthor` DTOs into `DtoSchemaMetadata`, a core model, and emits it. `luthor_generator` emits `$XSchema` and `$XValidate`.
-  - **Runtime validation:** generated code calls `dart_orpc_luthor`, which calls luthor 1.0.
+  - **Runtime validation:** generated code calls `dart_orpc_luthor`, which calls luthor 1.1.
   - **Runtime documentation:** `dart_orpc_openapi` renders JSON Schema from `DtoSchemaMetadata`.
   - Validation and documentation share their source annotations but are independent at runtime.
 - **ADR-1: OpenAPI from build-time metadata** ([#62](https://github.com/ishafiul/dart_orpc/issues/62))
@@ -497,13 +529,13 @@ The luthor version switch can't be split. The moment luthor is 1.0, the OpenAPI 
   - **Rationale:** AGENTS.md's single metadata model and compile-time generation. It also removes the coupling to luthor internals for good.
   - **Trade-offs:** the generator must mirror json_serializable's and luthor's annotation semantics. Hand-written luthor validators no longer feed OpenAPI.
   - **Alternatives considered:** finished JSON emitted by the generator; an upstream luthor introspection API; types only.
-- **ADR-2: Strip unknown input keys** ([#63](https://github.com/ishafiul/dart_orpc/issues/63))
-  - **Decision:** luthor 1.0's default.
+- **ADR-2: Strip unknown input keys by default** ([#63](https://github.com/ishafiul/dart_orpc/issues/63))
+  - **Decision:** strip, luthor's default. Since luthor 1.1, a DTO or package can opt into strict or passthrough upstream, and dart_orpc documents the chosen mode (F4.5).
   - **Rationale:** today's behaviour, and rolling-deploy safety.
   - **Alternatives considered:** strict mode, which would belong upstream on `@Luthor` if ever wanted; configurable in dart_orpc.
 - **ADR-3: Bridge on luthor's own types** ([#64](https://github.com/ishafiul/dart_orpc/issues/64))
   - **Decision:** `ValidationResult<T>`, with one validator parameter.
-  - **Rationale:** only generated code calls the bridge, and luthor 1.0 never modifies input.
+  - **Rationale:** only generated code calls the bridge, and luthor 1.1 never modifies input.
   - **Alternatives considered:** a dart_orpc result type; keeping the read-only variant.
 - **ADR-4: Enums documented; other annotations keep parity** ([#65](https://github.com/ishafiul/dart_orpc/issues/65))
 - **ADR-5: Decouple before switching** (this PRD)
@@ -515,6 +547,7 @@ The luthor version switch can't be split. The moment luthor is 1.0, the OpenAPI 
 
 - **A1:** The freezed 4, drift/drift_dev, sqlite3 3 and melos 8 upgrades need only mechanical changes in `basic_app`, the benchmarks and the workspace config. Phase 2 verifies this. If one turns out to need a design decision, it gets its own grilling issue on #61.
 - **A2:** The luthor annotations `basic_app` uses (`@HasMin`, `@HasMax`, `@IsEmail`, `@MatchRegex`) exist in both 0.17 and 1.0 with readable `min`, `max` and `pattern` fields. 0.17's `HasMin.min` is an `int` and 1.0's is a `num`; extraction reads them as `num`.
+- **A4:** luthor 1.1 is source-compatible with the luthor 1.0 API this PRD was written against, apart from the additions in exaby73/luthor#144. Phase 2 verifies this.
 - **A3:** Names marked "proposed" (`DtoSchemaMetadata`, `DtoFieldMetadata`, `DtoFieldType`, `DtoFieldConstraints`, `DtoSchemaRegistry`, `dto_schema_extraction.dart`) may be refined during implementation without re-review, as long as the seams and behaviour above hold.
 
 </architecture>
@@ -528,7 +561,7 @@ The luthor version switch can't be split. The moment luthor is 1.0, the OpenAPI 
 - **Technical risks:**
   - **The extractor diverges from json_serializable or luthor**, giving wrong property names, required-ness or constraints in OpenAPI.
     - Mitigation: the golden snapshot (F1.1), fixture tests per rule, and build errors instead of guesses for unsupported shapes.
-  - **luthor 1.0 behaviour changes reach clients:**
+  - **luthor 1.1 behaviour changes reach clients:**
     - unknown keys are stripped;
     - validation stops after a failed type check;
     - default message text changes;
