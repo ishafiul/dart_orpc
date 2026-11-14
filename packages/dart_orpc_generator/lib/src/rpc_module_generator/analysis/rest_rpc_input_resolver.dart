@@ -145,6 +145,7 @@ List<_ResolvedRestInputField> _resolveRestPathFields(
     pathFields.add(
       _ResolvedRestInputField(
         name: field.name,
+        jsonKey: field.jsonKey,
         typeCode: field.typeCode,
         wireName: routeParameter,
       ),

@@ -3,12 +3,16 @@ part of '../../rpc_module_generator.dart';
 final class _ResolvedDtoField {
   const _ResolvedDtoField({
     required this.name,
+    required this.jsonKey,
     required this.typeCode,
     this.defaultSource,
     this.defaultWireName,
   });
 
   final String name;
+
+  /// The field's key in the DTO's JSON, after json_serializable renames.
+  final String jsonKey;
   final String typeCode;
   final String? defaultSource;
   final String? defaultWireName;
@@ -22,9 +26,14 @@ final class _ResolvedDtoFieldBinding {
 }
 
 final class _ResolvedDtoFieldBuilder {
-  _ResolvedDtoFieldBuilder({required this.name, required this.typeCode});
+  _ResolvedDtoFieldBuilder({
+    required this.name,
+    required this.jsonKey,
+    required this.typeCode,
+  });
 
   final String name;
+  final String jsonKey;
   final String typeCode;
   String? defaultSource;
   String? defaultWireName;
@@ -51,6 +60,7 @@ final class _ResolvedDtoFieldBuilder {
   _ResolvedDtoField build() {
     return _ResolvedDtoField(
       name: name,
+      jsonKey: jsonKey,
       typeCode: typeCode,
       defaultSource: defaultSource,
       defaultWireName: defaultWireName,
@@ -61,11 +71,13 @@ final class _ResolvedDtoFieldBuilder {
 final class _ResolvedRestInputField {
   const _ResolvedRestInputField({
     required this.name,
+    required this.jsonKey,
     required this.typeCode,
     required this.wireName,
   });
 
   final String name;
+  final String jsonKey;
   final String typeCode;
   final String wireName;
 }

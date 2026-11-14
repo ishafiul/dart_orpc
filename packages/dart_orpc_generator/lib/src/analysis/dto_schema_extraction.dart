@@ -23,9 +23,16 @@ String? dtoOwningPackage(Element element) {
 
 /// The schema extracted from one DTO, plus the DTOs its fields reference.
 final class DtoSchemaExtraction {
-  const DtoSchemaExtraction({required this.schema, required this.references});
+  const DtoSchemaExtraction({
+    required this.schema,
+    required this.references,
+    required this.jsonKeys,
+  });
 
   final DtoSchemaMetadata schema;
+
+  /// Each serialized field's JSON key, by Dart parameter name.
+  final Map<String, String> jsonKeys;
 
   /// Referenced DTO classes in first-use order, without duplicates.
   final List<InterfaceElement> references;
@@ -64,10 +71,13 @@ final class _DtoSchemaExtractor {
     _checkShape();
     final rename = _classFieldRename();
     final fields = <DtoFieldMetadata>[];
+    final jsonKeys = <String, String>{};
     for (final candidate in discoverDtoConstructorParameters(dto)) {
       final parameter = candidate.element as FormalParameterElement;
       final field = _field(parameter, rename);
-      if (field != null) fields.add(field);
+      if (field == null) continue;
+      fields.add(field);
+      jsonKeys[parameter.displayName] = field.wireName;
     }
     return DtoSchemaExtraction(
       schema: DtoSchemaMetadata(
@@ -75,6 +85,7 @@ final class _DtoSchemaExtractor {
         fields: List.unmodifiable(fields),
       ),
       references: List.unmodifiable(_references),
+      jsonKeys: Map.unmodifiable(jsonKeys),
     );
   }
 

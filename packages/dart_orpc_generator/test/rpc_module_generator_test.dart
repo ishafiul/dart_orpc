@@ -335,6 +335,27 @@ void main() {
       );
     });
 
+    for (final (label, annotation) in [
+      ('path parameter', "@FromPath('userId')"),
+      ('query parameter', "@FromQuery('view')"),
+      ('header', "@FromHeader('x-tenant-id')"),
+    ]) {
+      test(
+        'When a $label DTO field has a renamed JSON key then generation fails',
+        () async {
+          final run = await runModuleBuilder(
+            _withRenamedJsonKey(_sharedRpcAndRestGetSource, annotation),
+          );
+
+          expect(run.succeeded, isFalse);
+          expect(
+            run.errors.join('\n'),
+            contains('from a $label, but its JSON key is "renamed_key"'),
+          );
+        },
+      );
+    }
+
     test('When a REST-enabled method uses DTO field source annotations then it emits shared path, query, and header bindings from the same procedure', () async {
       final run = await runModuleBuilder(_sharedRpcAndRestGetSource);
 
@@ -2602,3 +2623,18 @@ final class UserController {
   ) {}
 }
 ''';
+
+/// [source] with `@JsonKey(name: 'renamed_key')` on the field that
+/// [annotation] binds.
+String _withRenamedJsonKey(String source, String annotation) {
+  const import = "import 'package:dart_orpc_core/dart_orpc_core.dart';\n";
+  final marker = '  $annotation\n';
+  expect(source, contains(import));
+  expect(marker.allMatches(source), hasLength(1));
+  return source
+      .replaceFirst(
+        import,
+        "${import}import 'package:json_annotation/json_annotation.dart';\n",
+      )
+      .replaceFirst(marker, "  @JsonKey(name: 'renamed_key')\n$marker");
+}

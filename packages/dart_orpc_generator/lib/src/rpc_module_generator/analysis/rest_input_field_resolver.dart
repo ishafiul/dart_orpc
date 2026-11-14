@@ -41,6 +41,7 @@ _ResolvedRestInputField _resolveRestInputFieldBinding(
   }
   return _ResolvedRestInputField(
     name: field.name,
+    jsonKey: field.jsonKey,
     typeCode: field.typeCode,
     wireName: binding.wireName,
   );
