@@ -120,6 +120,18 @@ EOF
 )"
 ```
 
+Commit the PRD on a docs branch and open a PRD-only PR. Use `Part of`, never `Closes`, so merging keeps the PRD issue open:
+
+```bash
+git switch -c docs/<feature-slug>-prd <default-branch>
+git add docs/prd/<feature-slug>.md
+git commit -m "docs(prd): Add the <Initiative> PRD"
+git push -u origin docs/<feature-slug>-prd
+gh pr create --base <default-branch> --title "docs(prd): Add the <Initiative> PRD" \
+  --body "Part of #<prd> · Map #<map>"
+gh issue comment <prd> --body "PRD PR: <pr-url>"
+```
+
 Keep user review on the PRD issue. For requested changes, update the checked-in PRD and issue description, comment with a concise change summary and file/section links, then return the issue to review:
 
 ```bash
@@ -133,8 +145,20 @@ Create tasks only after the PRD issue shows `status:approved` from explicit user
 
 ```bash
 gh issue edit <prd> --add-label "status:approved" --remove-label "status:needs-review" --remove-label "status:changes-requested"
-gh issue comment <prd> --body "PRD approval recorded on this issue. Creating capability and feature issues."
+gh issue comment <prd> --body "PRD approval recorded on this issue."
 ```
+
+Then merge the PRD PR before creating tasks. Update the PRD's status line first, wait for required checks, and keep the PRD issue open; it closes only when all its tasks are done:
+
+```bash
+# Update the status line to cite the approval comment, then:
+git commit -am "docs(prd): Mark the <Initiative> PRD approved" && git push
+gh pr checks <pr>                       # required checks must pass
+gh pr merge <pr> --squash                # or the repository's merge method
+gh issue comment <prd> --body "PRD merged to the default branch via <pr-url>. This issue stays open as the rollup for its tasks."
+```
+
+Repoint PRD links in the PRD issue, the map and any existing task issues from the branch to the default branch. A change to an approved PRD uses a new PRD PR and the same review, approval and merge cycle.
 
 ## Tasks and subtasks
 
