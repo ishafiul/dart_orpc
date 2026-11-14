@@ -18,6 +18,7 @@ final class _ModuleGenerationPlan {
     required this.generatedNames,
     required this.openApiTitle,
     required this.openApiSchemaComponents,
+    required this.dtoSchemas,
     required this.containerMembers,
     required this.externalProviderRequirements,
   });
@@ -34,6 +35,9 @@ final class _ModuleGenerationPlan {
   final _GeneratedModuleNames generatedNames;
   final String openApiTitle;
   final List<_ResolvedOpenApiSchemaComponent> openApiSchemaComponents;
+
+  /// Build-time schema metadata for this module's own DTOs, sorted by name.
+  final List<DtoSchemaMetadata> dtoSchemas;
   final List<_GeneratedContainerMember> containerMembers;
   final List<_ExternalProviderRequirement> externalProviderRequirements;
 }

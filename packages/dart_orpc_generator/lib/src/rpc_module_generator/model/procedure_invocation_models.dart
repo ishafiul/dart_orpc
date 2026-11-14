@@ -50,8 +50,12 @@ final class _ResolvedOpenApiSchemaComponent {
   const _ResolvedOpenApiSchemaComponent({
     required this.name,
     required this.validatorExpression,
+    this.element,
   });
 
   final String name;
   final String validatorExpression;
+
+  /// The @luthor DTO class, used to extract its schema metadata.
+  final InterfaceElement? element;
 }

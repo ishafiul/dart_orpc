@@ -12,6 +12,7 @@ final class _ModuleEmitter {
     _writeContainerAndProcedureSections(buffer, context);
     _writeRestAndMetadataSections(buffer, context);
     _writeOpenApiSections(buffer, context);
+    _writeDtoSchemaSections(buffer, context);
     _writeClientSections(buffer, context);
     return buffer.toString().trimRight();
   }
