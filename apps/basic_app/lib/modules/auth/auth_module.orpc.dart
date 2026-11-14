@@ -428,6 +428,90 @@ RpcHttpApp dartOrpcBuildAuthModuleRpcApp({
   middleware: middleware,
 );
 
+DtoSchemaRegistry _$createAuthModuleLocalDtoSchemaRegistry() {
+  return DtoSchemaRegistry(const [
+    DtoSchemaMetadata(
+      name: 'AuthResponseDto',
+      fields: [
+        DtoFieldMetadata(wireName: 'accessToken', type: DtoStringType()),
+        DtoFieldMetadata(
+          wireName: 'tokenType',
+          type: DtoStringType(),
+          required: false,
+        ),
+        DtoFieldMetadata(wireName: 'expiresIn', type: DtoIntegerType()),
+        DtoFieldMetadata(wireName: 'user', type: DtoObjectType('AuthUserDto')),
+      ],
+    ),
+    DtoSchemaMetadata(
+      name: 'AuthUserDto',
+      fields: [
+        DtoFieldMetadata(wireName: 'id', type: DtoStringType()),
+        DtoFieldMetadata(wireName: 'name', type: DtoStringType()),
+        DtoFieldMetadata(wireName: 'email', type: DtoStringType()),
+      ],
+    ),
+    DtoSchemaMetadata(
+      name: 'LoginDto',
+      fields: [
+        DtoFieldMetadata(
+          wireName: 'email',
+          type: DtoStringType(),
+          constraints: DtoFieldConstraints(
+            max: 254,
+            format: DtoStringFormat.email,
+          ),
+        ),
+        DtoFieldMetadata(
+          wireName: 'password',
+          type: DtoStringType(),
+          constraints: DtoFieldConstraints(
+            min: 8,
+            max: 72,
+            pattern: '^(?=.*[A-Za-z])(?=.*\\d).+\$',
+          ),
+        ),
+      ],
+    ),
+    DtoSchemaMetadata(
+      name: 'SignUpDto',
+      fields: [
+        DtoFieldMetadata(
+          wireName: 'name',
+          type: DtoStringType(),
+          constraints: DtoFieldConstraints(min: 3),
+        ),
+        DtoFieldMetadata(
+          wireName: 'email',
+          type: DtoStringType(),
+          constraints: DtoFieldConstraints(
+            max: 254,
+            format: DtoStringFormat.email,
+          ),
+        ),
+        DtoFieldMetadata(
+          wireName: 'password',
+          type: DtoStringType(),
+          constraints: DtoFieldConstraints(
+            min: 8,
+            max: 72,
+            pattern: '^(?=.*[A-Za-z])(?=.*\\d).+\$',
+          ),
+        ),
+      ],
+    ),
+  ]);
+}
+
+DtoSchemaRegistry _$createAuthModuleDtoSchemaRegistry() {
+  return DtoSchemaRegistry([
+    ..._$createAuthModuleLocalDtoSchemaRegistry().schemas,
+  ]);
+}
+
+DtoSchemaRegistry dartOrpcCreateAuthModuleDtoSchemaRegistry() =>
+    _$createAuthModuleDtoSchemaRegistry();
+
 class AuthClientRoot {
   AuthClientRoot({required RpcClientTransports transports})
     : _transports = transports;
@@ -490,6 +574,8 @@ extension DartOrpcAuthModuleGenerated on AuthModule {
       dartOrpcCreateAuthModuleProcedureMetadataRegistry();
   OpenApiSchemaRegistry openApiSchemaRegistry() =>
       dartOrpcCreateAuthModuleOpenApiSchemaRegistry();
+  DtoSchemaRegistry dtoSchemaRegistry() =>
+      dartOrpcCreateAuthModuleDtoSchemaRegistry();
   JsonObject openApiDocument({OpenApiDocumentOptions? options}) =>
       dartOrpcCreateAuthModuleOpenApiDocument(options: options);
   RpcHttpApp buildRpcApp({
