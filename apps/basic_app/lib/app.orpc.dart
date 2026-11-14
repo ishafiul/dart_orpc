@@ -1213,6 +1213,22 @@ RpcHttpApp dartOrpcBuildAppModuleRpcApp({
   middleware: middleware,
 );
 
+DtoSchemaRegistry _$createAppModuleLocalDtoSchemaRegistry() {
+  return DtoSchemaRegistry(const []);
+}
+
+DtoSchemaRegistry _$createAppModuleDtoSchemaRegistry() {
+  return DtoSchemaRegistry([
+    ...dartOrpcCreateAuthModuleDtoSchemaRegistry().schemas,
+    ...dartOrpcCreateTodoModuleDtoSchemaRegistry().schemas,
+    ...dartOrpcCreateTodoAnalysisModuleDtoSchemaRegistry().schemas,
+    ..._$createAppModuleLocalDtoSchemaRegistry().schemas,
+  ]);
+}
+
+DtoSchemaRegistry dartOrpcCreateAppModuleDtoSchemaRegistry() =>
+    _$createAppModuleDtoSchemaRegistry();
+
 class AppClient {
   AppClient({required RpcClientTransports transports})
     : _transports = transports;
@@ -1241,6 +1257,8 @@ extension DartOrpcAppModuleGenerated on AppModule {
       dartOrpcCreateAppModuleProcedureMetadataRegistry();
   OpenApiSchemaRegistry openApiSchemaRegistry() =>
       dartOrpcCreateAppModuleOpenApiSchemaRegistry();
+  DtoSchemaRegistry dtoSchemaRegistry() =>
+      dartOrpcCreateAppModuleDtoSchemaRegistry();
   JsonObject openApiDocument({OpenApiDocumentOptions? options}) =>
       dartOrpcCreateAppModuleOpenApiDocument(options: options);
   RpcHttpApp buildRpcApp({

@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:isolate';
+
 import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/nullability_suffix.dart';
@@ -9,6 +12,8 @@ import 'package:luthor/luthor.dart';
 import 'package:source_gen/source_gen.dart';
 
 import 'analysis/dto_field_discovery.dart';
+import 'analysis/dto_schema_extraction.dart';
+import 'analysis/json_serializable_config.dart';
 import 'contracts/rest_route_pattern.dart';
 import 'graph/depth_first_search.dart';
 import 'graph/topological_sort.dart';
@@ -17,6 +22,7 @@ import 'graph/topological_sort.dart';
 part 'rpc_module_generator/analysis/controller_binding_builder.dart';
 part 'rpc_module_generator/analysis/contract_collision_validator.dart';
 part 'rpc_module_generator/analysis/dto_field_resolver.dart';
+part 'rpc_module_generator/analysis/dto_schema_resolution.dart';
 part 'rpc_module_generator/analysis/module_analyzer.dart';
 part 'rpc_module_generator/analysis/module_graph_resolver.dart';
 part 'rpc_module_generator/analysis/procedure_binding_builder.dart';
@@ -39,6 +45,7 @@ part 'rpc_module_generator/model/procedure_invocation_models.dart';
 part 'rpc_module_generator/model/procedure_models.dart';
 
 // Dart source emission. Emitters do not inspect source annotations directly.
+part 'rpc_module_generator/emission/dto_schema_emitter.dart';
 part 'rpc_module_generator/emission/client_emitter.dart';
 part 'rpc_module_generator/emission/container_and_registry_emitter.dart';
 part 'rpc_module_generator/emission/module_emitter.dart';

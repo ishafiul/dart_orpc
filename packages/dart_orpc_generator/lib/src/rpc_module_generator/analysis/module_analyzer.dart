@@ -32,6 +32,10 @@ final class _ModuleAnalyzer {
       moduleElement: element,
     );
 
+    final openApiSchemaComponents = _collectOpenApiSchemaComponents(
+      rootModule.controllerBindings,
+    );
+    final dtoSchemas = _extractModuleDtoSchemas(openApiSchemaComponents);
     return _ModuleGenerationPlan(
       moduleName: element.displayName,
       rootModule: rootModule,
@@ -54,9 +58,9 @@ final class _ModuleAnalyzer {
         },
       ),
       openApiTitle: _openApiTitleFor(element.displayName),
-      openApiSchemaComponents: _collectOpenApiSchemaComponents(
-        rootModule.controllerBindings,
-      ),
+      openApiSchemaComponents: openApiSchemaComponents,
+      dtoSchemas: dtoSchemas.schemas,
+      dtoSchemaPackages: dtoSchemas.packages,
       containerMembers: [
         for (final instantiation in allProviderInstantiations)
           _GeneratedContainerMember(

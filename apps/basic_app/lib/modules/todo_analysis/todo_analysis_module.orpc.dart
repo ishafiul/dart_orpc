@@ -319,6 +319,29 @@ RpcHttpApp dartOrpcBuildTodoAnalysisModuleRpcApp({
   middleware: middleware,
 );
 
+DtoSchemaRegistry _$createTodoAnalysisModuleLocalDtoSchemaRegistry() {
+  return DtoSchemaRegistry(const [
+    DtoSchemaMetadata(
+      name: 'TodoAnalysisSummaryDto',
+      fields: [
+        DtoFieldMetadata(wireName: 'total', type: DtoIntegerType()),
+        DtoFieldMetadata(wireName: 'completed', type: DtoIntegerType()),
+        DtoFieldMetadata(wireName: 'pending', type: DtoIntegerType()),
+        DtoFieldMetadata(wireName: 'completionRate', type: DtoNumberType()),
+      ],
+    ),
+  ]);
+}
+
+DtoSchemaRegistry _$createTodoAnalysisModuleDtoSchemaRegistry() {
+  return DtoSchemaRegistry([
+    ..._$createTodoAnalysisModuleLocalDtoSchemaRegistry().schemas,
+  ]);
+}
+
+DtoSchemaRegistry dartOrpcCreateTodoAnalysisModuleDtoSchemaRegistry() =>
+    _$createTodoAnalysisModuleDtoSchemaRegistry();
+
 class TodoAnalysisClientRoot {
   TodoAnalysisClientRoot({required RpcClientTransports transports})
     : _transports = transports;
@@ -360,6 +383,8 @@ extension DartOrpcTodoAnalysisModuleGenerated on TodoAnalysisModule {
       dartOrpcCreateTodoAnalysisModuleProcedureMetadataRegistry();
   OpenApiSchemaRegistry openApiSchemaRegistry() =>
       dartOrpcCreateTodoAnalysisModuleOpenApiSchemaRegistry();
+  DtoSchemaRegistry dtoSchemaRegistry() =>
+      dartOrpcCreateTodoAnalysisModuleDtoSchemaRegistry();
   JsonObject openApiDocument({OpenApiDocumentOptions? options}) =>
       dartOrpcCreateTodoAnalysisModuleOpenApiDocument(options: options);
   RpcHttpApp buildRpcApp({

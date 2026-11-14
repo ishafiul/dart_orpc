@@ -12,6 +12,13 @@ final class _ModuleGenerationPipeline {
     required BuildStep buildStep,
   }) async {
     final context = _analyzer.analyze(element, annotation: annotation);
+    if (context.dtoSchemas.isNotEmpty) {
+      await _rejectJsonFieldRename(
+        element,
+        buildStep,
+        context.dtoSchemaPackages,
+      );
+    }
     final importDirectives = await _collectImportDirectivesForModule(
       context.rootModule,
       buildStep: buildStep,

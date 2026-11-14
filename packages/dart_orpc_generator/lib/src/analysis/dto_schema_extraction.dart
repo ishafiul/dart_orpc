@@ -10,6 +10,17 @@ import 'dto_field_discovery.dart';
 
 const _luthorChecker = TypeChecker.typeNamed(Luthor, inPackage: 'luthor');
 
+/// The package that owns [element], from its library's `package:` URI.
+///
+/// Returns `null` for libraries outside `lib/`, such as test fixtures.
+String? dtoOwningPackage(Element element) {
+  final uri = element.library?.uri;
+  if (uri == null || uri.scheme != 'package' || uri.pathSegments.isEmpty) {
+    return null;
+  }
+  return uri.pathSegments.first;
+}
+
 /// The schema extracted from one DTO, plus the DTOs its fields reference.
 final class DtoSchemaExtraction {
   const DtoSchemaExtraction({required this.schema, required this.references});

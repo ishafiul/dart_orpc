@@ -981,6 +981,111 @@ RpcHttpApp dartOrpcBuildTodoModuleRpcApp({
   middleware: middleware,
 );
 
+DtoSchemaRegistry _$createTodoModuleLocalDtoSchemaRegistry() {
+  return DtoSchemaRegistry(const [
+    DtoSchemaMetadata(
+      name: 'CreateTodoDto',
+      fields: [
+        DtoFieldMetadata(
+          wireName: 'title',
+          type: DtoStringType(),
+          constraints: DtoFieldConstraints(min: 1),
+        ),
+      ],
+    ),
+    DtoSchemaMetadata(
+      name: 'DeleteTodoResponseDto',
+      fields: [
+        DtoFieldMetadata(
+          wireName: 'deleted',
+          type: DtoBooleanType(),
+          required: false,
+        ),
+      ],
+    ),
+    DtoSchemaMetadata(
+      name: 'GetTodoDto',
+      fields: [DtoFieldMetadata(wireName: 'id', type: DtoIntegerType())],
+    ),
+    DtoSchemaMetadata(
+      name: 'TodoChangeResponseDto',
+      fields: [
+        DtoFieldMetadata(wireName: 'type', type: DtoStringType()),
+        DtoFieldMetadata(
+          wireName: 'todo',
+          type: DtoObjectType('TodoResponseDto'),
+        ),
+      ],
+    ),
+    DtoSchemaMetadata(
+      name: 'TodoListResponseDto',
+      fields: [
+        DtoFieldMetadata(
+          wireName: 'items',
+          type: DtoListType(DtoObjectType('TodoResponseDto')),
+        ),
+      ],
+    ),
+    DtoSchemaMetadata(
+      name: 'TodoMetadataDto',
+      fields: [
+        DtoFieldMetadata(wireName: 'priority', type: DtoStringType()),
+        DtoFieldMetadata(wireName: 'tags', type: DtoListType(DtoStringType())),
+      ],
+    ),
+    DtoSchemaMetadata(
+      name: 'TodoResponseDto',
+      fields: [
+        DtoFieldMetadata(wireName: 'id', type: DtoIntegerType()),
+        DtoFieldMetadata(
+          wireName: 'title',
+          type: DtoStringType(),
+          constraints: DtoFieldConstraints(min: 1),
+        ),
+        DtoFieldMetadata(wireName: 'completed', type: DtoBooleanType()),
+        DtoFieldMetadata(
+          wireName: 'createdAt',
+          type: DtoStringType(),
+          constraints: DtoFieldConstraints(format: DtoStringFormat.dateTime),
+        ),
+        DtoFieldMetadata(
+          wireName: 'metadata',
+          type: DtoObjectType('TodoMetadataDto'),
+          nullable: true,
+          required: false,
+        ),
+      ],
+    ),
+    DtoSchemaMetadata(
+      name: 'UpdateTodoDto',
+      fields: [
+        DtoFieldMetadata(wireName: 'id', type: DtoIntegerType()),
+        DtoFieldMetadata(
+          wireName: 'title',
+          type: DtoStringType(),
+          nullable: true,
+          required: false,
+        ),
+        DtoFieldMetadata(
+          wireName: 'completed',
+          type: DtoBooleanType(),
+          nullable: true,
+          required: false,
+        ),
+      ],
+    ),
+  ]);
+}
+
+DtoSchemaRegistry _$createTodoModuleDtoSchemaRegistry() {
+  return DtoSchemaRegistry([
+    ..._$createTodoModuleLocalDtoSchemaRegistry().schemas,
+  ]);
+}
+
+DtoSchemaRegistry dartOrpcCreateTodoModuleDtoSchemaRegistry() =>
+    _$createTodoModuleDtoSchemaRegistry();
+
 class TodoClientRoot {
   TodoClientRoot({required RpcClientTransports transports})
     : _transports = transports;
@@ -1134,6 +1239,8 @@ extension DartOrpcTodoModuleGenerated on TodoModule {
       dartOrpcCreateTodoModuleProcedureMetadataRegistry();
   OpenApiSchemaRegistry openApiSchemaRegistry() =>
       dartOrpcCreateTodoModuleOpenApiSchemaRegistry();
+  DtoSchemaRegistry dtoSchemaRegistry() =>
+      dartOrpcCreateTodoModuleDtoSchemaRegistry();
   JsonObject openApiDocument({OpenApiDocumentOptions? options}) =>
       dartOrpcCreateTodoModuleOpenApiDocument(options: options);
   RpcHttpApp buildRpcApp({

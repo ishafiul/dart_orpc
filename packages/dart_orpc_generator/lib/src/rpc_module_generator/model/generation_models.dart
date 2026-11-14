@@ -27,6 +27,9 @@ final class _GeneratedModuleNames {
     required this.createOpenApiSchemaRegistryName,
     required this.createLocalOpenApiSchemaRegistryName,
     required this.composeOpenApiSchemaRegistryName,
+    required this.createDtoSchemaRegistryName,
+    required this.createLocalDtoSchemaRegistryName,
+    required this.composeDtoSchemaRegistryName,
     required this.createOpenApiDocumentName,
     required this.composeOpenApiDocumentName,
     required this.containerClassName,
@@ -71,6 +74,12 @@ final class _GeneratedModuleNames {
           '_\$create${moduleName}LocalOpenApiSchemaRegistry',
       composeOpenApiSchemaRegistryName:
           _publicOpenApiSchemaRegistryFactoryNameFor(moduleName),
+      createDtoSchemaRegistryName: '_\$create${moduleName}DtoSchemaRegistry',
+      createLocalDtoSchemaRegistryName:
+          '_\$create${moduleName}LocalDtoSchemaRegistry',
+      composeDtoSchemaRegistryName: _publicDtoSchemaRegistryFactoryNameFor(
+        moduleName,
+      ),
       createOpenApiDocumentName: '_\$create${moduleName}OpenApiDocument',
       composeOpenApiDocumentName: _publicOpenApiDocumentFactoryNameFor(
         moduleName,
@@ -101,6 +110,9 @@ final class _GeneratedModuleNames {
   final String createOpenApiSchemaRegistryName;
   final String createLocalOpenApiSchemaRegistryName;
   final String composeOpenApiSchemaRegistryName;
+  final String createDtoSchemaRegistryName;
+  final String createLocalDtoSchemaRegistryName;
+  final String composeDtoSchemaRegistryName;
   final String createOpenApiDocumentName;
   final String composeOpenApiDocumentName;
   final String containerClassName;

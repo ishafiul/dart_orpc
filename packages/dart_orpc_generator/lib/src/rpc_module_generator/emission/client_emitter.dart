@@ -277,6 +277,9 @@ void _writeGeneratedExtension(
       '  OpenApiSchemaRegistry openApiSchemaRegistry() => ${names.composeOpenApiSchemaRegistryName}();',
     )
     ..writeln(
+      '  DtoSchemaRegistry dtoSchemaRegistry() => ${names.composeDtoSchemaRegistryName}();',
+    )
+    ..writeln(
       '  JsonObject openApiDocument({OpenApiDocumentOptions? options}) => ${names.composeOpenApiDocumentName}(options: options);',
     )
     ..writeln(
