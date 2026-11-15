@@ -24,4 +24,4 @@ pub mod websocket;
 /// Bump it whenever an exported function or a record layout changes. Dart
 /// refuses to load a library whose version differs from its own
 /// `abiVersion`.
-pub const ABI_VERSION: i32 = 2;
+pub const ABI_VERSION: i32 = 3;

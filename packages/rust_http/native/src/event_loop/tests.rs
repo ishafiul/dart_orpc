@@ -53,10 +53,13 @@ impl EventLoop {
 }
 
 fn new_core(lim: Limits) -> (EventLoop, u16) {
-    let bound = listener::bind(ListenAddress {
-        ip: Some(Ipv4Addr::LOCALHOST.into()),
-        port: 0,
-    })
+    let bound = listener::bind(
+        ListenAddress {
+            ip: Some(Ipv4Addr::LOCALHOST.into()),
+            port: 0,
+        },
+        false,
+    )
     .unwrap();
     let port = bound.address.port;
     (

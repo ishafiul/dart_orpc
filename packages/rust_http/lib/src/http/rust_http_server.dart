@@ -30,8 +30,8 @@ import 'rust_http_request.dart';
 /// });
 /// ```
 ///
-/// Each isolate can bind the same port; the OS spreads connections over
-/// them.
+/// Isolates can share one port with `shared: true`; the OS spreads
+/// connections over them.
 final class RustHttpServer extends Stream<HttpRequest>
     implements HttpServer, AnswerChannel, WebSocketHost {
   RustHttpServer._(HttpEngine engine, this.address, this._receivePort)
@@ -67,8 +67,9 @@ final class RustHttpServer extends Stream<HttpRequest>
   ///   more clients wait in the OS listen queue.
   /// - A keep-alive connection with no request for [idleTimeout] closes.
   ///   Behind a load balancer, set it above the balancer's idle timeout.
-  /// - [shared] exists for `HttpServer.bind` compatibility: isolates can
-  ///   always share a port.
+  /// - With [shared], other shared servers of this process (e.g. in other
+  ///   isolates) can bind the same port and the OS spreads connections
+  ///   over them, like `HttpServer.bind`. Without it, a second bind fails.
   static Future<RustHttpServer> bind(
     int port, {
     Object? address,
@@ -117,6 +118,7 @@ final class RustHttpServer extends Stream<HttpRequest>
           bodyTimeout: bodyTimeout,
           maxConnections: maxConnections,
           idleTimeout: idleTimeout,
+          shared: shared,
         ),
         receivePort.sendPort.nativePort,
       );

@@ -48,6 +48,7 @@ final class FfiHttpEngine implements HttpEngine {
       low,
       config.maxConnections ?? 0,
       config.idleTimeout.inMilliseconds,
+      config.shared ? 1 : 0,
     );
     if (handle <= 0) {
       final osError = handle <= -1000 ? -(handle + 1000) : 0;

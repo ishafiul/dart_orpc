@@ -130,9 +130,11 @@ List<String> lengthErrors = <String>[];
 Completer<int> foreverDone = Completer<int>();
 
 Future<RustHttpServer> start(int port, {int maxBodySize = 1024}) async {
+  // rust_http follows dart:io: isolates share a port only when asked.
   RustHttpServer server = await RustHttpServer.bind(
     port,
     maxBodySize: maxBodySize,
+    shared: true,
   );
   server.listen(handle);
   return server;

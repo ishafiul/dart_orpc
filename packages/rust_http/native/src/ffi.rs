@@ -47,9 +47,9 @@ pub unsafe extern "C" fn rust_http_init(api_dl_data: *mut c_void) -> i32 {
 /// Binds a server and starts its idle helper, which posts to `send_port`.
 ///
 /// `family` (0 all interfaces, 4 IPv4, 6 IPv6), `address_high` and
-/// `address_low` encode the host. Returns a handle (> 0), -1 when not
-/// initialized, -2 without resources, or `-(1000 + errno)` when the bind
-/// fails.
+/// `address_low` encode the host. Flag bit 0 enables sharing. Returns a
+/// handle (> 0), -1 when not initialized, -2 without resources, or
+/// `-(1000 + errno)` when the bind fails.
 #[unsafe(no_mangle)]
 #[allow(clippy::too_many_arguments)]
 pub extern "C" fn rust_http_bind(
@@ -63,6 +63,7 @@ pub extern "C" fn rust_http_bind(
     address_low: u64,
     max_connections: i64,
     idle_timeout_ms: i64,
+    flags: i32,
 ) -> i64 {
     if !dart_api::is_initialized() {
         return BIND_NOT_INITIALIZED;
@@ -80,7 +81,7 @@ pub extern "C" fn rust_http_bind(
         max_connections,
         idle_timeout_ms,
     );
-    match Server::bind(address, limits, send_port) {
+    match Server::bind(address, flags & 1 != 0, limits, send_port) {
         Ok(server) => Arc::into_raw(server) as i64,
         Err(BindError::Os(error)) => {
             -(BIND_OS_ERROR_BASE + i64::from(error.raw_os_error().unwrap_or(0)))
@@ -212,7 +213,7 @@ mod tests {
     #[test]
     fn bind_before_init_is_refused() {
         assert_eq!(
-            rust_http_bind(0, 1, 0, 0, 0, 0, 0, 0, 0, 0),
+            rust_http_bind(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0),
             BIND_NOT_INITIALIZED
         );
     }

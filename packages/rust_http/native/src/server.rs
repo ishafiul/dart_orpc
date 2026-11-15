@@ -67,17 +67,18 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 }
 
 impl Server {
-    /// Binds `address` and starts the idle helper, which posts to
-    /// `dart_port`.
+    /// Binds `address` (see [`listener::bind`] for `shared`) and starts the
+    /// idle helper, which posts to `dart_port`.
     ///
     /// # Errors
     /// [`BindError`] when the socket, poller or thread cannot be made.
     pub fn bind(
         address: ListenAddress,
+        shared: bool,
         limits: Limits,
         dart_port: i64,
     ) -> Result<Arc<Self>, BindError> {
-        let bound = listener::bind(address).map_err(BindError::Os)?;
+        let bound = listener::bind(address, shared).map_err(BindError::Os)?;
         let real = bound.address;
         let Ok(event_loop) = EventLoop::new(bound.listener, real, limits) else {
             listener::release(real);

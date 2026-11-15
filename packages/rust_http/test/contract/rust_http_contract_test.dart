@@ -5,7 +5,8 @@ import 'http_server_contract.dart';
 void main() {
   runHttpServerContract(
     name: 'RustHttpServer',
-    bind: () => RustHttpServer.bind(0, address: '127.0.0.1'),
+    bind: ({port = 0, shared = false}) =>
+        RustHttpServer.bind(port, address: '127.0.0.1', shared: shared),
     upgradeWebSocket: RustWebSocket.upgrade,
   );
 }

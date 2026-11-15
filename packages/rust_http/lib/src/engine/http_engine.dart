@@ -23,6 +23,7 @@ final class BindConfig {
     required this.bodyTimeout,
     required this.maxConnections,
     required this.idleTimeout,
+    this.shared = false,
   });
 
   /// The port, 0 for any.
@@ -45,6 +46,9 @@ final class BindConfig {
 
   /// Keep-alive timeout.
   final Duration idleTimeout;
+
+  /// Whether other shared servers of this process may bind the same port.
+  final bool shared;
 }
 
 /// The native HTTP core, as the Dart server sees it.

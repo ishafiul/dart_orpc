@@ -45,8 +45,9 @@ impl ListenAddress {
     }
 }
 
-/// Binds a new non-blocking listening socket for `address`.
-fn bind_new(address: ListenAddress) -> std::io::Result<TcpListener> {
+/// Binds a new non-blocking listening socket for `address`. Only a
+/// `shared` socket lets other sockets bind the same port.
+fn bind_new(address: ListenAddress, shared: bool) -> std::io::Result<TcpListener> {
     let (socket, bind_to) = match address.ip {
         Some(ip) => {
             let target = SocketAddr::new(ip, address.port);
@@ -76,7 +77,9 @@ fn bind_new(address: ListenAddress) -> std::io::Result<TcpListener> {
     #[cfg(unix)]
     socket.set_reuse_address(true)?;
     #[cfg(any(target_os = "linux", target_os = "android"))]
-    socket.set_reuse_port(true)?;
+    socket.set_reuse_port(shared)?;
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    let _ = shared;
     socket.bind(&bind_to.into())?;
     socket.listen(1024)?;
     socket.set_nonblocking(true)?;
@@ -92,14 +95,15 @@ pub struct BoundListener {
     pub address: ListenAddress,
 }
 
-/// Binds `address`, sharing a socket with other isolates where the OS
-/// needs it.
+/// Binds `address`. With `shared`, other `shared` binds of the same
+/// address in this process succeed too, like dart:io; without it, they
+/// fail with `AddrInUse`.
 ///
 /// # Errors
 /// The OS error of the bind.
 #[cfg(any(target_os = "linux", target_os = "android"))]
-pub fn bind(address: ListenAddress) -> std::io::Result<BoundListener> {
-    let listener = bind_new(address)?;
+pub fn bind(address: ListenAddress, shared: bool) -> std::io::Result<BoundListener> {
+    let listener = bind_new(address, shared)?;
     let port = listener.local_addr()?.port();
     Ok(BoundListener {
         listener,
@@ -111,32 +115,49 @@ pub fn bind(address: ListenAddress) -> std::io::Result<BoundListener> {
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub fn release(_address: ListenAddress) {}
 
-/// Listening sockets of this process with their user count.
+/// A listening socket of this process.
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
-static SHARED: Mutex<Vec<(ListenAddress, TcpListener, usize)>> = Mutex::new(Vec::new());
+struct Registered {
+    address: ListenAddress,
+    listener: TcpListener,
+    shared: bool,
+    users: usize,
+}
 
-/// Binds `address`, sharing a socket with other isolates where the OS
-/// needs it.
+/// Listening sockets of this process.
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+static REGISTERED: Mutex<Vec<Registered>> = Mutex::new(Vec::new());
+
+/// Binds `address`. With `shared`, other `shared` binds of the same
+/// address in this process get a duplicate of one socket, like dart:io;
+/// a bind that is not `shared`, or one onto an unshared socket, fails with
+/// `AddrInUse`.
 ///
 /// # Errors
 /// The OS error of the bind.
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
-pub fn bind(address: ListenAddress) -> std::io::Result<BoundListener> {
-    let mut shared = SHARED
+pub fn bind(address: ListenAddress, shared: bool) -> std::io::Result<BoundListener> {
+    let mut registered = REGISTERED
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     if address.port != 0
-        && let Some(entry) = shared.iter_mut().find(|entry| entry.0 == address)
+        && let Some(entry) = registered.iter_mut().find(|entry| entry.address == address)
     {
-        entry.2 += 1;
-        return Ok(BoundListener {
-            listener: entry.1.try_clone()?,
-            address,
-        });
+        if !(shared && entry.shared) {
+            return Err(std::io::ErrorKind::AddrInUse.into());
+        }
+        let listener = entry.listener.try_clone()?;
+        entry.users += 1;
+        return Ok(BoundListener { listener, address });
     }
-    let listener = bind_new(address)?;
+    let listener = bind_new(address, shared)?;
     let real = address.with_port(listener.local_addr()?.port());
-    shared.push((real, listener.try_clone()?, 1));
+    registered.push(Registered {
+        address: real,
+        listener: listener.try_clone()?,
+        shared,
+        users: 1,
+    });
     Ok(BoundListener {
         listener,
         address: real,
@@ -147,13 +168,13 @@ pub fn bind(address: ListenAddress) -> std::io::Result<BoundListener> {
 /// closes the socket, so the port is free.
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
 pub fn release(address: ListenAddress) {
-    let mut shared = SHARED
+    let mut registered = REGISTERED
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if let Some(index) = shared.iter().position(|entry| entry.0 == address) {
-        shared[index].2 -= 1;
-        if shared[index].2 == 0 {
-            shared.swap_remove(index);
+    if let Some(index) = registered.iter().position(|entry| entry.address == address) {
+        registered[index].users -= 1;
+        if registered[index].users == 0 {
+            registered.swap_remove(index);
         }
     }
 }
@@ -181,11 +202,30 @@ mod tests {
 
     #[test]
     fn binds_one_host_only() {
-        let bound = bind(loopback()).unwrap();
+        let bound = bind(loopback(), false).unwrap();
         let local = bound.listener.local_addr().unwrap();
         assert_eq!(local.ip(), IpAddr::V4(Ipv4Addr::LOCALHOST));
         assert_eq!(bound.address.port, local.port());
         release(bound.address);
+    }
+
+    #[test]
+    fn only_shared_binds_share_a_port() {
+        let first = bind(loopback(), false).unwrap();
+        let again = loopback().with_port(first.address.port);
+        assert_eq!(
+            bind(again, true).err().map(|e| e.kind()),
+            Some(std::io::ErrorKind::AddrInUse)
+        );
+        release(first.address);
+        drop(first);
+
+        let shared = bind(loopback(), true).unwrap();
+        let again = loopback().with_port(shared.address.port);
+        let second = bind(again, true).unwrap();
+        assert_eq!(second.address.port, shared.address.port);
+        release(second.address);
+        release(shared.address);
     }
 
     #[test]

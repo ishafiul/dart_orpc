@@ -11,8 +11,8 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
-/// Binds a server on `127.0.0.1`, port 0.
-typedef ServerBinder = Future<HttpServer> Function();
+/// Binds a server on `127.0.0.1`, by default on any free port.
+typedef ServerBinder = Future<HttpServer> Function({int port, bool shared});
 
 /// Accepts a WebSocket upgrade of a request.
 typedef WebSocketUpgrader = Future<WebSocket> Function(HttpRequest request);
@@ -345,6 +345,22 @@ void runHttpServerContract({
     });
 
     group('lifecycle', () {
+      test('an unshared port cannot be bound again', () async {
+        await expectLater(
+          bind(port: server.port, shared: true),
+          throwsA(isA<SocketException>()),
+        );
+      });
+
+      test('a shared port can be bound by several servers', () async {
+        final first = await bind(shared: true);
+        addTearDown(() => first.close(force: true));
+        final second = await bind(port: first.port, shared: true);
+        addTearDown(() => second.close(force: true));
+
+        expect(second.port, first.port);
+      });
+
       test('report the bound port and a loopback address', () {
         expect(server.port, greaterThan(0));
         expect(server.address.isLoopback, isTrue);

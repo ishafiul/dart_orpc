@@ -28,6 +28,7 @@ external int rustHttpInit(Pointer<Void> apiDlData);
     Uint64,
     Int64,
     Int64,
+    Int32,
   )
 >(symbol: 'rust_http_bind')
 external int rustHttpBind(
@@ -41,6 +42,7 @@ external int rustHttpBind(
   int addressLow,
   int maxConnections,
   int idleTimeoutMs,
+  int flags,
 );
 
 /// `rust_http_bound_port` in `native/src/ffi.rs`.

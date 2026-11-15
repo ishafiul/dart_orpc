@@ -6,7 +6,8 @@ import 'http_server_contract.dart';
 void main() {
   runHttpServerContract(
     name: 'dart:io HttpServer',
-    bind: () => HttpServer.bind('127.0.0.1', 0),
+    bind: ({port = 0, shared = false}) =>
+        HttpServer.bind('127.0.0.1', port, shared: shared),
     upgradeWebSocket: WebSocketTransformer.upgrade,
   );
 }
