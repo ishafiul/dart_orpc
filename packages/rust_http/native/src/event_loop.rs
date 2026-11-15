@@ -279,10 +279,9 @@ impl EventLoop {
                 WAKER => {}
                 Token(token) => {
                     let index = token - 1;
-                    let Some(connection) = self.connections.get_mut(index) else {
+                    let Some(connection) = self.connections.get(index) else {
                         continue;
                     };
-                    connection.hangup |= event.is_read_closed();
                     let readable =
                         event.is_readable() || event.is_read_closed() || event.is_error();
                     let paused = connection.paused

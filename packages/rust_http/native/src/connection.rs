@@ -130,8 +130,6 @@ pub struct Connection {
     pub shut: bool,
     /// The client closed its side.
     pub eof: bool,
-    /// The poll saw the client close: a short read must go on to the 0.
-    pub hangup: bool,
     /// Lingering close: when it started and the bytes dropped.
     pub linger: Option<(Instant, usize)>,
     /// When the last request came or answer went out: the idle time
@@ -201,7 +199,6 @@ impl Connection {
             switch_to_websocket: false,
             shut: false,
             eof: false,
-            hangup: false,
             linger: None,
             idle_since: now,
             timer: None,
@@ -258,14 +255,8 @@ impl Connection {
                     self.eof = true;
                     return true;
                 }
-                Ok(read) => {
-                    self.read_len += read;
-                    // A short read emptied the socket; new bytes give a new
-                    // edge. After a hangup, read on to the 0.
-                    if self.read_len < self.read_buf.len() && !self.hangup {
-                        return true;
-                    }
-                }
+                Ok(read) => self.read_len += read,
+                // Mio rearms read notifications on WouldBlock on Windows.
                 Err(e) if e.kind() == ErrorKind::WouldBlock => return true,
                 Err(e) if e.kind() == ErrorKind::Interrupted => {}
                 Err(_) => return false,

@@ -112,22 +112,17 @@ fn records(b: &[u8]) -> Vec<Rec> {
     out
 }
 
-/// The test app. `/ws`, `/bye`, `/flood`, `/big` and `/wide` accept a
-/// WebSocket (ws id = request id, max message 8 bytes, `/big` and `/wide`
-/// 16 MiB). `/bye` then
-/// closes with 4000, `/flood` sends 2 MB at once, `/big` 8 MiB. Messages
+/// The test app. `/ws`, `/bye`, `/flood`, and `/wide` accept a
+/// WebSocket (ws id = request id, max message 8 bytes or 16 MiB for `/wide`).
+/// `/bye` then closes with 4000, and `/flood` sends 2 MB at once. Messages
 /// are echoed. `/stream` sends "ab", "cde" as a streamed body. `/exact`,
 /// `/liar` and `/short` do the same with `content-length` 5, 3 and 9.
 /// `/zip` gzips. Anything else: the target and the body.
 fn app(r: &Rec, out: &mut Vec<u8>) {
     match r.kind() {
         0 => match r.target.as_str() {
-            t @ ("/ws" | "/bye" | "/flood" | "/big" | "/wide") if r.flags & 2 != 0 => {
-                let max: u64 = if t == "/big" || t == "/wide" {
-                    16 << 20
-                } else {
-                    8
-                };
+            t @ ("/ws" | "/bye" | "/flood" | "/wide") if r.flags & 2 != 0 => {
+                let max: u64 = if t == "/wide" { 16 << 20 } else { 8 };
                 respond_with(
                     out,
                     r.id,
@@ -143,7 +138,6 @@ fn app(r: &Rec, out: &mut Vec<u8>) {
                             respond_with(out, r.id, 0, 3, b"", &[0u8; 100_000]);
                         }
                     }
-                    "/big" => respond_with(out, r.id, 0, 3, b"", &vec![0u8; 8 << 20]),
                     _ => {}
                 }
             }
@@ -287,18 +281,43 @@ fn answers_and_bad_requests() {
     );
 }
 
-/// Sends a 20 byte body (over the limit) in 2 byte parts, 10 ms apart.
-fn slow_send(port: u16) -> String {
-    let mut s = connect(port);
-    s.write_all(b"POST / HTTP/1.1\r\nHost: a\r\nContent-Length: 20\r\n\r\n")
-        .unwrap();
-    for _ in 0..10 {
-        std::thread::sleep(Duration::from_millis(10));
-        s.write_all(b"ab").unwrap();
+#[test]
+fn body_progress_resets_the_idle_timeout() {
+    let (mut core, port) = new_core(limits());
+    let mut inb = vec![0u8; 1 << 18];
+    let mut client = connect(port);
+    accept(&mut core, &mut inb, 1);
+    let index = core.connections.iter().next().unwrap().0;
+    let start = core.now;
+    let head = b"POST / HTTP/1.1\r\nHost: a\r\nContent-Length: 20\r\n\r\n";
+    let parts = std::iter::once(head.as_slice()).chain(std::iter::repeat_n(b"ab".as_slice(), 10));
+    for (step, part) in parts.enumerate() {
+        core.now = start + Duration::from_millis(10 * step as u64);
+        core.run_timers();
+        client.write_all(part).unwrap();
+
+        let deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            core.wait(Some(Duration::from_millis(1)));
+            assert_eq!(core.fill(&mut inb).unwrap(), 0);
+            let connection = &core.connections[index];
+            if step == 10 {
+                if connection.linger.is_some() {
+                    break;
+                }
+            } else if connection
+                .body
+                .as_ref()
+                .is_some_and(|body| body.last_progress() == core.now)
+            {
+                break;
+            }
+            assert!(Instant::now() < deadline, "no progress for part {step}");
+        }
     }
-    let mut out = Vec::new();
-    let _ = s.read_to_end(&mut out);
-    String::from_utf8_lossy(&out).into_owned()
+    let mut response = String::new();
+    client.read_to_string(&mut response).unwrap();
+    assert!(response.starts_with("HTTP/1.1 413"), "{response:?}");
 }
 
 #[test]
@@ -311,9 +330,6 @@ fn body_limits_and_timeout() {
     // too big, whole body sent: read and dropped, then 413 (no reset)
     let full = b"POST / HTTP/1.1\r\nHost: a\r\nContent-Length: 15\r\n\r\n123456789012345";
     assert!(send(port, full).starts_with("HTTP/1.1 413"), "413");
-    // slow but steady: 100 ms in all, but never 50 ms without bytes
-    let r = slow_send(port);
-    assert!(r.starts_with("HTTP/1.1 413"), "steady {r:?}");
     // a stalled body gets 408 after the idle timeout
     let slow = b"POST / HTTP/1.1\r\nHost: a\r\nContent-Length: 5\r\n\r\nab";
     assert!(send(port, slow).starts_with("HTTP/1.1 408"), "408");
@@ -704,13 +720,24 @@ fn websocket_close_ends_when_the_client_does_not_answer() {
     );
 }
 
+fn limit_send_buffer(core: &EventLoop, id: u64) {
+    let connection = &core.connections[(id >> 32) as usize];
+    socket2::SockRef::from(&connection.socket)
+        .set_send_buffer_size(16 * 1024)
+        .unwrap();
+}
+
 /// A client that does not read: a send that makes no progress drops the
 /// socket after SEND_WAIT, with 1006.
 #[test]
 fn websocket_send_ends_when_the_client_does_not_read() {
     let (mut core, port) = new_core(limits());
     let mut inb = vec![0u8; 1 << 18];
-    let (id, _tx) = ws_on(&mut core, &mut inb, port, "/big");
+    let (id, _tx) = ws_on(&mut core, &mut inb, port, "/wide");
+    limit_send_buffer(&core, id);
+    let mut out = Vec::new();
+    respond_with(&mut out, id, 0, 3, b"", &vec![0u8; 8 << 20]);
+    core.run_us(&out, &mut inb, 0).unwrap();
     assert!(
         core.connections.iter().any(|(_, c)| c.pending() > 0),
         "a send waits"
@@ -853,6 +880,7 @@ fn answer_to_a_client_that_does_not_read_times_out() {
     let mut s = connect(port);
     s.write_all(b"GET /big HTTP/1.1\r\n\r\n").unwrap();
     let req = collect(&mut core, &mut inb, 1).pop().unwrap();
+    limit_send_buffer(&core, req.id);
     let mut out = Vec::new();
     respond_with(&mut out, req.id, 200, 0, b"", &vec![0u8; 16 << 20]);
     core.run_us(&out, &mut inb, 0).unwrap();
