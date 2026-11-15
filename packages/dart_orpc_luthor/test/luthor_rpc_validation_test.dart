@@ -192,6 +192,181 @@ void main() {
       );
     });
   });
+
+  group('Given input validation issues', () {
+    test('When input fails then each issue is in the details', () {
+      expect(_inputIssues(_validateTestDto, {'id': ''}), [
+        RpcValidationIssue(path: ['id'], code: 'tooShort', message: _tooShort),
+      ]);
+    });
+
+    test('When list elements fail then paths keep integer indexes', () {
+      expect(
+        _inputIssues(_validateTestListDto, {
+          'items': [
+            {'id': '1'},
+            {'id': ''},
+            {},
+          ],
+        }),
+        [
+          RpcValidationIssue(
+            path: ['items', 1, 'id'],
+            code: 'tooShort',
+            message: _tooShort,
+          ),
+          RpcValidationIssue(
+            path: ['items', 2, 'id'],
+            code: 'required',
+            message: 'id is required',
+          ),
+        ],
+      );
+    });
+
+    test('When one field fails several rules then every issue is kept', () {
+      final schema = l.schema({
+        'code': l.string().min(3).regex(RegExp(r'^[a-z]+$')).required(),
+      });
+
+      final issues = _inputIssues(
+        (json) => schema.validateSchema(json, fromJson: (json) => json),
+        {'code': 'A'},
+      );
+
+      expect(
+        [for (final issue in issues) issue.path],
+        [
+          ['code'],
+          ['code'],
+        ],
+      );
+      expect(
+        [for (final issue in issues) issue.code],
+        ['tooShort', 'invalidPattern'],
+      );
+    });
+
+    test('When a strict DTO gets an unknown key then it is unrecognized', () {
+      final issues = _inputIssues(
+        (json) => _testDtoSchema.strict().validateSchema(
+          json,
+          fromJson: _TestDto.fromJson,
+        ),
+        {'id': '1', 'extra': true},
+      );
+
+      expect(issues, hasLength(1));
+      expect(issues.single.path, ['extra']);
+      expect(issues.single.code, 'unrecognizedKey');
+    });
+
+    test('When issues are at the root then their path is empty', () {
+      final issues = _inputIssues(
+        (json) => ValidationFailure<_TestDto>(
+          input: json,
+          issues: const [
+            ValidationIssue(code: IssueCode.custom, message: 'root failed'),
+          ],
+        ),
+        {'id': '1'},
+      );
+
+      expect(issues, [
+        RpcValidationIssue(path: [], code: 'custom', message: 'root failed'),
+      ]);
+    });
+
+    test('When luthor uses a code dart_orpc does not know then it is kept', () {
+      final issues = _inputIssues(
+        (json) => ValidationFailure<_TestDto>(
+          input: json,
+          issues: const [
+            ValidationIssue(
+              code: IssueCode('futureRule'),
+              message: 'future failed',
+              path: ['id'],
+            ),
+          ],
+        ),
+        {'id': '1'},
+      );
+
+      expect(issues.single.code, 'futureRule');
+    });
+
+    test('When a path segment is not a key or index then it is a string', () {
+      final issues = _inputIssues(
+        (json) => ValidationFailure<_TestDto>(
+          input: json,
+          issues: const [
+            ValidationIssue(
+              code: IssueCode.invalidKey,
+              message: 'bad key',
+              path: ['byFlag', true, -1],
+            ),
+          ],
+        ),
+        {'id': '1'},
+      );
+
+      expect(issues.single.path, ['byFlag', 'true', '-1']);
+    });
+
+    test('When input is not an object then there are no details', () {
+      expect(
+        () => decodeRpcInputWithLuthor<_TestDto>(
+          rawInput: ['1'],
+          method: 'user.getById',
+          validate: _validateTestDto,
+        ),
+        throwsA(
+          isA<RpcException>().having(
+            (error) => error.details,
+            'details',
+            isNull,
+          ),
+        ),
+      );
+    });
+
+    test('When output fails then no issues are attached', () {
+      expect(
+        () => encodeRpcOutputWithLuthor<_TestDto>(
+          output: const _TestDto(id: ''),
+          method: 'user.getById',
+          toJson: (output) => output.toJson(),
+          validate: _validateTestDto,
+        ),
+        throwsA(
+          isA<RpcException>().having(
+            (error) => error.details,
+            'details',
+            isNull,
+          ),
+        ),
+      );
+    });
+  });
+}
+
+/// The issues in the `BAD_REQUEST` that [validate] produces for [input].
+List<RpcValidationIssue> _inputIssues<T>(
+  LuthorValidator<T> validate,
+  Object? input,
+) {
+  try {
+    decodeRpcInputWithLuthor<T>(
+      rawInput: input,
+      method: 'user.test',
+      validate: validate,
+    );
+  } on RpcException catch (error) {
+    expect(error.code, RpcErrorCode.badRequest);
+    expect(error.details?.keys, [rpcValidationIssuesKey]);
+    return parseRpcValidationIssues(error.details);
+  }
+  fail('Expected a BAD_REQUEST for $input.');
 }
 
 /// luthor 1.1's message for an empty `id` with `min(1)`.

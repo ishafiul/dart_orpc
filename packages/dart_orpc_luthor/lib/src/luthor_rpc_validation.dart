@@ -17,7 +17,8 @@ typedef LuthorJsonValidator = ValidationResult<Object?> Function(Object? json);
 ///
 /// Keys the DTO does not declare are handled by its schema: luthor strips
 /// them by default. Failures, including a throwing `fromJson`, become
-/// `BAD_REQUEST`.
+/// `BAD_REQUEST` with every luthor issue, in order, in `details.issues`.
+/// Input that is not a JSON object fails before validation, without issues.
 T decodeRpcInputWithLuthor<T>({
   required Object? rawInput,
   required String method,
@@ -32,9 +33,25 @@ T decodeRpcInputWithLuthor<T>({
     ValidationSuccess<T>(:final data) => data,
     ValidationFailure<T>(:final issues) => throw RpcException.badRequest(
       'Invalid RPC input for "$method": ${_formatIssues(issues)}',
+      details: rpcValidationIssueDetails(issues.map(_toRpcIssue)),
     ),
   };
 }
+
+/// [issue] in the shared wire shape: its path segments, `IssueCode.name`
+/// and message.
+RpcValidationIssue _toRpcIssue(ValidationIssue issue) => RpcValidationIssue(
+  path: [for (final segment in issue.path) _pathSegment(segment)],
+  code: issue.code.name,
+  message: issue.message,
+);
+
+/// luthor paths hold string keys and list indexes; anything else, such as
+/// a non-string map key, is kept as its string form.
+Object _pathSegment(Object segment) =>
+    segment is String || (segment is int && segment >= 0)
+    ? segment
+    : '$segment';
 
 /// Encodes [output] with [toJson] and checks it by decoding it again with
 /// [validate]. Failures become `INTERNAL_ERROR`.
