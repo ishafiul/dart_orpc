@@ -21,6 +21,7 @@ No ready items.
   internal-error messages: Luthor output-validation failures send DTO field names
   to clients. Send a generic message and report the real one through `onError`.
   Split out of ERR-001 ([#19](https://github.com/ishafiul/dart_orpc/issues/19)).
+  Folded into ERR-002 as [#105](https://github.com/ishafiul/dart_orpc/issues/105).
 - [ ] **CLIENT-001 · P1 · Feature:** Add per-call client timeouts and cancellation
   to `RpcCallOptions`. Headers and bearer tokens already exist.
 - [ ] **CLIENT-002 · P1 · Feature:** Add an opt-in retry policy.
@@ -52,6 +53,8 @@ No ready items.
   Depends on CORE-001.
 - [ ] **ERR-002 · P1 · Feature:** Return structured validation issues (field path
   and message) from the Luthor bridge instead of one flattened string.
+  Tracked by [#54](https://github.com/ishafiul/dart_orpc/issues/54) (PRD
+  [#96](https://github.com/ishafiul/dart_orpc/issues/96)); the issue model (#102) in review.
 - [ ] **ERR-003 · P1 · Feature:** Allow application-defined typed error codes beyond
   the closed `RpcErrorCode` enum.
 - [ ] **ERR-004 · P1 · Feature:** Add a centralized exception-mapping hook that turns

@@ -10,6 +10,7 @@ Most app code imports the facade. This lower-level package supplies shared runti
 | JSON | `JsonObject`, `expectJsonObject`, normalization and typed-field helpers |
 | Envelopes | `RpcRequest`, `RpcSuccessResponse`, `RpcErrorBody`, `RpcErrorResponse` |
 | Errors | `RpcErrorCode`, `RpcException`, `encodeRpcError`, `RpcErrorEncoding`, `RpcErrorDetailsEncodingException` |
+| Validation issues | `RpcValidationIssue`, `rpcValidationIssueDetails`, `parseRpcValidationIssues`, `rpcValidationIssuesKey` |
 | Context | `RpcContext`, `RpcContextKey`, `RpcContextBindings`, bindings builder, `rpcRequestIdKey` |
 | Cancellation | `RpcCancellationSignal`, `RpcCancellationSource`, listener/registration interfaces |
 | Guards | `RpcGuard`, `RpcGuardContext`, `runRpcGuards` |
@@ -22,6 +23,8 @@ Most app code imports the facade. This lower-level package supplies shared runti
 `RpcRequest(method:, input:)` supports `.fromJson` and `.toJson`. Success is `{data: ...}`; error is `{error: {code, message, details?}}`, where the optional `details` is a JSON object that is left out when null or empty. This is not JSON-RPC 2.0.
 
 `RpcException` accepts optional `details`. Transports encode errors with `encodeRpcError`, which normalizes details like procedure outputs and, if they can't be encoded, keeps the code and message and returns an `RpcErrorDetailsEncodingException` to report. See [Error details](/dart-orpc/guides/errors-and-context#error-details).
+
+`RpcValidationIssue` is the shape of one entry in `error.details.issues`: a `path` of string keys and integer list indexes (`[]` for the whole value), an open string `code`, and a `message`. `rpcValidationIssueDetails` builds details from issues, and `parseRpcValidationIssues` reads them back, skipping malformed entries.
 
 `RpcProcedureRegistry.dispatchUnary` invokes unary procedures; `dispatchStream` subscribes to server streams. `.dispatch` is the unary compatibility method. Duplicate methods are rejected. Procedure runtimes decode input, run guards, observe cancellation, invoke handlers, then encode outputs.
 
