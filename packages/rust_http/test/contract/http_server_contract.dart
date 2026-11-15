@@ -15,7 +15,10 @@ import 'package:test/test.dart';
 typedef ServerBinder = Future<HttpServer> Function({int port, bool shared});
 
 /// Accepts a WebSocket upgrade of a request.
-typedef WebSocketUpgrader = Future<WebSocket> Function(HttpRequest request);
+typedef WebSocketUpgrader = Future<WebSocket> Function(
+  HttpRequest request, {
+  Object? Function(List<String> protocols)? protocolSelector,
+});
 
 /// Registers the contract tests for one server implementation.
 void runHttpServerContract({
@@ -398,6 +401,31 @@ void runHttpServerContract({
     });
 
     group('WebSocket', () {
+      test('the protocol selector picks the subprotocol', () async {
+        final offered = Completer<List<String>>();
+        handler = (request) async {
+          final socket = await upgradeWebSocket(
+            request,
+            protocolSelector: (protocols) {
+              offered.complete(protocols);
+              return 'b';
+            },
+          );
+          await socket.close();
+        };
+
+        // The server closes this socket.
+        // ignore: close_sinks
+        final socket = await WebSocket.connect(
+          'ws://127.0.0.1:${server.port}/ws',
+          protocols: ['a', 'b'],
+        );
+        await socket.drain<void>();
+
+        expect(await offered.future, ['a', 'b']);
+        expect(socket.protocol, 'b');
+      });
+
       test('echoes text and binary and reports the close code', () async {
         handler = (request) async {
           final socket = await upgradeWebSocket(request);

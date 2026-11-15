@@ -28,31 +28,46 @@ final class RustWebSocket extends Stream<dynamic>
     return WebSocketTransformer.isUpgradeRequest(request);
   }
 
-  /// Accepts the upgrade of [request], answering with [protocol] as the
-  /// subprotocol when given. A message or frame over [maxMessageSize]
-  /// bytes closes the socket with 1009 before Dart sees it.
+  /// Accepts the upgrade of [request].
+  ///
+  /// The answer names [protocol] as the subprotocol, or else the value of
+  /// [protocolSelector], which gets the protocols the client offered and
+  /// is only called when it offered some — like `WebSocketTransformer`.
+  /// A message or frame over [maxMessageSize] bytes closes the socket with
+  /// 1009 before Dart sees it. [compression] exists for
+  /// `WebSocketTransformer.upgrade` compatibility: compression is never
+  /// agreed.
   ///
   /// A request that is no upgrade gets 400 and the future fails with a
-  /// [WebSocketException], like `WebSocketTransformer.upgrade`. A request
-  /// of a `dart:io` server is upgraded by `dart:io` with compression off.
+  /// [WebSocketException]. For a `dart:io` request, [compression] is passed
+  /// to `WebSocketTransformer`.
   static Future<WebSocket> upgrade(
     HttpRequest request, {
     String? protocol,
+    Object? Function(List<String> protocols)? protocolSelector,
+    CompressionOptions compression = CompressionOptions.compressionOff,
     int maxMessageSize = 16 * 1024 * 1024,
   }) async {
     if (request is! RustHttpRequest) {
       return WebSocketTransformer.upgrade(
         request,
-        protocolSelector: protocol == null ? null : (_) => protocol,
-        compression: CompressionOptions.compressionOff,
+        protocolSelector: protocol == null ? protocolSelector : (_) => protocol,
+        compression: compression,
       );
     }
-    if (protocol != null) checkHeaderValue(protocol);
     if (!request.isWebSocketUpgrade) {
       request.response.statusCode = HttpStatus.badRequest;
       await request.response.close();
       throw const WebSocketException('Invalid WebSocket upgrade request');
     }
+    if (protocol == null && protocolSelector != null) {
+      final offered = _offeredProtocols(request);
+      if (offered.isNotEmpty) {
+        final selected = await protocolSelector(offered);
+        protocol = selected?.toString();
+      }
+    }
+    if (protocol != null) checkHeaderValue(protocol);
     final host = request.webSocketHost;
     final socket = RustWebSocket._(host, host.nextWebSocketId(), protocol);
     host.registerWebSocket(socket._id, socket);
@@ -69,6 +84,14 @@ final class RustWebSocket extends Stream<dynamic>
     );
     return socket;
   }
+
+  /// The subprotocols in the client's `sec-websocket-protocol` headers.
+  static List<String> _offeredProtocols(HttpRequest request) => [
+    for (final header
+        in request.headers['sec-websocket-protocol'] ?? const <String>[])
+      for (final name in header.split(','))
+        if (name.trim().isNotEmpty) name.trim(),
+  ];
 
   final WebSocketHost _host;
   final int _id;

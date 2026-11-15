@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:dart_orpc_core/dart_orpc_core.dart';
 import 'package:dart_orpc_http/dart_orpc_http.dart';
+import 'package:rust_http/rust_http.dart';
 
 import 'rpc_websocket_protocol.dart';
 
@@ -60,7 +61,7 @@ final class RpcWebSocketUpgradeHandler implements RpcHttpUpgradeHandler {
   @override
   bool canHandle(HttpRequest request) {
     return _normalizePath(request.uri.path) == _normalizePath(options.path) &&
-        WebSocketTransformer.isUpgradeRequest(request);
+        RustWebSocket.isUpgradeRequest(request);
   }
 
   @override
@@ -104,8 +105,9 @@ final class RpcWebSocketUpgradeHandler implements RpcHttpUpgradeHandler {
       return;
     }
 
-    final socket = await WebSocketTransformer.upgrade(
+    final socket = await RustWebSocket.upgrade(
       request,
+      compression: CompressionOptions.compressionDefault,
       protocolSelector: (protocols) =>
           protocols.contains(rpcWebSocketSubprotocol)
           ? rpcWebSocketSubprotocol
