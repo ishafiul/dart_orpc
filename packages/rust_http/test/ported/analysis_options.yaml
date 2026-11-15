@@ -1,0 +1,9 @@
+# These fixtures use relaxed lint rules. New tests follow the package rules.
+include: ../../analysis_options.yaml
+
+linter:
+  rules:
+    prefer_final_locals: false
+    close_sinks: false
+    discarded_futures: false
+    comment_references: false

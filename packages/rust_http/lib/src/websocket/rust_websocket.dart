@@ -1,0 +1,209 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import '../http/headers/header_validation.dart';
+import '../http/rust_http_request.dart';
+import '../protocol/kinds.dart';
+import 'websocket_host.dart';
+
+/// A WebSocket on the Rust-backed server.
+///
+/// Rust marks requests that can upgrade; Dart routes and checks them like
+/// any request, then [upgrade] accepts. Rust then speaks the protocol:
+/// ping and pong, the close handshake, the UTF-8 check of text and the
+/// size limit (a larger message closes with 1009). Compression is never
+/// agreed. Dart receives whole messages: a [String] for text, a
+/// [Uint8List] for binary.
+///
+/// It implements the `dart:io` [WebSocket] API.
+final class RustWebSocket extends Stream<dynamic>
+    implements WebSocket, WebSocketReceiver {
+  RustWebSocket._(this._host, this._id, this.protocol);
+
+  /// Whether [request] asks for a WebSocket upgrade.
+  static bool isUpgradeRequest(HttpRequest request) {
+    if (request is RustHttpRequest) return request.isWebSocketUpgrade;
+    return WebSocketTransformer.isUpgradeRequest(request);
+  }
+
+  /// Accepts the upgrade of [request], answering with [protocol] as the
+  /// subprotocol when given. A message or frame over [maxMessageSize]
+  /// bytes closes the socket with 1009 before Dart sees it.
+  ///
+  /// A request that is no upgrade gets 400 and the future fails with a
+  /// [WebSocketException], like `WebSocketTransformer.upgrade`. A request
+  /// of a `dart:io` server is upgraded by `dart:io` with compression off.
+  static Future<WebSocket> upgrade(
+    HttpRequest request, {
+    String? protocol,
+    int maxMessageSize = 16 * 1024 * 1024,
+  }) async {
+    if (request is! RustHttpRequest) {
+      return WebSocketTransformer.upgrade(
+        request,
+        protocolSelector: protocol == null ? null : (_) => protocol,
+        compression: CompressionOptions.compressionOff,
+      );
+    }
+    if (protocol != null) checkHeaderValue(protocol);
+    if (!request.isWebSocketUpgrade) {
+      request.response.statusCode = HttpStatus.badRequest;
+      await request.response.close();
+      throw const WebSocketException('Invalid WebSocket upgrade request');
+    }
+    final host = request.webSocketHost;
+    final socket = RustWebSocket._(host, host.nextWebSocketId(), protocol);
+    host.registerWebSocket(socket._id, socket);
+    request.response.markUpgraded();
+    final body = ByteData(16)
+      ..setUint64(0, socket._id, Endian.little)
+      ..setUint64(8, maxMessageSize, Endian.little);
+    host.sendWebSocketRecord(
+      request.id,
+      OutboundKind.webSocketAccept,
+      HttpStatus.switchingProtocols,
+      body.buffer.asUint8List(),
+      protocol: protocol,
+    );
+    return socket;
+  }
+
+  final WebSocketHost _host;
+  final int _id;
+  final StreamController<dynamic> _messages = StreamController<dynamic>();
+  final Completer<void> _done = Completer<void>();
+  int _state = WebSocket.open;
+  int? _closeCode;
+  String? _closeReason;
+
+  @override
+  final String? protocol;
+
+  /// Always empty: no extension is agreed.
+  @override
+  String get extensions => '';
+
+  @override
+  int get readyState => _state;
+
+  @override
+  int? get closeCode => _closeCode;
+
+  @override
+  String? get closeReason => _closeReason;
+
+  /// Rust answers the client's pings but sends none itself, so this has
+  /// no effect yet.
+  @override
+  Duration? pingInterval;
+
+  @override
+  StreamSubscription<dynamic> listen(
+    void Function(dynamic event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    return _messages.stream.listen(
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
+  }
+
+  /// Sends a [String] as text and a `List<int>` as binary. Dropped once
+  /// the socket is closing.
+  @override
+  void add(dynamic data) {
+    switch (data) {
+      case final String text:
+        _send(OutboundKind.webSocketText, utf8.encode(text));
+      case final List<int> bytes:
+        _send(OutboundKind.webSocketBinary, bytes);
+      default:
+        throw ArgumentError.value(data, 'data', 'must be String or List<int>');
+    }
+  }
+
+  @override
+  void addUtf8Text(List<int> bytes) => _send(OutboundKind.webSocketText, bytes);
+
+  /// Errors are not sent to the client, like dart:io.
+  @override
+  void addError(Object error, [StackTrace? stackTrace]) {}
+
+  @override
+  Future<void> addStream(Stream<dynamic> stream) async {
+    await for (final Object? data in stream) {
+      add(data);
+    }
+  }
+
+  @override
+  Future<void> close([int? code, String? reason]) {
+    if (_isReserved(code)) {
+      throw WebSocketException('Reserved status code $code');
+    }
+    final text = utf8.encode(reason ?? '');
+    if (text.length > 123) {
+      throw const WebSocketException('Reason is longer than 123 bytes');
+    }
+    if (_state == WebSocket.open) {
+      _state = WebSocket.closing;
+      _host.sendWebSocketRecord(
+        _id,
+        OutboundKind.webSocketClose,
+        code ?? 0,
+        text,
+      );
+    }
+    return done;
+  }
+
+  @override
+  Future<void> get done => _done.future;
+
+  @override
+  void receive(InboundKind kind, int closeCode, List<int> payload) {
+    switch (kind) {
+      case InboundKind.webSocketText:
+        _messages.add(utf8.decode(payload));
+      case InboundKind.webSocketBinary:
+        _messages.add(Uint8List.fromList(payload));
+      default:
+        _closed(closeCode, utf8.decode(payload, allowMalformed: true));
+    }
+  }
+
+  @override
+  void serverClosed() => _closed(WebSocketStatus.abnormalClosure, '');
+
+  void _send(OutboundKind kind, List<int> data) {
+    if (_state != WebSocket.open) return;
+    _host.sendWebSocketRecord(_id, kind, 0, data);
+  }
+
+  void _closed(int code, String reason) {
+    if (_state == WebSocket.closed) return;
+    _state = WebSocket.closed;
+    _closeCode = code;
+    _closeReason = reason;
+    _host.unregisterWebSocket(_id);
+    // Not awaited: without a listener the close future never completes.
+    unawaited(_messages.close());
+    _done.complete();
+  }
+
+  /// Codes a server may not send, like dart:io.
+  static bool _isReserved(int? code) =>
+      code != null &&
+      (code < WebSocketStatus.normalClosure ||
+          code == WebSocketStatus.reserved1004 ||
+          code == WebSocketStatus.noStatusReceived ||
+          code == WebSocketStatus.abnormalClosure ||
+          (code > WebSocketStatus.internalServerError && code < 3000) ||
+          code > 4999);
+}
