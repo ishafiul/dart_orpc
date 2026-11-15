@@ -73,7 +73,9 @@ No ready items.
 - [ ] **OAPI-002 · P2 · Feature:** Emit only the error responses each procedure can
   produce instead of every `RpcErrorCode`.
 - [ ] **OAPI-003 · P2 · Feature:** Add operation summaries, deprecation, examples,
-  and enum schemas to OpenAPI output.
+  and schema mappings for the remaining Luthor annotations to OpenAPI output:
+  `@IsUrl`, `@IsIp`, `@IsCuid`, `@IsCuid2`, `@IsEmoji`, `@StartsWith`,
+  `@EndsWith`, `@Contains`, and `@IsFile`.
 - [ ] **GEN-003 · P2 · Feature:** Support enums, `DateTime`, and repeated list query
   parameters in REST path, query, and header bindings.
 - [ ] **GEN-004 · P2 · Feature:** Support sealed-union and generic DTO outputs (for
@@ -84,17 +86,6 @@ No ready items.
   message-only `RpcClientException`s.
 ## In progress
 
-- [ ] **DEPS-001 · P1 · Maintenance:** Migrate to luthor 1.1 and luthor_generator
-  1.1 to unblock the latest analyzer (14), freezed (4), json_serializable,
-  drift/drift_dev, build_runner, melos (8), sqlite3 (3) and test. luthor 1.x no
-  longer exposes validator rules or schema fields, which the OpenAPI generator
-  reads at runtime, so first decide how OpenAPI gets DTO constraints (for
-  example from luthor annotations at build time). Also migrate the
-  `dart_orpc_luthor` bridge, generated `validateSchema(fromJson:)` calls, the
-  analyzer 14 `FieldElement.isSynthetic` removal, and move `basic_app` to
-  language 3.14.
-  Tracked by [#61](https://github.com/ishafiul/dart_orpc/issues/61) (PRD
-  [#66](https://github.com/ishafiul/dart_orpc/issues/66)); #73–#82 done; unknown-key modes (#90) in review.
 - [ ] **GEN-001 · P1 · Maintenance:** Refactor the generator into a maintainable,
   well-structured, and approachable architecture.
 - [ ] **PERF-001 · P2 · Performance:** Establish performance baselines and regression
@@ -106,6 +97,12 @@ No blocked items.
 
 ## Done
 
+- [x] **DEPS-001 · P1 · Maintenance:** Migrated to luthor and luthor_generator
+  1.1, upgraded the toolchain, moved `basic_app` to Dart language 3.14, and
+  switched OpenAPI to build-time DTO schema metadata. Updated the validation
+  bridge, documented unknown-key modes, and completed the migration docs
+  ([#61](https://github.com/ishafiul/dart_orpc/issues/61), PRD
+  [#66](https://github.com/ishafiul/dart_orpc/issues/66)).
 - [x] **ERR-001 · P1 · Feature:** Added a `details` payload to `RpcException` and
   the error envelope across RPC, REST, SSE, WebSocket, OpenAPI, and both clients
   ([#16](https://github.com/ishafiul/dart_orpc/issues/16), PRD

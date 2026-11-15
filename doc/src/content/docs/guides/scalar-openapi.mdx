@@ -27,7 +27,7 @@ Paths belong to `RpcHttpDocsOptions`, not direct `docsPath`/`openApiPath` argume
 
 ## Actual document behavior
 
-The current implementation emits **OpenAPI 3.0.3**. It derives REST paths, binding metadata, response status/headers, security requirements, and SSE event schema extensions from shared procedure metadata. Luthor validators supply schema components. Plain DTO serialization does not guarantee equivalent schema richness.
+The current implementation emits **OpenAPI 3.0.3**. It derives REST paths, binding metadata, response status/headers, security requirements, and SSE event schema extensions from shared procedure metadata. Schema components come from build-time DTO metadata. See [the OpenAPI package reference](/dart-orpc/packages/openapi) for enum values, custom validation, and strict DTO schemas.
 
 HTTP RPC remains reachable at `/rpc`, but the current OpenAPI `paths` builder documents explicit REST/SSE mappings. Do not expect a separate OpenAPI path for every RPC-only procedure or a full WebSocket protocol specification. Use the typed Dart client and [Protocol](/dart-orpc/architecture) for those interfaces.
 

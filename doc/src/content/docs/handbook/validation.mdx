@@ -15,8 +15,8 @@ A persistence model may include internal flags or secrets consumers should never
 | --- | --- |
 | Freezed / @freezed | Immutable implementations and value/copy behavior |
 | json_serializable | JSON encode/decode support |
-| Luthor / @luthor | Runtime schema validation and validator metadata |
-| dart_orpc_generator | Connect schemas/serializers to procedures, clients, routes, metadata |
+| Luthor / @luthor | Runtime schema validation |
+| dart_orpc_generator | Connect schemas and serializers to procedures, clients, and routes, and extract OpenAPI metadata |
 | build_runner | Execute the generators together |
 
 A plain DTO with fromJson/toJson can work, but casts alone do not add length/email constraints. RpcInput marks the boundary; the generated Luthor schema supplies the constraints.
@@ -97,9 +97,11 @@ curl -i http://127.0.0.1:3000/rpc \
   -d '{"method":"todo.create","input":{"title":""}}'
 ```
 
-It should produce the same error code because both projections use the same DTO/schema. After installing guards, supply valid credentials for validation-focused tests. The public error contains code and message; there is no built-in details array. Treat validator sentences as human-readable messages, not a stable machine protocol.
+It should produce the same error code because both projections use the same DTO schema. After installing guards, supply valid credentials for validation-focused tests. The validation bridge puts human-readable issues in `error.message` and leaves `error.details` unset.
 
 Also test missing title, a number instead of a string, and more than 100 characters. A generated client passing types correctly does not replace these network-boundary tests.
+
+With the default Luthor 1.1 settings, an extra JSON key is dropped before decoding. Use `@Luthor(unknownKeys: .strict)` to reject extra keys as `BAD_REQUEST`. See [the Luthor bridge reference](/dart-orpc/packages/luthor) for the package settings.
 
 ## Where URL values come from
 
@@ -117,7 +119,7 @@ GET/DELETE remaining fields default to query parameters. POST/PUT/PATCH remainin
 
 Luthor-backed output is serialized and checked too. Invalid server output is INTERNAL_ERROR because the server broke its contract; it is not a bad client request. Stream items are validated as emitted.
 
-Generated clients decode response DTOs using fromJson. Keep JSON names, nullability, schema, and client models aligned. OpenAPI derives rich components from validators, so constraints can be inspected alongside runtime tests.
+Generated clients decode response DTOs using `fromJson`. OpenAPI renders the DTO metadata the generator extracted from fields and supported annotations. Compare documented constraints with runtime tests when you change a DTO.
 
 ## Schema rules versus business rules
 

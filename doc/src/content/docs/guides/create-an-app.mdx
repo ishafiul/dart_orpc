@@ -72,7 +72,7 @@ abstract class TodoResponseDto with _$TodoResponseDto {
 }
 ```
 
-`dynamic` here matches JSON generator signatures. Keep domain and service APIs typed. `@luthor` adds schema validation and generated schema metadata; `@freezed` supplies immutable models and serialization.
+`dynamic` here matches JSON generator signatures. Keep domain and service APIs typed. `@luthor` enables runtime schema validation and marks DTOs for OpenAPI metadata extraction. `@freezed` supplies immutable models and serialization.
 
 ## 4. Put behavior in a service
 
