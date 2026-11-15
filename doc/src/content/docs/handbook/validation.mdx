@@ -119,7 +119,7 @@ GET/DELETE remaining fields default to query parameters. POST/PUT/PATCH remainin
 
 ## Output validation and schema docs
 
-Luthor-backed output is serialized and checked too. Invalid server output is INTERNAL_ERROR because the server broke its contract; it is not a bad client request. Stream items are validated as emitted.
+Luthor-backed output is serialized and checked too. Invalid server output is INTERNAL_ERROR because the server broke its contract; it is not a bad client request. Stream items are validated as emitted. The client sees only `Internal server error.`; the failing fields and messages reach your server `onError` hook as the exception's `diagnostic` (an `RpcOutputValidationDiagnostic`), on every transport.
 
 Generated clients decode response DTOs using `fromJson`. OpenAPI renders the DTO metadata the generator extracted from fields and supported annotations. Compare documented constraints with runtime tests when you change a DTO.
 
