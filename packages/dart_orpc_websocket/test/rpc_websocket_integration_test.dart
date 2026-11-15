@@ -880,6 +880,44 @@ void main() {
     );
 
     test(
+      'When validation issues are too large then they are dropped and the '
+      'message is kept',
+      () async {
+        final frame = await call(
+          'issues',
+          RpcWebSocketCallKind.unary,
+          'issues.unary',
+          {'kind': 'many'},
+        );
+
+        expect(frame['id'], 'issues');
+        expect(frame['error'], {
+          'code': 'BAD_REQUEST',
+          'message': 'Invalid input.',
+        });
+        expect(events.single.error, isA<RpcErrorDetailsEncodingException>());
+      },
+    );
+
+    test(
+      'When validation issues and their message are too large then a short '
+      'error frame is sent',
+      () async {
+        final frame = await call(
+          'issuesLong',
+          RpcWebSocketCallKind.unary,
+          'issues.unary',
+          {'kind': 'longMessage'},
+        );
+
+        expect(frame['error'], {
+          'code': 'BAD_REQUEST',
+          'message': 'RPC error exceeded the WebSocket frame size limit.',
+        });
+      },
+    );
+
+    test(
       'When even the message is too large then a short error frame is sent',
       () async {
         final frame = await call(
@@ -1089,6 +1127,28 @@ Future<_RawFixture> _startRawFixture({
           'opaque' => {'opaque': Object()},
           _ => {'version': 2},
         },
+      ),
+    ),
+    RpcUnaryProcedure<JsonObject, JsonObject>(
+      method: 'issues.unary',
+      metadata: const ProcedureMetadata(
+        rpcMethod: 'issues.unary',
+        controllerNamespace: 'issues',
+        methodName: 'unary',
+        outputTypeCode: 'JsonObject',
+      ),
+      decodeInput: (input) => expectJsonObject(input, context: 'input'),
+      encodeOutput: (output) => output,
+      handler: (_, input) => throw RpcException.badRequest(
+        input['kind'] == 'longMessage' ? 'm' * 2048 : 'Invalid input.',
+        details: rpcValidationIssueDetails([
+          for (var index = 0; index < 100; index++)
+            RpcValidationIssue(
+              path: ['items', index, 'name'],
+              code: 'required',
+              message: 'name is required',
+            ),
+        ]),
       ),
     ),
     RpcStreamProcedure<Null, JsonObject>(
