@@ -5,10 +5,16 @@ on:
     branches: [main]
     paths:
       - packages/rust_http/**
+      - packages/dart_orpc_http/**
+      - packages/dart_orpc_websocket/**
+      - apps/basic_app/**
       - .github/workflows/rust_http.yml
   pull_request:
     paths:
       - packages/rust_http/**
+      - packages/dart_orpc_http/**
+      - packages/dart_orpc_websocket/**
+      - apps/basic_app/**
       - .github/workflows/rust_http.yml
 
 jobs:
@@ -60,6 +66,21 @@ jobs:
         run: dart analyze --fatal-infos
       - name: Dart tests (unit, ported, contract against dart:io and rust_http)
         working-directory: packages/rust_http
+        run: dart test
+      - name: Framework HTTP tests with Rust HTTP
+        working-directory: packages/dart_orpc_http
+        env:
+          DART_ORPC_HTTP_BACKEND: rust
+        run: dart test
+      - name: Framework WebSocket tests with Rust HTTP
+        working-directory: packages/dart_orpc_websocket
+        env:
+          DART_ORPC_HTTP_BACKEND: rust
+        run: dart test
+      - name: Basic app tests with Rust HTTP
+        working-directory: apps/basic_app
+        env:
+          DART_ORPC_HTTP_BACKEND: rust
         run: dart test
 
   fuzz:
