@@ -140,6 +140,45 @@ try {
 
 `HttpRpcTransport` sets `details` on the `RpcException` it throws for unary calls. `WebSocketRpcTransport` sets them for unary calls and for errors emitted by streams. In both, a missing value, or one that is not a JSON object, gives `null`; the code and message are kept. Details are an untyped `JsonObject`.
 
+## Validation issues
+
+When input fails validation, the `BAD_REQUEST` error lists each problem in `details.issues`. The top-level `message` is unchanged, so clients that only show the message keep working.
+
+```json
+{"error": {"code": "BAD_REQUEST", "message": "Invalid RPC input for \"todo.create\": title: title must be at least 1 character long", "details": {"issues": [{"path": ["title"], "code": "tooShort", "message": "title must be at least 1 character long"}]}}}
+```
+
+Each issue has:
+
+- **`path`**: object keys and list indexes, such as `["items", 1, "id"]`. An empty path, `[]`, means the whole value. Each key is a single segment, so `["a.b"]` is one key with a dot, not a nested path, and `["0"]` is a key, not an index.
+- **`code`**: a machine-readable string. Codes are open: luthor's codes (`required`, `invalidType`, `tooShort`, `unrecognizedKey`, and so on) can grow, so show `message` for codes you don't recognize.
+- **`message`**: a human-readable description.
+
+Issues are sent for:
+
+- **luthor input validation** over RPC, REST and WebSocket: every issue, in validator order, with no cap, including several issues on one field.
+- **REST decoding** before validation: one issue. A path, query or header value uses its DTO field's JSON key as the path, even when the URL name differs; a standalone parameter uses its own name. Missing values are `required`, unconvertible values or wrong JSON types are `invalidType`, a malformed body is `invalidJson`, and other body decoding failures are `invalidBody`; body failures use `[]`.
+
+So `GET /todos/abc` and RPC `todo.getById` with `{"id": "abc"}` both report `{"path": ["id"], "code": "invalidType"}`. Errors from the RPC envelope itself, and input that isn't a JSON object, carry no issues.
+
+On WebSocket, an error frame that exceeds `maxFrameBytes` is re-sent without `details`, so the issues are dropped but the code and message are kept; if the message alone is still too large, a short fallback message is sent instead.
+
+Read issues from the client exception with `validationIssues`, on both the HTTP and WebSocket transports:
+
+```dart
+try {
+  await client.todo.create(const CreateTodoDto(title: ''));
+} on RpcException catch (error) {
+  for (final issue in error.validationIssues) {
+    showFieldError(issue.path, issue.message);
+  }
+}
+```
+
+`validationIssues` returns the valid entries in wire order, skips malformed ones, and is empty when there are none, for example from an older server. `error.details` stays available for your own keys. OpenAPI documents the shape as the optional `details.issues` array of the shared `RpcErrorBody` schema.
+
+Output validation failures are different: they are the server's bug, so clients get only `INTERNAL_ERROR` with `Internal server error.` and no issues. The failing fields and messages reach `onError` as the exception's `diagnostic`, described below.
+
 ## Observing errors with onError
 
 `RpcHttpServerOptions.onError` is the single error hook for HTTP and WebSocket. Each `RpcHttpErrorEvent` carries the original `error` and `stackTrace`, the `request`, and:
@@ -149,6 +188,8 @@ try {
 | `transport` | `RpcTransportKind.http` (RPC, REST, SSE) or `RpcTransportKind.webSocket` |
 | `rpcMethod` | The failed call's RPC method, when known (WebSocket) |
 | `callId` | The WebSocket call id, when known |
+
+When procedure output fails validation, `error` is the generic `INTERNAL_ERROR` `RpcException` the client received, and its server-only `diagnostic` is an `RpcOutputValidationDiagnostic` with the procedure's `method` and the validation `issues`, but not the output itself. It is reported on HTTP RPC, REST, SSE and WebSocket, and `error.toString()` includes it for logs.
 
 ```dart
 final app = const AppModule().buildRpcApp(
