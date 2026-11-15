@@ -144,6 +144,7 @@ const CreateTodoDtoSchemaKeys = (title: "title");
 
 final SchemaValidator $CreateTodoDtoSchema = l
     .schema({CreateTodoDtoSchemaKeys.title: l.string().min(1).required()})
+    .strict()
     .withName("CreateTodoDto");
 
 ValidationResult<CreateTodoDto> $CreateTodoDtoValidate(Object? json) =>
@@ -162,6 +163,7 @@ const GetTodoDtoSchemaKeys = (id: "id");
 
 final SchemaValidator $GetTodoDtoSchema = l
     .schema({GetTodoDtoSchemaKeys.id: l.int().required()})
+    .strict()
     .withName("GetTodoDto");
 
 ValidationResult<GetTodoDto> $GetTodoDtoValidate(Object? json) =>
@@ -188,6 +190,7 @@ final SchemaValidator $UpdateTodoDtoSchema = l
       UpdateTodoDtoSchemaKeys.title: l.string(),
       UpdateTodoDtoSchemaKeys.completed: l.bool(),
     })
+    .strict()
     .withName("UpdateTodoDto");
 
 ValidationResult<UpdateTodoDto> $UpdateTodoDtoValidate(Object? json) =>

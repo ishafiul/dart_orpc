@@ -447,6 +447,7 @@ DtoSchemaRegistry _$createAuthModuleLocalDtoSchemaRegistry() {
           ),
         ),
       ],
+      unknownKeys: DtoUnknownKeys.strict,
     ),
     DtoSchemaMetadata(
       name: 'SignUpDto',
@@ -474,6 +475,7 @@ DtoSchemaRegistry _$createAuthModuleLocalDtoSchemaRegistry() {
           ),
         ),
       ],
+      unknownKeys: DtoUnknownKeys.strict,
     ),
   ]);
 }

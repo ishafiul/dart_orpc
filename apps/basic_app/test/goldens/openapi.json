@@ -43,6 +43,7 @@
         "type": "object"
       },
       "CreateTodoDto": {
+        "additionalProperties": false,
         "properties": {
           "title": {
             "minLength": 1,
@@ -63,6 +64,7 @@
         "type": "object"
       },
       "GetTodoDto": {
+        "additionalProperties": false,
         "properties": {
           "id": {
             "type": "integer"
@@ -74,6 +76,7 @@
         "type": "object"
       },
       "LoginDto": {
+        "additionalProperties": false,
         "properties": {
           "email": {
             "format": "email",
@@ -125,6 +128,7 @@
         "type": "object"
       },
       "SignUpDto": {
+        "additionalProperties": false,
         "properties": {
           "email": {
             "format": "email",
@@ -248,6 +252,7 @@
         "type": "object"
       },
       "UpdateTodoDto": {
+        "additionalProperties": false,
         "properties": {
           "completed": {
             "type": "boolean"
@@ -2108,6 +2113,7 @@
           "content": {
             "application/json": {
               "schema": {
+                "additionalProperties": false,
                 "properties": {
                   "completed": {
                     "type": "boolean"

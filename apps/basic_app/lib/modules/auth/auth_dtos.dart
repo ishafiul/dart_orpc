@@ -4,7 +4,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'auth_dtos.freezed.dart';
 part 'auth_dtos.g.dart';
 
-@luthor
+@Luthor(unknownKeys: .strict)
 @freezed
 abstract class SignUpDto with _$SignUpDto {
   const factory SignUpDto({
@@ -25,7 +25,7 @@ abstract class SignUpDto with _$SignUpDto {
       _$SignUpDtoFromJson(json);
 }
 
-@luthor
+@Luthor(unknownKeys: .strict)
 @freezed
 abstract class LoginDto with _$LoginDto {
   const factory LoginDto({
