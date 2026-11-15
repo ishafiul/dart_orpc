@@ -1,9 +1,15 @@
 import 'json_utils.dart';
 import 'rpc_error_code.dart';
+import 'rpc_output_validation.dart';
 import 'rpc_response.dart';
 
 final class RpcException implements Exception {
-  const RpcException({required this.code, required this.message, this.details});
+  const RpcException({
+    required this.code,
+    required this.message,
+    this.details,
+    this.diagnostic,
+  });
 
   factory RpcException.badRequest(String message, {JsonObject? details}) {
     return RpcException(
@@ -61,7 +67,8 @@ final class RpcException implements Exception {
     );
   }
 
-  /// To attach [details], use the [RpcException] constructor.
+  /// To attach [details] or a [diagnostic], use the [RpcException]
+  /// constructor.
   factory RpcException.internalError([
     String message = 'Internal server error.',
   ]) {
@@ -107,6 +114,13 @@ final class RpcException implements Exception {
   /// Must not contain secrets or internal diagnostics.
   final JsonObject? details;
 
+  /// Server-only context, such as an [RpcOutputValidationDiagnostic].
+  ///
+  /// Never serialized: transports send only [code], [message] and
+  /// [details]. Server `onError` hooks receive the exception, so they can
+  /// read it, and [toString] includes it for logs.
+  final Object? diagnostic;
+
   int get statusCode => code.statusCode;
 
   RpcErrorResponse toResponse() {
@@ -120,5 +134,8 @@ final class RpcException implements Exception {
   }
 
   @override
-  String toString() => 'RpcException(${code.wireName}): $message';
+  String toString() {
+    final base = 'RpcException(${code.wireName}): $message';
+    return diagnostic == null ? base : '$base [$diagnostic]';
+  }
 }
