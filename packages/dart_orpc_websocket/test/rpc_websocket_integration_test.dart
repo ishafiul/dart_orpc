@@ -705,6 +705,37 @@ void main() {
       },
     );
 
+    for (final (kind, method) in [
+      (RpcWebSocketCallKind.unary, 'invalid.unary'),
+      (RpcWebSocketCallKind.stream, 'invalid.stream'),
+    ]) {
+      test(
+        'When $method output fails validation then the client gets a generic '
+        'error and onError gets the diagnostic',
+        () async {
+          final frame = await call('v1', kind, method);
+
+          final error = (frame as RpcWebSocketErrorFrame).error;
+          expect(error.code, RpcErrorCode.internalError.wireName);
+          expect(error.message, 'Internal server error.');
+          expect(error.details, isNull);
+          expect(events, hasLength(1));
+          final reported = events.single.error as RpcException;
+          expect(reported.message, 'Internal server error.');
+          expect(
+            reported.diagnostic,
+            isA<RpcOutputValidationDiagnostic>().having(
+              (diagnostic) => diagnostic.method,
+              'method',
+              method,
+            ),
+          );
+          expect(events.single.rpcMethod, method);
+          expect(events.single.callId, 'v1');
+        },
+      );
+    }
+
     test('When a stream fails then onError gets a WebSocket event', () async {
       final frame = await call(
         's1',
@@ -970,6 +1001,22 @@ void main() {
   });
 }
 
+/// What the luthor bridge throws when [method]'s output fails validation.
+RpcException _outputValidationFailure(String method) => RpcException(
+  code: RpcErrorCode.internalError,
+  message: 'Internal server error.',
+  diagnostic: RpcOutputValidationDiagnostic(
+    method: method,
+    issues: [
+      RpcValidationIssue(
+        path: ['secret'],
+        code: 'tooLong',
+        message: 'secret must be at most 3 characters long',
+      ),
+    ],
+  ),
+);
+
 Future<_RawFixture> _startRawFixture({
   RpcWebSocketServerOptions options = const RpcWebSocketServerOptions(),
   void Function(RpcHttpErrorEvent event)? onError,
@@ -999,6 +1046,31 @@ Future<_RawFixture> _startRawFixture({
       decodeInput: (_) => null,
       encodeOutput: (output) => output,
       handler: (_, _) => throw StateError('unary failed'),
+    ),
+    RpcUnaryProcedure<Null, JsonObject>(
+      method: 'invalid.unary',
+      metadata: const ProcedureMetadata(
+        rpcMethod: 'invalid.unary',
+        controllerNamespace: 'invalid',
+        methodName: 'unary',
+        outputTypeCode: 'JsonObject',
+      ),
+      decodeInput: (_) => null,
+      encodeOutput: (_) => throw _outputValidationFailure('invalid.unary'),
+      handler: (_, _) => {'secret': 'hidden'},
+    ),
+    RpcStreamProcedure<Null, JsonObject>(
+      method: 'invalid.stream',
+      metadata: const ProcedureMetadata(
+        rpcMethod: 'invalid.stream',
+        controllerNamespace: 'invalid',
+        methodName: 'stream',
+        outputTypeCode: 'JsonObject',
+        kind: RpcProcedureKind.serverStream,
+      ),
+      decodeInput: (_) => null,
+      encodeOutput: (_) => throw _outputValidationFailure('invalid.stream'),
+      handler: (_, _) => Stream.value({'secret': 'hidden'}),
     ),
     RpcUnaryProcedure<JsonObject, JsonObject>(
       method: 'details.unary',

@@ -8,7 +8,7 @@ This package re-exports Luthor and adapts its schema results to framework errors
 | Bridge | Behavior |
 | --- | --- |
 | `decodeRpcInputWithLuthor<T>` | Checks object input, validates, returns DTO; validation failure is BAD_REQUEST |
-| `encodeRpcOutputWithLuthor<T>` | Serializes DTO, validates serialized value, returns JSON; failure is INTERNAL_ERROR |
+| `encodeRpcOutputWithLuthor<T>` | Serializes DTO, validates serialized value, returns JSON; failure is a generic INTERNAL_ERROR with a server-only diagnostic |
 | `encodeRpcOutputJsonWithLuthor<T>` | Validates serialized JSON without reconstructing a DTO |
 | `LuthorValidator<T>` | `ValidationResult<T> Function(Object? json)`, such as a generated `$XValidate` |
 | `LuthorJsonValidator` | JSON-only validation, such as a generated schema's `validate` |
@@ -27,4 +27,6 @@ For DTOs that rely on builder options, the effective mode must agree across the 
 
 See [DTOs and Validation](/dart-orpc/guides/procedures-and-dtos) for a strict input DTO with a non-empty title.
 
-Validation issues are formatted into `error.message` as `path: message` entries joined by semicolons. Input failures also list every issue, in order, in `error.details.issues`: each has a `path` of string keys and list indexes (`[]` for the whole value), luthor's `IssueCode` name as `code` (such as `tooShort` or `unrecognizedKey`), and the `message`. Read them with `parseRpcValidationIssues`. Input that isn't a JSON object, and output failures, carry no issues. OpenAPI components come from build-time DTO metadata.
+Input validation issues are formatted into `error.message` as `path: message` entries joined by semicolons. Input failures also list every issue, in order, in `error.details.issues`: each has a `path` of string keys and list indexes (`[]` for the whole value), luthor's `IssueCode` name as `code` (such as `tooShort` or `unrecognizedKey`), and the `message`. Read them with `parseRpcValidationIssues`. Input that isn't a JSON object carries no issues.
+
+Output failures are the server's bug, so clients only get `INTERNAL_ERROR` with `Internal server error.` and no details: field names and validation text stay on the server. The thrown `RpcException` carries an `RpcOutputValidationDiagnostic` in its server-only `diagnostic`, with the procedure's method and the issues but not the output payload. Server `onError` hooks receive that exception on HTTP RPC, REST, SSE and WebSocket, and its `toString()` includes the diagnostic for logs. OpenAPI components come from build-time DTO metadata.
