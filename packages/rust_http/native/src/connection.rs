@@ -139,6 +139,9 @@ pub struct Connection {
     pub timer: Option<Instant>,
     /// When pending writes last made progress.
     pub stuck_since: Option<Instant>,
+    /// Simulate a write that would block, regardless of OS socket buffering.
+    #[cfg(test)]
+    pub block_writes: bool,
 }
 
 /// Where parsing a connection's requests stopped.
@@ -203,6 +206,8 @@ impl Connection {
             idle_since: now,
             timer: None,
             stuck_since: None,
+            #[cfg(test)]
+            block_writes: false,
         }
     }
 
@@ -298,6 +303,10 @@ impl Connection {
 
     /// Writes the write buffer. False on a socket error.
     pub fn flush(&mut self) -> bool {
+        #[cfg(test)]
+        if self.block_writes {
+            return true;
+        }
         while self.write_pos < self.write_buf.len() {
             match (&self.socket).write(&self.write_buf[self.write_pos..]) {
                 Ok(0) => return false,

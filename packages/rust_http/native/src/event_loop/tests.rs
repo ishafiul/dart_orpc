@@ -720,23 +720,16 @@ fn websocket_close_ends_when_the_client_does_not_answer() {
     );
 }
 
-fn limit_send_buffer(core: &EventLoop, id: u64) {
-    let connection = &core.connections[(id >> 32) as usize];
-    socket2::SockRef::from(&connection.socket)
-        .set_send_buffer_size(16 * 1024)
-        .unwrap();
-}
-
 /// A client that does not read: a send that makes no progress drops the
 /// socket after SEND_WAIT, with 1006.
 #[test]
 fn websocket_send_ends_when_the_client_does_not_read() {
     let (mut core, port) = new_core(limits());
     let mut inb = vec![0u8; 1 << 18];
-    let (id, _tx) = ws_on(&mut core, &mut inb, port, "/wide");
-    limit_send_buffer(&core, id);
+    let (id, _tx) = ws_on(&mut core, &mut inb, port, "/ws");
+    core.connections[(id >> 32) as usize].block_writes = true;
     let mut out = Vec::new();
-    respond_with(&mut out, id, 0, 3, b"", &vec![0u8; 8 << 20]);
+    respond_with(&mut out, id, 0, 3, b"", b"pending");
     core.run_us(&out, &mut inb, 0).unwrap();
     assert!(
         core.connections.iter().any(|(_, c)| c.pending() > 0),
@@ -880,9 +873,9 @@ fn answer_to_a_client_that_does_not_read_times_out() {
     let mut s = connect(port);
     s.write_all(b"GET /big HTTP/1.1\r\n\r\n").unwrap();
     let req = collect(&mut core, &mut inb, 1).pop().unwrap();
-    limit_send_buffer(&core, req.id);
+    core.connections[(req.id >> 32) as usize].block_writes = true;
     let mut out = Vec::new();
-    respond_with(&mut out, req.id, 200, 0, b"", &vec![0u8; 16 << 20]);
+    respond_with(&mut out, req.id, 200, 0, b"", b"pending");
     core.run_us(&out, &mut inb, 0).unwrap();
     assert!(
         core.connections.iter().any(|(_, c)| c.pending() > 0),
