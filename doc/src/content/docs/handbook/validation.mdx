@@ -113,6 +113,8 @@ const factory GetTodoDto({@FromPath() required int id}) = _GetTodoDto;
 
 REST GET /todos/1 binds and converts the URL value into the scalar needed for the DTO. GET /todos/abc cannot produce an integer and returns BAD_REQUEST. RPC sends typed JSON `{"id":1}` in input; callers do not embed the REST URL into RPC.
 
+REST decoding failures carry one entry in `error.details.issues`, like luthor failures do. A field bound from the path, query or header uses its DTO JSON key as the issue path, even when the URL name differs; a standalone parameter uses its external name. Codes: `required` for a missing value or body, `invalidType` for a value that can't be converted or has the wrong JSON type, `invalidJson` for a malformed body, and `invalidBody` when a body decoder fails otherwise; body failures use the root path `[]`. So GET /todos/abc and RPC `{"id":"abc"}` both report `{"path": ["id"], "code": "invalidType"}`, though their messages differ.
+
 GET/DELETE remaining fields default to query parameters. POST/PUT/PATCH remaining fields default to body. FromQuery/FromHeader and RpcInputBinding supply explicit overrides. Path/query/header fields support the framework's scalar types; nested objects/lists belong in JSON body contracts.
 
 ## Output validation and schema docs

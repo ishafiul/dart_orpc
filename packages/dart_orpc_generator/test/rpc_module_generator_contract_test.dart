@@ -62,6 +62,20 @@ void main() {
       expect(run.generatedOutput, isNot(contains('validateReadOnly')));
     });
 
+    test('scalar REST bodies report issues at the root path', () async {
+      final run = await runModuleBuilder(_scalarRestBodySource);
+
+      expect(run.succeeded, isTrue, reason: run.errors.join('\n'));
+      final output = run.generatedOutput.replaceAll(RegExp(r'\s+'), ' ');
+      expect(
+        output,
+        contains(
+          "decodeRestJsonValue<int>( rawValue: rawBody, source: 'body "
+          "parameter', name: 'value', issuePath: const [],",
+        ),
+      );
+    });
+
     test('explicit REST body procedures generate body decoding', () async {
       final run = await runModuleBuilder(_explicitRestBodySource);
 
@@ -302,6 +316,25 @@ final class ChildDto {
   final String name;
 
   Map<String, dynamic> toJson() => {'name': name};
+}
+''';
+
+const _scalarRestBodySource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+part 'example.g.dart';
+
+@Module(controllers: [CounterController])
+final class AppModule {
+  const AppModule();
+}
+
+@Controller('counter')
+final class CounterController {
+  @RpcMethod(path: RestMapping.put('/counters/:id'))
+  int set(@PathParam() String id, @Body() int value) => value;
 }
 ''';
 

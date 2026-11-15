@@ -378,6 +378,10 @@ void main() {
         contains("rawInput['id'] = decodeRestScalarParameter<String>("),
       );
       expect(generatedOutput, contains("rawValue: pathParameters['userId'],"));
+      // Aliased bindings report validation issues at the DTO JSON key.
+      for (final key in ['id', 'include', 'tenantId']) {
+        expect(generatedOutput, contains("inputKey: '$key',"));
+      }
       expect(
         generatedOutput,
         contains("rawInput['include'] = decodeRestScalarParameter<String?>("),

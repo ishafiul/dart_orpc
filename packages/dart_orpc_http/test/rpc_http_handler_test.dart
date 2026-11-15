@@ -215,6 +215,16 @@ void main() {
         'error': {
           'code': 'BAD_REQUEST',
           'message': 'REST request body for "POST /users" must be valid JSON.',
+          'details': {
+            'issues': [
+              {
+                'path': <Object?>[],
+                'code': 'invalidJson',
+                'message':
+                    'REST request body for "POST /users" must be valid JSON.',
+              },
+            ],
+          },
         },
       });
     });

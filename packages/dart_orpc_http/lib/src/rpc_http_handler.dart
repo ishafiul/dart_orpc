@@ -4,25 +4,26 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dart_orpc_core/dart_orpc_core.dart';
+
 import 'rpc_http_metrics.dart';
 
-typedef RpcHttpHandler =
-    Future<RpcHttpResponse> Function(RpcHttpRequest request);
+typedef RpcHttpHandler = Future<RpcHttpResponse> Function(
+  RpcHttpRequest request,
+);
 typedef RpcHttpMiddleware = RpcHttpHandler Function(RpcHttpHandler next);
-typedef RestRouteHandler =
-    FutureOr<Object?> Function(
-      RpcContext context,
-      RpcHttpRequest request,
-      Map<String, String> pathParameters,
-    );
-typedef RestStreamRouteHandler =
-    Stream<Object?> Function(
-      RpcContext context,
-      RpcHttpRequest request,
-      Map<String, String> pathParameters,
-    );
-typedef RpcContextFactory =
-    FutureOr<RpcContext> Function(RpcHttpRequest request);
+typedef RestRouteHandler = FutureOr<Object?> Function(
+  RpcContext context,
+  RpcHttpRequest request,
+  Map<String, String> pathParameters,
+);
+typedef RestStreamRouteHandler = Stream<Object?> Function(
+  RpcContext context,
+  RpcHttpRequest request,
+  Map<String, String> pathParameters,
+);
+typedef RpcContextFactory = FutureOr<RpcContext> Function(
+  RpcHttpRequest request,
+);
 
 /// Optional HTTP response control for an otherwise transport-neutral procedure.
 /// Use context.binding(rpcHttpResponseKey) so WebSocket calls remain valid.
@@ -1105,9 +1106,8 @@ Future<RpcHttpResponse> _handleStaticRequest(
     return const RpcHttpResponse(statusCode: HttpStatus.notFound);
   }
 
-  final candidatePath = File.fromUri(
-    baseDirectory.uri.resolve(relativePath),
-  ).path;
+  final candidatePath = File.fromUri(baseDirectory.uri.resolve(relativePath))
+      .path;
   final file = File(candidatePath);
   if (!await file.exists()) {
     // If it's a directory, try index.html
@@ -1671,9 +1671,9 @@ String _normalizeRouteSignature(String path) {
     return normalizedPath;
   }
 
-  final segments = _splitPathSegments(
-    normalizedPath,
-  ).map((segment) => segment.startsWith(':') ? ':*' : segment).join('/');
+  final segments = _splitPathSegments(normalizedPath)
+      .map((segment) => segment.startsWith(':') ? ':*' : segment)
+      .join('/');
   return '/$segments';
 }
 
@@ -1694,21 +1694,31 @@ String? lookupRestHeader(Map<String, String> headers, String name) {
   return null;
 }
 
+/// Decodes one REST path, query or header value into [T].
+///
+/// Failures are `BAD_REQUEST` with one validation issue: `required` when the
+/// value is missing, `invalidType` when it can't be converted. The issue path
+/// is [inputKey], the DTO JSON key the value fills, or else [name], the
+/// external parameter name.
 T decodeRestScalarParameter<T>({
   required String? rawValue,
   required String source,
   required String name,
   required String route,
+  String? inputKey,
 }) {
   final typeName = '$T';
+  final path = <Object>[inputKey ?? name];
 
   if (rawValue == null) {
     if (null is T) {
       return null as T;
     }
 
-    throw RpcException.badRequest(
+    throw _restDecodingError(
       'Missing required $source "$name" for "$route".',
+      path: path,
+      code: 'required',
     );
   }
 
@@ -1719,8 +1729,10 @@ T decodeRestScalarParameter<T>({
   if (typeName == 'int' || typeName == 'int?') {
     final parsed = int.tryParse(rawValue);
     if (parsed == null) {
-      throw RpcException.badRequest(
+      throw _restDecodingError(
         '$source "$name" for "$route" must be a valid int.',
+        path: path,
+        code: 'invalidType',
       );
     }
 
@@ -1730,8 +1742,10 @@ T decodeRestScalarParameter<T>({
   if (typeName == 'double' || typeName == 'double?') {
     final parsed = double.tryParse(rawValue);
     if (parsed == null) {
-      throw RpcException.badRequest(
+      throw _restDecodingError(
         '$source "$name" for "$route" must be a valid double.',
+        path: path,
+        code: 'invalidType',
       );
     }
 
@@ -1748,8 +1762,10 @@ T decodeRestScalarParameter<T>({
       return false as T;
     }
 
-    throw RpcException.badRequest(
+    throw _restDecodingError(
       '$source "$name" for "$route" must be a valid bool.',
+      path: path,
+      code: 'invalidType',
     );
   }
 
@@ -1758,6 +1774,13 @@ T decodeRestScalarParameter<T>({
   );
 }
 
+/// Decodes a REST JSON body with [decode].
+///
+/// Body failures are `BAD_REQUEST` with one issue at the root path:
+/// `required` for a missing body, `invalidJson` for malformed JSON, and
+/// `invalidBody` when [decode] throws something other than an
+/// [RpcException]. An [RpcException] from [decode], such as one carrying
+/// luthor validation issues, is rethrown unchanged.
 T decodeRestBody<T>({
   required String rawBody,
   required String route,
@@ -1770,7 +1793,11 @@ T decodeRestBody<T>({
       return null as T;
     }
 
-    throw RpcException.badRequest('Missing required JSON body for "$route".');
+    throw _restDecodingError(
+      'Missing required JSON body for "$route".',
+      path: const [],
+      code: 'required',
+    );
   }
 
   final rawJson = _decodeRestBodyJson(trimmedBody, route: route);
@@ -1783,27 +1810,39 @@ T decodeRestBody<T>({
   } on RpcException {
     rethrow;
   } catch (_) {
-    throw RpcException.badRequest(
+    throw _restDecodingError(
       'Failed to decode REST body parameter "$parameterName" for "$route".',
+      path: const [],
+      code: 'invalidBody',
     );
   }
 }
 
+/// Decodes one JSON value into the scalar [T].
+///
+/// Failures are `BAD_REQUEST` with one issue: `required` when the value is
+/// missing, `invalidType` when its JSON type doesn't match. The issue path is
+/// [issuePath], or `[name]` by default; pass `const []` when the value is the
+/// whole request body.
 T decodeRestJsonValue<T>({
   required Object? rawValue,
   required String source,
   required String name,
   required String route,
+  List<Object>? issuePath,
 }) {
   final typeName = '$T';
+  final path = issuePath ?? <Object>[name];
 
   if (rawValue == null) {
     if (null is T) {
       return null as T;
     }
 
-    throw RpcException.badRequest(
+    throw _restDecodingError(
       'Missing required $source "$name" for "$route".',
+      path: path,
+      code: 'required',
     );
   }
 
@@ -1829,8 +1868,10 @@ T decodeRestJsonValue<T>({
     );
   }
 
-  throw RpcException.badRequest(
+  throw _restDecodingError(
     '$source "$name" for "$route" has an invalid JSON type.',
+    path: path,
+    code: 'invalidType',
   );
 }
 
@@ -1838,10 +1879,27 @@ Object? _decodeRestBodyJson(String rawBody, {required String route}) {
   try {
     return jsonDecode(rawBody);
   } on FormatException {
-    throw RpcException.badRequest(
+    throw _restDecodingError(
       'REST request body for "$route" must be valid JSON.',
+      path: const [],
+      code: 'invalidJson',
     );
   }
+}
+
+/// A REST decoding `BAD_REQUEST` carrying one validation issue whose message
+/// repeats [message].
+RpcException _restDecodingError(
+  String message, {
+  required List<Object> path,
+  required String code,
+}) {
+  return RpcException.badRequest(
+    message,
+    details: rpcValidationIssueDetails([
+      RpcValidationIssue(path: path, code: code, message: message),
+    ]),
+  );
 }
 
 RpcHttpResponse _rpcErrorResponse(RpcException error, RpcHttpRequest request) {
