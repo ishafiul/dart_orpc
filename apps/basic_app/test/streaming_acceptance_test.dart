@@ -196,6 +196,56 @@ void main() {
       expect(issues.single.code, 'invalidType', reason: request);
     }
 
+    // The generated client exposes the same typed issues over HTTP and
+    // WebSocket, and REST sends them in the same wire shape.
+    final emptyTitle = RpcValidationIssue(
+      path: ['title'],
+      code: 'tooShort',
+      message: 'title must be at least 1 character long',
+    );
+    for (final (transport, client) in [
+      ('HTTP', splitClient),
+      ('WebSocket', duplexClient),
+    ]) {
+      await expectLater(
+        client.todo.create(const CreateTodoDto(title: '')),
+        throwsA(
+          isA<RpcException>()
+              .having((error) => error.code, 'code', RpcErrorCode.badRequest)
+              .having(
+                (error) => error.validationIssues,
+                '$transport validationIssues',
+                [emptyTitle],
+              ),
+        ),
+      );
+    }
+    final restEmptyTitle = await send('POST', '/todos', {'title': ''});
+    expect(restEmptyTitle.statusCode, HttpStatus.badRequest);
+    expect(
+      parseRpcValidationIssues(
+        ((jsonDecode(restEmptyTitle.body) as Map<String, Object?>)['error']
+                as Map<String, Object?>)['details']
+            as Map<String, Object?>?,
+      ),
+      [emptyTitle],
+    );
+
+    // The generated OpenAPI document describes the same issue shape.
+    final issueSchema =
+        ((((((app.openApiDocument!['components']
+                                    as Map<String, Object?>)['schemas']
+                                as Map<String, Object?>)['RpcErrorBody']
+                            as Map<String, Object?>)['properties']
+                        as Map<String, Object?>)['details']
+                    as Map<String, Object?>)['properties']
+                as Map<String, Object?>)['issues']
+            as Map<String, Object?>;
+    expect(
+      (issueSchema['items'] as Map<String, Object?>)['required'],
+      emptyTitle.toJson().keys,
+    );
+
     final unchanged = await send('POST', '/rpc', {
       'method': 'todo.getById',
       'input': {'id': created.id},

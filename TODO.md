@@ -17,11 +17,6 @@ No ready items.
   `onComplete`.
 - [ ] **SEC-001 · P1 · Feature:** Document the application authentication integration
   model.
-- [ ] **SEC-002 · P2 · Security:** Stop leaking internal details in explicit
-  internal-error messages: Luthor output-validation failures send DTO field names
-  to clients. Send a generic message and report the real one through `onError`.
-  Split out of ERR-001 ([#19](https://github.com/ishafiul/dart_orpc/issues/19)).
-  Folded into ERR-002 as [#105](https://github.com/ishafiul/dart_orpc/issues/105).
 - [ ] **CLIENT-001 · P1 · Feature:** Add per-call client timeouts and cancellation
   to `RpcCallOptions`. Headers and bearer tokens already exist.
 - [ ] **CLIENT-002 · P1 · Feature:** Add an opt-in retry policy.
@@ -51,10 +46,6 @@ No ready items.
 - [ ] **BUG-007 · P1 · Fix:** Make the `basic_app` `TodoPermissionGuard` fail closed;
   it allows every request because nothing sets `attributes['permissions']`.
   Depends on CORE-001.
-- [ ] **ERR-002 · P1 · Feature:** Return structured validation issues (field path
-  and message) from the Luthor bridge instead of one flattened string.
-  Tracked by [#54](https://github.com/ishafiul/dart_orpc/issues/54) (PRD
-  [#96](https://github.com/ishafiul/dart_orpc/issues/96)); the issue model (#102), luthor input issues (#103) and REST decoding issues (#104) done; output redaction (#105, SEC-002) in review.
 - [ ] **ERR-003 · P1 · Feature:** Allow application-defined typed error codes beyond
   the closed `RpcErrorCode` enum.
 - [ ] **ERR-004 · P1 · Feature:** Add a centralized exception-mapping hook that turns
@@ -100,6 +91,17 @@ No blocked items.
 
 ## Done
 
+- [x] **ERR-002 · P1 · Feature:** Added structured validation issues
+  (`path`, `code`, `message`) to `BAD_REQUEST` errors from luthor input
+  validation and REST decoding across RPC, REST and WebSocket, with
+  `RpcException.validationIssues` in both Dart clients and the issue shape in
+  the OpenAPI `RpcErrorBody` schema
+  ([#54](https://github.com/ishafiul/dart_orpc/issues/54), PRD
+  [#96](https://github.com/ishafiul/dart_orpc/issues/96)).
+- [x] **SEC-002 · P2 · Security:** Luthor output-validation failures now send a
+  generic `INTERNAL_ERROR` and report an `RpcOutputValidationDiagnostic`
+  through `onError` on HTTP RPC, REST, SSE and WebSocket. Delivered in ERR-002
+  ([#105](https://github.com/ishafiul/dart_orpc/issues/105)).
 - [x] **DEPS-001 · P1 · Maintenance:** Migrated to luthor and luthor_generator
   1.1, upgraded the toolchain, moved `basic_app` to Dart language 3.14, and
   switched OpenAPI to build-time DTO schema metadata. Updated the validation

@@ -152,6 +152,29 @@ void main() {
     });
   });
 
+  group('Given an RpcException', () {
+    test('When it has issue details then validationIssues reads them', () {
+      final exception = RpcException.badRequest(
+        'Invalid.',
+        details: {
+          ...rpcValidationIssueDetails([
+            RpcValidationIssue(path: ['id'], code: 'invalidType', message: 'x'),
+          ]),
+          'requestId': 'r1',
+        },
+      );
+
+      expect(exception.validationIssues, [
+        RpcValidationIssue(path: ['id'], code: 'invalidType', message: 'x'),
+      ]);
+      expect(exception.details?['requestId'], 'r1');
+    });
+
+    test('When it has no details then validationIssues is empty', () {
+      expect(RpcException.notFound('Missing.').validationIssues, isEmpty);
+    });
+  });
+
   group('Given wire details to parse', () {
     test('When entries are mixed then valid ones are kept in order', () {
       final parsed = parseRpcValidationIssues({

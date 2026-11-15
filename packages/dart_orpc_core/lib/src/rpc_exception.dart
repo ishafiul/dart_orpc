@@ -2,6 +2,7 @@ import 'json_utils.dart';
 import 'rpc_error_code.dart';
 import 'rpc_output_validation.dart';
 import 'rpc_response.dart';
+import 'rpc_validation_issue.dart';
 
 final class RpcException implements Exception {
   const RpcException({
@@ -122,6 +123,14 @@ final class RpcException implements Exception {
   final Object? diagnostic;
 
   int get statusCode => code.statusCode;
+
+  /// The framework validation issues in [details], in wire order.
+  ///
+  /// Malformed entries are skipped and unrecognized codes are kept; the list
+  /// is empty when there are no valid issues, for example from an older
+  /// server. Raw [details] stay available alongside.
+  List<RpcValidationIssue> get validationIssues =>
+      parseRpcValidationIssues(details);
 
   RpcErrorResponse toResponse() {
     return RpcErrorResponse(

@@ -297,6 +297,42 @@ JsonObject _buildParameter(
   };
 }
 
+/// `error.details.issues`: the framework's validation issues, in order.
+const _validationIssuesSchema = <String, Object?>{
+  'type': 'array',
+  'description':
+      'Validation issues for input that failed validation or REST decoding, '
+      'in order. Present only on those errors.',
+  'items': {
+    'type': 'object',
+    'required': ['path', 'code', 'message'],
+    'properties': {
+      'path': {
+        'type': 'array',
+        'description':
+            'Where the issue is: object keys and list indexes. Empty for the '
+            'whole value. Each key is one segment, even if it contains a dot.',
+        'items': {
+          'oneOf': [
+            {'type': 'string'},
+            {'type': 'integer', 'minimum': 0},
+          ],
+        },
+      },
+      'code': {
+        'type': 'string',
+        'description':
+            'Machine-readable issue code, such as `required`, `invalidType` '
+            'or `tooShort`. New codes can appear; fall back to `message`.',
+      },
+      'message': {
+        'type': 'string',
+        'description': 'Human-readable description of the issue.',
+      },
+    },
+  },
+};
+
 JsonObject _buildComponentSchemas(DtoSchemaRegistry schemas) {
   final componentSchemas = <String, Object?>{
     'RpcErrorBody': {
@@ -312,6 +348,7 @@ JsonObject _buildComponentSchemas(DtoSchemaRegistry schemas) {
               'Optional structured context for the error. Omitted when '
               'there is none. The `issues` key is reserved for framework '
               'validation issues.',
+          'properties': {'issues': _validationIssuesSchema},
         },
       },
     },

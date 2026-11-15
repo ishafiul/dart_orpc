@@ -111,7 +111,7 @@ Cancel subscriptions and await socket.close when their owning screen/session end
 
 ## Handle expected versus transport failures
 
-`RpcException` represents known server codes such as NOT_FOUND, UNAUTHORIZED, and BAD_REQUEST. Compare `error.code` with RpcErrorCode values. `RpcClientException` covers malformed responses, unavailable connections, and other client/transport failures.
+`RpcException` represents known server codes such as NOT_FOUND, UNAUTHORIZED, and BAD_REQUEST. Compare `error.code` with RpcErrorCode values. For BAD_REQUEST validation failures, `error.validationIssues` lists each field problem with its `path`, `code` and `message`, so forms can show errors next to fields; see [Validation issues](/dart-orpc/guides/errors-and-context#validation-issues). `RpcClientException` covers malformed responses, unavailable connections, and other client/transport failures.
 
 Do not blindly retry a failed mutation: the server may have committed it before the response was lost. Use bounded retries with an application idempotency policy where duplicate effects matter.
 

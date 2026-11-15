@@ -104,6 +104,45 @@
           "details": {
             "additionalProperties": true,
             "description": "Optional structured context for the error. Omitted when there is none. The `issues` key is reserved for framework validation issues.",
+            "properties": {
+              "issues": {
+                "description": "Validation issues for input that failed validation or REST decoding, in order. Present only on those errors.",
+                "items": {
+                  "properties": {
+                    "code": {
+                      "description": "Machine-readable issue code, such as `required`, `invalidType` or `tooShort`. New codes can appear; fall back to `message`.",
+                      "type": "string"
+                    },
+                    "message": {
+                      "description": "Human-readable description of the issue.",
+                      "type": "string"
+                    },
+                    "path": {
+                      "description": "Where the issue is: object keys and list indexes. Empty for the whole value. Each key is one segment, even if it contains a dot.",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "minimum": 0,
+                            "type": "integer"
+                          }
+                        ]
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "code",
+                    "message"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
             "type": "object"
           },
           "message": {
