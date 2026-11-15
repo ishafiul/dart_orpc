@@ -1,0 +1,1051 @@
+//! Tests of the event loop. They drive an [`EventLoop`] the way Dart does:
+//! call `run`, read the records, write answers. A small test app answers.
+//!
+//! Parser-only tests live in `http::head` and `http::body`.
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::doc_markdown,
+    clippy::format_collect,
+    clippy::large_stack_arrays,
+    clippy::redundant_closure_for_method_calls,
+    clippy::similar_names
+)]
+
+use super::*;
+use crate::limits::{
+    CLOSE_WAIT, KEEP_WRITE_BUFFER, MAX_INFLIGHT, MAX_PENDING, MAX_TIMEOUT, SEND_WAIT, WS_UNACKED,
+};
+use std::sync::mpsc;
+
+const WS_TEXT: u32 = InboundKind::WebSocketText as u32;
+const WS_BINARY: u32 = InboundKind::WebSocketBinary as u32;
+const WS_CLOSED: u32 = InboundKind::WebSocketClosed as u32;
+const STREAM_SENT: u32 = InboundKind::StreamSent as u32;
+const STREAM_GONE: u32 = InboundKind::StreamGone as u32;
+use crate::native_memory::ExternalBody;
+use crate::protocol::request_record::{HEAD_LEN, RecordHead};
+use crate::protocol::response_record::encode as respond_with;
+use std::io::Write as _;
+use std::net::{Ipv4Addr, TcpStream as StdStream};
+use std::sync::Mutex;
+use tungstenite::WebSocket;
+
+/// The default idle timeout of Dart's `bind`.
+const IDLE: Duration = Duration::from_secs(30);
+
+fn limits() -> Limits {
+    Limits {
+        body: 10,
+        multipart: 20,
+        body_timeout: Duration::from_millis(50),
+        max_connections: 0,
+        idle_timeout: IDLE,
+    }
+}
+
+impl EventLoop {
+    /// `run` with Dart's raw budget in microseconds and a plain size error.
+    fn run_us(&mut self, answers: &[u8], inbox: &mut [u8], budget_us: i64) -> Result<usize, usize> {
+        let budget = Duration::from_micros(u64::try_from(budget_us).unwrap_or(0));
+        self.run(answers, inbox, budget)
+            .map_err(|NeedsRoom(size)| size)
+    }
+}
+
+fn new_core(lim: Limits) -> (EventLoop, u16) {
+    let bound = listener::bind(ListenAddress {
+        ip: Some(Ipv4Addr::LOCALHOST.into()),
+        port: 0,
+    })
+    .unwrap();
+    let port = bound.address.port;
+    (
+        EventLoop::new(bound.listener, bound.address, lim).unwrap(),
+        port,
+    )
+}
+
+/// A record from Rust.
+#[derive(Debug, Clone)]
+struct Rec {
+    id: u64,
+    flags: u32,
+    target: String,
+    body: Vec<u8>,
+    code: u16,
+}
+
+impl Rec {
+    fn kind(&self) -> u32 {
+        (self.flags >> 8) & 0xff
+    }
+}
+
+fn records(b: &[u8]) -> Vec<Rec> {
+    let mut out = Vec::new();
+    let mut p = 0;
+    while p + HEAD_LEN <= b.len() {
+        let head = RecordHead::read(&b[p..]);
+        let q = p + HEAD_LEN + usize::from(head.method_len);
+        let target = String::from_utf8_lossy(&b[q..q + usize::from(head.target_len)]).into_owned();
+        let at = p + head.body_offset();
+        let end = p + head.record_len();
+        let body = if head.has_external_body() {
+            // SAFETY: the record came from the loop and was not freed.
+            unsafe { ExternalBody::take(&b[at..end]) }
+        } else {
+            b[at..end].to_vec()
+        };
+        out.push(Rec {
+            id: head.id,
+            flags: head.flags,
+            target,
+            body,
+            code: head.port,
+        });
+        p = end;
+    }
+    out
+}
+
+/// The test app. `/ws`, `/bye`, `/flood`, `/big` and `/wide` accept a
+/// WebSocket (ws id = request id, max message 8 bytes, `/big` and `/wide`
+/// 16 MiB). `/bye` then
+/// closes with 4000, `/flood` sends 2 MB at once, `/big` 8 MiB. Messages
+/// are echoed. `/stream` sends "ab", "cde" as a streamed body. `/exact`,
+/// `/liar` and `/short` do the same with `content-length` 5, 3 and 9.
+/// `/zip` gzips. Anything else: the target and the body.
+fn app(r: &Rec, out: &mut Vec<u8>) {
+    match r.kind() {
+        0 => match r.target.as_str() {
+            t @ ("/ws" | "/bye" | "/flood" | "/big" | "/wide") if r.flags & 2 != 0 => {
+                let max: u64 = if t == "/big" || t == "/wide" {
+                    16 << 20
+                } else {
+                    8
+                };
+                respond_with(
+                    out,
+                    r.id,
+                    101,
+                    1,
+                    b"",
+                    &[r.id.to_le_bytes(), max.to_le_bytes()].concat(),
+                );
+                match t {
+                    "/bye" => respond_with(out, r.id, 4000, 4, b"", b"done"),
+                    "/flood" => {
+                        for _ in 0..20 {
+                            respond_with(out, r.id, 0, 3, b"", &[0u8; 100_000]);
+                        }
+                    }
+                    "/big" => respond_with(out, r.id, 0, 3, b"", &vec![0u8; 8 << 20]),
+                    _ => {}
+                }
+            }
+            t @ ("/stream" | "/exact" | "/liar" | "/short") => {
+                let lines: &[u8] = match t {
+                    "/exact" => b"content-length: 5\r\n",
+                    "/liar" => b"content-length: 3\r\n",
+                    "/short" => b"content-length: 9\r\n",
+                    _ => b"",
+                };
+                respond_with(
+                    out,
+                    r.id,
+                    200,
+                    6,
+                    lines,
+                    &[&r.id.to_le_bytes()[..], b"ab"].concat(),
+                );
+                respond_with(out, r.id, 0, 7, b"", b"cde");
+                respond_with(out, r.id, 0, 8, b"", b"");
+            }
+            "/zip" => respond_with(
+                out,
+                r.id,
+                200,
+                0x100,
+                b"content-encoding: gzip\r\n",
+                &b"hello ".repeat(100),
+            ),
+            t => respond_with(out, r.id, 200, 0, b"", &[t.as_bytes(), &r.body].concat()),
+        },
+        // echo text and binary
+        k @ (1 | 2) => respond_with(out, r.id, 0, k as u16 + 1, b"", &r.body),
+        _ => {}
+    }
+}
+
+/// One turn, like Dart: run, then let the app answer. Returns the records.
+fn turn(core: &mut EventLoop, inb: &mut [u8], out: &mut Vec<u8>, budget: i64) -> Vec<Rec> {
+    let n = core.run_us(out, inb, budget).expect("room");
+    out.clear();
+    let recs = records(&inb[..n]);
+    for r in &recs {
+        app(r, out);
+    }
+    recs
+}
+
+/// Runs the test app on a thread. Returns the port and every record that
+/// is not a request.
+fn serve(lim: Limits) -> (u16, Arc<Mutex<Vec<Rec>>>) {
+    let (mut core, port) = new_core(lim);
+    let log = Arc::new(Mutex::new(Vec::new()));
+    let seen = log.clone();
+    std::thread::spawn(move || {
+        let mut inb = vec![0u8; 1 << 18];
+        let mut out = Vec::new();
+        loop {
+            for r in turn(&mut core, &mut inb, &mut out, 1000) {
+                if r.kind() != 0 {
+                    seen.lock().unwrap().push(r);
+                }
+            }
+        }
+    });
+    (port, log)
+}
+
+fn connect(port: u16) -> StdStream {
+    let s = StdStream::connect(("127.0.0.1", port)).unwrap();
+    s.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+    s.set_nodelay(true).unwrap();
+    s
+}
+
+/// Runs the loop until `count` connections are open, or 5 seconds.
+/// connect() can return before the server side can accept, and one call
+/// that gets WouldBlock does not try again: a test that calls once (or a
+/// few times) after connect() fails on a busy machine.
+fn accept(core: &mut EventLoop, inb: &mut [u8], count: usize) {
+    let end = Instant::now() + Duration::from_secs(5);
+    while core.connections.len() < count && Instant::now() < end {
+        core.run_us(&[], inb, 1000).unwrap();
+    }
+    assert_eq!(core.connections.len(), count, "accepted");
+}
+
+/// Sends `req`, reads until the server closes (or 3 seconds).
+fn send(port: u16, req: &[u8]) -> String {
+    let mut s = connect(port);
+    s.write_all(req).unwrap();
+    let mut out = Vec::new();
+    let _ = s.read_to_end(&mut out);
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+fn wait_for(log: &Mutex<Vec<Rec>>, what: impl Fn(&Rec) -> bool) -> Rec {
+    let end = Instant::now() + Duration::from_secs(5);
+    while Instant::now() < end {
+        if let Some(r) = log.lock().unwrap().iter().find(|r| what(r)) {
+            return r.clone();
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    panic!("no such record");
+}
+
+#[test]
+fn answers_and_bad_requests() {
+    let (port, _) = serve(limits());
+    let ok = send(
+        port,
+        b"GET /hi HTTP/1.1\r\nHost: a\r\nConnection: close\r\n\r\n",
+    );
+    assert!(ok.starts_with("HTTP/1.1 200 OK\r\n"), "{ok:?}");
+    assert!(
+        ok.contains("content-length: 3\r\n") && ok.ends_with("\r\n\r\n/hi"),
+        "{ok:?}"
+    );
+    assert!(
+        send(port, b"HELLO\r\n\r\n").starts_with("HTTP/1.1 400"),
+        "400"
+    );
+    let big = format!(
+        "GET / HTTP/1.1\r\nHost: a\r\nX: {}\r\n\r\n",
+        "a".repeat(20000)
+    );
+    assert!(
+        send(port, big.as_bytes()).starts_with("HTTP/1.1 431"),
+        "431"
+    );
+    let body =
+        b"POST / HTTP/1.1\r\nHost: a\r\nContent-Length: 11\r\nConnection: close\r\n\r\nhello world";
+    assert!(send(port, body).starts_with("HTTP/1.1 413"), "413");
+    let two = b"POST / HTTP/1.1\r\nContent-Length: 1\r\nTransfer-Encoding: chunked\r\n\r\n";
+    assert!(send(port, two).starts_with("HTTP/1.1 400"), "smuggling");
+    let http10 = send(port, b"GET /x HTTP/1.0\r\n\r\n");
+    assert!(
+        http10.starts_with("HTTP/1.0 200") && http10.contains("connection: close"),
+        "{http10:?}"
+    );
+}
+
+/// Sends a 20 byte body (over the limit) in 2 byte parts, 10 ms apart.
+fn slow_send(port: u16) -> String {
+    let mut s = connect(port);
+    s.write_all(b"POST / HTTP/1.1\r\nHost: a\r\nContent-Length: 20\r\n\r\n")
+        .unwrap();
+    for _ in 0..10 {
+        std::thread::sleep(Duration::from_millis(10));
+        s.write_all(b"ab").unwrap();
+    }
+    let mut out = Vec::new();
+    let _ = s.read_to_end(&mut out);
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+#[test]
+fn body_limits_and_timeout() {
+    let (port, _) = serve(limits());
+    // too big, and the client waits for "100 Continue": 413 at once
+    let head =
+        b"POST / HTTP/1.1\r\nHost: a\r\nExpect: 100-continue\r\nContent-Length: 1000000000\r\n\r\n";
+    assert!(send(port, head).starts_with("HTTP/1.1 413"), "early 413");
+    // too big, whole body sent: read and dropped, then 413 (no reset)
+    let full = b"POST / HTTP/1.1\r\nHost: a\r\nContent-Length: 15\r\n\r\n123456789012345";
+    assert!(send(port, full).starts_with("HTTP/1.1 413"), "413");
+    // slow but steady: 100 ms in all, but never 50 ms without bytes
+    let r = slow_send(port);
+    assert!(r.starts_with("HTTP/1.1 413"), "steady {r:?}");
+    // a stalled body gets 408 after the idle timeout
+    let slow = b"POST / HTTP/1.1\r\nHost: a\r\nContent-Length: 5\r\n\r\nab";
+    assert!(send(port, slow).starts_with("HTTP/1.1 408"), "408");
+    // a multipart form may be bigger (15 > 10): no 413, it waits for the body
+    let form = b"POST / HTTP/1.1\r\nHost: a\r\nContent-Type: multipart/form-data; boundary=x\r\nContent-Length: 15\r\n\r\n";
+    assert!(
+        send(port, form).starts_with("HTTP/1.1 408"),
+        "multipart limit"
+    );
+    // a chunked body over the limit: 413
+    let chunked =
+        b"POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\nc\r\n123456789012\r\n0\r\n\r\n";
+    assert!(
+        send(port, chunked).starts_with("HTTP/1.1 413"),
+        "chunked 413"
+    );
+}
+
+#[test]
+fn chunked_body_and_expect_continue() {
+    let lim = Limits {
+        body: 1 << 20,
+        ..limits()
+    };
+    let (port, _) = serve(lim);
+    let req = b"POST /c HTTP/1.1\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n3\r\nabc\r\n2;x=y\r\nde\r\n0\r\nTrailer: 1\r\n\r\n";
+    let r = send(port, req);
+    assert!(
+        r.starts_with("HTTP/1.1 200") && r.ends_with("/cabcde"),
+        "{r:?}"
+    );
+    // a big body in many reads, then a pipelined request after it
+    let body = vec![b'x'; 200_000];
+    let mut s = connect(port);
+    s.write_all(b"POST /big HTTP/1.1\r\nContent-Length: 200000\r\n\r\n")
+        .unwrap();
+    for part in body.chunks(30_000) {
+        s.write_all(part).unwrap();
+    }
+    s.write_all(b"GET /after HTTP/1.1\r\nConnection: close\r\n\r\n")
+        .unwrap();
+    let mut out = Vec::new();
+    let _ = s.read_to_end(&mut out);
+    let out = String::from_utf8_lossy(&out);
+    assert!(
+        out.contains(&format!("content-length: {}\r\n", 200_004)),
+        "big"
+    );
+    assert!(out.ends_with("/after"), "pipelined after the body");
+    // Expect: 100-continue: the go first, then the answer
+    let mut s = connect(port);
+    s.write_all(b"POST /e HTTP/1.1\r\nExpect: 100-continue\r\nContent-Length: 2\r\nConnection: close\r\n\r\n")
+        .unwrap();
+    let mut buf = [0u8; 25];
+    s.read_exact(&mut buf).unwrap();
+    assert_eq!(&buf, b"HTTP/1.1 100 Continue\r\n\r\n");
+    s.write_all(b"ok").unwrap();
+    let mut rest = String::new();
+    let _ = s.read_to_string(&mut rest);
+    assert!(
+        rest.starts_with("HTTP/1.1 200") && rest.ends_with("/eok"),
+        "{rest:?}"
+    );
+}
+
+/// Runs turns (with no app) until `count` requests came, or 2 seconds.
+fn collect(core: &mut EventLoop, inb: &mut [u8], count: usize) -> Vec<Rec> {
+    let mut got = Vec::new();
+    let end = Instant::now() + Duration::from_secs(2);
+    while got.len() < count && Instant::now() < end {
+        let n = core.run_us(&[], inb, 1000).unwrap();
+        got.extend(records(&inb[..n]));
+    }
+    got
+}
+
+#[test]
+fn answers_go_in_order_and_inflight_is_limited() {
+    let (mut core, port) = new_core(limits());
+    let mut inb = vec![0u8; 1 << 18];
+    let mut s = connect(port);
+    let all: String = (0..100)
+        .map(|i| format!("GET /{i} HTTP/1.1\r\n\r\n"))
+        .collect();
+    s.write_all(all.as_bytes()).unwrap();
+    let first = collect(&mut core, &mut inb, 100);
+    assert_eq!(first.len(), MAX_INFLIGHT, "stops at the limit");
+    // answer in reverse order: the client still gets them in order
+    let mut out = Vec::new();
+    for r in first.iter().rev() {
+        respond_with(&mut out, r.id, 200, 0, b"", r.target.as_bytes());
+    }
+    let n = core.run_us(&out, &mut inb, 0).unwrap();
+    let mut rest = records(&inb[..n]);
+    rest.extend(collect(
+        &mut core,
+        &mut inb,
+        100 - MAX_INFLIGHT - rest.len(),
+    ));
+    assert_eq!(rest.len(), 100 - MAX_INFLIGHT, "reads on after the answers");
+    let mut got = vec![0u8; 0];
+    let mut buf = [0u8; 65536];
+    while !String::from_utf8_lossy(&got).ends_with(&format!("/{}", MAX_INFLIGHT - 1)) {
+        let k = s.read(&mut buf).unwrap();
+        got.extend_from_slice(&buf[..k]);
+    }
+    let text = String::from_utf8_lossy(&got);
+    let bodies: Vec<&str> = text
+        .split("\r\n\r\n")
+        .skip(1)
+        .map(|b| &b[..b.find("HTTP").unwrap_or(b.len())])
+        .collect();
+    let want: Vec<String> = (0..MAX_INFLIGHT).map(|i| format!("/{i}")).collect();
+    assert_eq!(bodies, want);
+}
+
+fn ws_client(port: u16, path: &str) -> WebSocket<StdStream> {
+    let (ws, res) =
+        tungstenite::client(format!("ws://127.0.0.1:{port}{path}"), connect(port)).unwrap();
+    assert_eq!(res.status(), 101);
+    ws
+}
+
+#[test]
+fn websocket_messages_both_ways() {
+    let (port, log) = serve(limits());
+    let mut ws = ws_client(port, "/ws");
+    ws.send(Message::text("hi")).unwrap();
+    assert_eq!(ws.read().unwrap(), Message::text("hi"));
+    ws.send(Message::binary(vec![1, 2])).unwrap();
+    assert_eq!(ws.read().unwrap(), Message::binary(vec![1, 2]));
+    ws.send(Message::Ping(Bytes::from_static(b"p"))).unwrap();
+    assert_eq!(ws.read().unwrap(), Message::Pong(Bytes::from_static(b"p")));
+    ws.close(Some(CloseFrame {
+        code: CloseCode::Normal,
+        reason: Utf8Bytes::from_static("bye"),
+    }))
+    .unwrap();
+    while ws.read().is_ok() {}
+    let closed = wait_for(&log, |r| r.kind() == WS_CLOSED);
+    assert_eq!((closed.code, closed.body.as_slice()), (1000, &b"bye"[..]));
+    let texts: Vec<_> = log
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|r| r.id == closed.id)
+        .map(|r| r.kind())
+        .collect();
+    assert_eq!(
+        texts,
+        vec![WS_TEXT, WS_BINARY, WS_CLOSED],
+        "one closed record"
+    );
+}
+
+#[test]
+fn websocket_too_big_closes_with_1009() {
+    let (port, log) = serve(limits());
+    let mut ws = ws_client(port, "/ws");
+    ws.send(Message::text("123456789")).unwrap();
+    let Ok(Message::Close(Some(frame))) = ws.read() else {
+        panic!("no close frame")
+    };
+    assert_eq!(frame.code, CloseCode::Size);
+    assert_eq!(wait_for(&log, |r| r.kind() == WS_CLOSED).code, 1009);
+}
+
+#[test]
+fn websocket_close_from_dart() {
+    let (port, log) = serve(limits());
+    let mut ws = ws_client(port, "/bye");
+    let Ok(Message::Close(Some(frame))) = ws.read() else {
+        panic!("no close frame")
+    };
+    assert_eq!(
+        (u16::from(frame.code), frame.reason.as_str()),
+        (4000, "done")
+    );
+    while ws.read().is_ok() {} // answers the close
+    // the client answered the close: Rust reports its code
+    assert_eq!(wait_for(&log, |r| r.kind() == WS_CLOSED).code, 4000);
+}
+
+/// Dart queues more than the cap (1 MiB here) at once: the socket closes
+/// with 1008, without sending the queued messages.
+#[test]
+fn websocket_queue_over_the_cap_closes_with_1008() {
+    let (port, log) = serve(limits());
+    let mut ws = ws_client(port, "/flood");
+    let Ok(Message::Close(Some(frame))) = ws.read() else {
+        panic!("no close frame")
+    };
+    assert_eq!(frame.code, CloseCode::Policy);
+    assert_eq!(wait_for(&log, |r| r.kind() == WS_CLOSED).code, 1008);
+}
+
+/// Upgrades a client (on its own thread) on a core that the test drives.
+/// Returns the ws id and the client thread's channel to send messages.
+fn ws_on(
+    core: &mut EventLoop,
+    inb: &mut [u8],
+    port: u16,
+    path: &'static str,
+) -> (u64, mpsc::Sender<Message>) {
+    let (tx, rx) = mpsc::channel::<Message>();
+    std::thread::spawn(move || {
+        let mut ws = ws_client(port, path);
+        for m in rx {
+            let _ = ws.send(m);
+        }
+        std::thread::sleep(Duration::from_secs(10)); // never reads
+    });
+    (upgrade(core, inb), tx)
+}
+
+/// Answers the next upgrade request and runs until the WebSocket is live.
+/// Returns the ws id (= the request id).
+fn upgrade(core: &mut EventLoop, inb: &mut [u8]) -> u64 {
+    let req = collect(core, inb, 1).pop().expect("upgrade request");
+    let mut out = Vec::new();
+    app(&req, &mut out);
+    core.run_us(&out, inb, 0).unwrap();
+    for _ in 0..50 {
+        core.run_us(&[], inb, 1000).unwrap();
+    }
+    req.id
+}
+
+/// A client that sends `bytes` of ping frames (`size` bytes of data each,
+/// 6 bytes of frame head) after the
+/// upgrade. With `read` it reads and drops the pongs, else it never reads.
+/// Returns the index of its connection.
+fn ping_flood(
+    core: &mut EventLoop,
+    inb: &mut [u8],
+    port: u16,
+    read: bool,
+    size: u8,
+    bytes: usize,
+) -> usize {
+    std::thread::spawn(move || {
+        let ws = ws_client(port, "/wide");
+        let mut s = ws.get_ref().try_clone().unwrap();
+        // big buffers: many frames wait at once, more than one turn reads
+        let _ = socket2::SockRef::from(&s).set_send_buffer_size(4 << 20);
+        if read {
+            let mut r = s.try_clone().unwrap();
+            std::thread::spawn(move || {
+                let mut buf = [0u8; 65536];
+                while r.read(&mut buf).is_ok_and(|k| k > 0) {}
+            });
+        }
+        let mut frame = vec![0x89, 0x80 | size, 0, 0, 0, 0];
+        frame.extend_from_slice(&vec![b'p'; size.into()]);
+        let _ = s.write_all(&frame.repeat(bytes / frame.len()));
+        std::thread::sleep(Duration::from_secs(10));
+    });
+    let idx = (upgrade(core, inb) >> 32) as usize;
+    let _ = socket2::SockRef::from(&core.connections[idx].socket).set_recv_buffer_size(4 << 20);
+    idx
+}
+
+/// A client floods pings: one call reads only a share of them, and the
+/// request of another client gets its turn in the same call.
+#[test]
+fn websocket_ping_flood_does_not_hold_the_loop() {
+    let (mut core, port) = new_core(limits());
+    let mut inb = vec![0u8; 1 << 18];
+    let idx = ping_flood(&mut core, &mut inb, port, true, 20, 64 << 20);
+    let mut s = connect(port);
+    // On a busy machine the accept, the request and the flood bytes can
+    // all come late. So do not trust a sleep: call until a call gets the
+    // request while the flood is "full": more than two shares of it wait
+    // and no pong waits (a pong backlog pauses the flood, see `ws_read`).
+    let mut peek = vec![0u8; 2 * WS_READ + 1];
+    let mut asked = false;
+    // only a limit to give up: the result does not depend on time
+    let end = Instant::now() + Duration::from_secs(10);
+    let pongs = loop {
+        assert!(
+            Instant::now() < end,
+            "no call got the other request while the flood waited"
+        );
+        let c = &core.connections[idx];
+        let full = c.pending() == 0
+            && !c.websocket.as_ref().unwrap().paused
+            && c.socket.peek(&mut peek).is_ok_and(|k| k > 2 * WS_READ);
+        let before = c.written;
+        if full && !asked {
+            s.write_all(b"GET /other HTTP/1.1\r\n\r\n").unwrap();
+            asked = true;
+        }
+        if !full {
+            std::thread::sleep(Duration::from_millis(1)); // the client fills
+        }
+        let n = core.run_us(&[], &mut inb, 0).unwrap();
+        if records(&inb[..n]).iter().any(|r| r.target == "/other") {
+            if full {
+                let c = &core.connections[idx];
+                break c.written + c.pending() as u64 - before;
+            }
+            asked = false; // came in a call that proves nothing: ask again
+        }
+    };
+    assert!(
+        core.ready.contains(&idx),
+        "the flood waits for its next turn"
+    );
+    // A count, not a time. Each ping is 26 bytes and gets one pong of 22
+    // bytes, so the pongs count the bytes read in that call. One share is
+    // WS_READ bytes; tungstenite may also hold less than one READ_ROOM of
+    // frames from the last call, and owe one pong. The pongs of that
+    // (under 235 KiB) stay under the pong cap WS_OUT_MAX, so the cap does
+    // not stop the call. Without the share, the cap stops it only after
+    // more than WS_OUT_MAX / 22 pings (over 300 KiB read).
+    let pings = pongs / 22;
+    assert!(
+        pings * 26 <= (WS_READ + READ_ROOM + 26) as u64,
+        "one call read {pings} pings, more than one share"
+    );
+}
+
+/// A client sends pings and never reads the pongs: Rust stops reading its
+/// frames, so the pongs do not fill the memory.
+#[test]
+fn websocket_pongs_for_a_client_that_does_not_read_are_capped() {
+    let (mut core, port) = new_core(limits());
+    let mut inb = vec![0u8; 1 << 18];
+    let idx = ping_flood(&mut core, &mut inb, port, false, 125, 8 << 20);
+    let end = Instant::now() + Duration::from_millis(500);
+    while Instant::now() < end {
+        core.run_us(&[], &mut inb, 1000).unwrap();
+    }
+    let c = &core.connections[idx];
+    assert!(c.pending() <= WS_OUT_MAX + WS_READ, "{} waits", c.pending());
+    assert!(c.websocket.as_ref().unwrap().paused, "reading stopped");
+}
+
+/// While Dart has too many bytes not acknowledged, Rust reads no frame.
+/// The ack starts reading again. Nothing is lost.
+#[test]
+fn websocket_pauses_until_dart_acknowledges() {
+    let (mut core, port) = new_core(limits());
+    let mut inb = vec![0u8; 1 << 18];
+    let (id, tx) = ws_on(&mut core, &mut inb, port, "/ws");
+    core.outbox.force_unacked(WS_UNACKED + 1);
+    tx.send(Message::text("hi")).unwrap();
+    let paused = collect(&mut core, &mut inb, 1);
+    assert!(paused.is_empty(), "read while paused");
+    let mut ack = Vec::new();
+    respond_with(&mut ack, (WS_UNACKED + 1) as u64, 0, 5, b"", b"");
+    let n = core.run_us(&ack, &mut inb, 0).unwrap();
+    let mut got = records(&inb[..n]);
+    got.extend(collect(&mut core, &mut inb, 1 - got.len()));
+    assert_eq!(
+        (got[0].id, got[0].kind(), got[0].body.as_slice()),
+        (id, WS_TEXT, &b"hi"[..])
+    );
+    assert_eq!(core.outbox.unacked_websocket_bytes(), 2);
+}
+
+/// Runs the timers as if `later` passed. Returns the records for Dart.
+fn after(core: &mut EventLoop, inb: &mut [u8], later: Duration) -> Vec<Rec> {
+    core.now = Instant::now() + later;
+    core.run_timers();
+    let n = core.fill(inb).unwrap();
+    records(&inb[..n])
+}
+
+/// The client never answers the close of Dart: after CLOSE_WAIT the
+/// socket is dropped, with 1006.
+#[test]
+fn websocket_close_ends_when_the_client_does_not_answer() {
+    let (mut core, port) = new_core(limits());
+    let mut inb = vec![0u8; 1 << 18];
+    let (id, _tx) = ws_on(&mut core, &mut inb, port, "/ws");
+    let mut out = Vec::new();
+    respond_with(&mut out, id, 0, 4, b"", b"");
+    core.run_us(&out, &mut inb, 0).unwrap();
+    assert!(
+        after(&mut core, &mut inb, CLOSE_WAIT / 2).is_empty(),
+        "too early"
+    );
+    let got = after(&mut core, &mut inb, CLOSE_WAIT + Duration::from_millis(10));
+    assert_eq!(
+        (got[0].id, got[0].kind(), got[0].code),
+        (id, WS_CLOSED, 1006)
+    );
+}
+
+/// A client that does not read: a send that makes no progress drops the
+/// socket after SEND_WAIT, with 1006.
+#[test]
+fn websocket_send_ends_when_the_client_does_not_read() {
+    let (mut core, port) = new_core(limits());
+    let mut inb = vec![0u8; 1 << 18];
+    let (id, _tx) = ws_on(&mut core, &mut inb, port, "/big");
+    assert!(
+        core.connections.iter().any(|(_, c)| c.pending() > 0),
+        "a send waits"
+    );
+    assert!(
+        after(&mut core, &mut inb, SEND_WAIT / 2).is_empty(),
+        "too early"
+    );
+    let got = after(&mut core, &mut inb, SEND_WAIT + IDLE);
+    assert_eq!(
+        (got[0].id, got[0].kind(), got[0].code),
+        (id, WS_CLOSED, 1006)
+    );
+}
+
+/// The parts of a streamed body reach the client in order. Dart hears
+/// how many bytes went out, part by part.
+#[test]
+fn streamed_body_sends_parts_and_counts_them() {
+    let (port, log) = serve(limits());
+    let r = send(port, b"GET /stream HTTP/1.1\r\nConnection: close\r\n\r\n");
+    assert!(r.contains("transfer-encoding: chunked\r\n"), "{r:?}");
+    assert!(
+        r.ends_with("\r\n\r\n2\r\nab\r\n3\r\ncde\r\n0\r\n\r\n"),
+        "{r:?}"
+    );
+    // the byte counts reach 5 (2 + 3)
+    let end = Instant::now() + Duration::from_secs(5);
+    loop {
+        let sum: u64 = log
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|r| r.kind() == STREAM_SENT)
+            .map(|r| u64::from_le_bytes(r.body[..8].try_into().unwrap()))
+            .sum();
+        if sum == 5 {
+            break;
+        }
+        assert!(Instant::now() < end && sum < 5, "sent {sum}");
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    // HEAD: no body, Dart is told to stop
+    let head = send(port, b"HEAD /stream HTTP/1.1\r\nConnection: close\r\n\r\n");
+    assert!(
+        head.ends_with("\r\n\r\n") && !head.contains("ab"),
+        "{head:?}"
+    );
+    wait_for(&log, |r| r.kind() == STREAM_GONE);
+}
+
+#[test]
+fn gzip_runs_on_the_helper_thread() {
+    let (port, _) = serve(limits());
+    let r = {
+        let mut s = connect(port);
+        s.write_all(b"GET /zip HTTP/1.1\r\nConnection: close\r\n\r\n")
+            .unwrap();
+        let mut out = Vec::new();
+        let _ = s.read_to_end(&mut out);
+        out
+    };
+    let at = r.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
+    let mut back = Vec::new();
+    flate2::read::GzDecoder::new(&r[at..])
+        .read_to_end(&mut back)
+        .unwrap();
+    assert_eq!(back, b"hello ".repeat(100));
+}
+
+/// A graceful shutdown: no new connections, the open request gets its
+/// answer (with `connection: close`), then it is done.
+#[test]
+fn graceful_shutdown_finishes_open_requests() {
+    let (mut core, port) = new_core(limits());
+    let mut inb = vec![0u8; 1 << 18];
+    let mut s = connect(port);
+    s.write_all(b"GET /open HTTP/1.1\r\n\r\n").unwrap();
+    let req = collect(&mut core, &mut inb, 1).pop().unwrap();
+    core.start_drain();
+    assert!(
+        StdStream::connect(("127.0.0.1", port)).is_err(),
+        "no new connections"
+    );
+    assert!(!core.take_drained(), "a request is open");
+    let mut out = Vec::new();
+    respond_with(&mut out, req.id, 200, 0, b"", b"bye");
+    core.run_us(&out, &mut inb, 0).unwrap();
+    let mut got = String::new();
+    let _ = s.read_to_string(&mut got);
+    assert!(
+        got.contains("connection: close\r\n") && got.ends_with("bye"),
+        "{got:?}"
+    );
+    for _ in 0..100 {
+        core.run_us(&[], &mut inb, 1000).unwrap();
+        if core.take_drained() {
+            return;
+        }
+    }
+    panic!("not done");
+}
+
+/// A client pipelines requests and never reads the answers: Rust stops
+/// reading its requests while the answers wait, so memory stays small.
+#[test]
+fn pipelined_requests_stop_while_answers_wait() {
+    let (mut core, port) = new_core(limits());
+    let mut inb = vec![0u8; 1 << 18];
+    let mut s = connect(port);
+    let all: String = (0..300)
+        .map(|i| format!("GET /{i} HTTP/1.1\r\n\r\n"))
+        .collect();
+    s.write_all(all.as_bytes()).unwrap();
+    let body = vec![b'x'; 200_000];
+    let (mut seen, mut out) = (0, Vec::new());
+    let end = Instant::now() + Duration::from_millis(500);
+    while Instant::now() < end {
+        let n = core.run_us(&out, &mut inb, 1000).unwrap();
+        out.clear();
+        for r in records(&inb[..n]) {
+            seen += 1;
+            respond_with(&mut out, r.id, 200, 0, b"", &body);
+        }
+    }
+    let pending: usize = core.connections.iter().map(|(_, c)| c.pending()).sum();
+    assert!(seen < 300, "read all {seen} requests");
+    assert!(
+        pending < MAX_PENDING + MAX_INFLIGHT * body.len(),
+        "{pending} bytes wait"
+    );
+}
+
+/// A client that never reads its answer: when the write makes no progress
+/// for SEND_WAIT, the connection is closed.
+#[test]
+fn answer_to_a_client_that_does_not_read_times_out() {
+    let (mut core, port) = new_core(limits());
+    let mut inb = vec![0u8; 1 << 18];
+    let mut s = connect(port);
+    s.write_all(b"GET /big HTTP/1.1\r\n\r\n").unwrap();
+    let req = collect(&mut core, &mut inb, 1).pop().unwrap();
+    let mut out = Vec::new();
+    respond_with(&mut out, req.id, 200, 0, b"", &vec![0u8; 16 << 20]);
+    core.run_us(&out, &mut inb, 0).unwrap();
+    assert!(
+        core.connections.iter().any(|(_, c)| c.pending() > 0),
+        "waits"
+    );
+    after(&mut core, &mut inb, SEND_WAIT / 2);
+    assert_eq!(core.connections.len(), 1, "too early");
+    after(&mut core, &mut inb, SEND_WAIT + Duration::from_secs(1));
+    assert_eq!(core.connections.len(), 0, "closed");
+}
+
+/// The idle time of a keep-alive connection counts from its last answer,
+/// not from its last request.
+#[test]
+fn idle_time_counts_from_the_answer() {
+    let (mut core, port) = new_core(limits());
+    let mut inb = vec![0u8; 1 << 18];
+    let mut s = connect(port);
+    s.write_all(b"GET /slow HTTP/1.1\r\n\r\n").unwrap();
+    let req = collect(&mut core, &mut inb, 1).pop().unwrap();
+    // Dart answers 20 seconds later
+    core.now = Instant::now() + Duration::from_secs(20);
+    let mut out = Vec::new();
+    respond_with(&mut out, req.id, 200, 0, b"", b"done");
+    core.respond(&out);
+    after(&mut core, &mut inb, IDLE + Duration::from_secs(5));
+    assert_eq!(
+        core.connections.len(),
+        1,
+        "closed 5 seconds after the answer"
+    );
+    after(&mut core, &mut inb, IDLE + Duration::from_secs(25));
+    assert_eq!(core.connections.len(), 0, "idle for IDLE");
+}
+
+/// A longer idle timeout (eg. for a load balancer that keeps connections
+/// for 60 seconds) keeps an idle connection past the default 30 seconds.
+#[test]
+fn idle_timeout_comes_from_the_limits() {
+    let (mut core, port) = new_core(Limits {
+        idle_timeout: Duration::from_secs(65),
+        ..limits()
+    });
+    let mut inb = vec![0u8; 1 << 18];
+    let _s = connect(port);
+    accept(&mut core, &mut inb, 1);
+    after(&mut core, &mut inb, Duration::from_secs(60));
+    assert_eq!(core.connections.len(), 1, "open after 60 seconds");
+    after(&mut core, &mut inb, Duration::from_secs(66));
+    assert_eq!(core.connections.len(), 0, "closed after 65 seconds");
+}
+
+/// A streamed body with `content-length`: the right count keeps the
+/// connection. Too many bytes stop at the length, too few cut the body.
+/// Both close the connection, so the next request gets no answer that a
+/// client could mix up with the rest of the body.
+#[test]
+fn streamed_body_keeps_to_its_content_length() {
+    let (port, log) = serve(limits());
+    let two = |path: &str| {
+        let req =
+            format!("GET {path} HTTP/1.1\r\n\r\nGET /next HTTP/1.1\r\nConnection: close\r\n\r\n");
+        send(port, req.as_bytes())
+    };
+    let exact = two("/exact");
+    assert!(
+        exact.contains("content-length: 5\r\n") && exact.contains("\r\n\r\nabcdeHTTP/1.1 200"),
+        "{exact:?}"
+    );
+    assert!(exact.ends_with("/next"), "{exact:?}");
+    let liar = two("/liar");
+    assert!(liar.ends_with("\r\n\r\nabc"), "{liar:?}");
+    wait_for(&log, |r| r.kind() == STREAM_GONE);
+    let short = two("/short");
+    assert!(short.ends_with("\r\n\r\nabcde"), "{short:?}");
+}
+
+/// `Content-Length` is ASCII digits only. `+5`, a list or other white
+/// space gets 400, so no proxy in front can read another length.
+#[test]
+fn content_length_is_digits_only() {
+    let (port, _) = serve(limits());
+    for cl in [
+        "+5",
+        "5, 5",
+        "5\u{a0}",
+        "0x5",
+        "-5",
+        "",
+        "99999999999999999999999",
+    ] {
+        let req = format!("POST / HTTP/1.1\r\nContent-Length: {cl}\r\n\r\nhello");
+        let r = send(port, req.as_bytes());
+        assert!(r.starts_with("HTTP/1.1 400"), "{cl:?}: {r:?}");
+    }
+    let r = send(
+        port,
+        b"POST /p HTTP/1.1\r\nContent-Length: 5\r\nContent-Length: 5\r\nConnection: close\r\n\r\nhello",
+    );
+    assert!(r.ends_with("/phello"), "the same length twice: {r:?}");
+}
+
+/// A huge body timeout from Dart does not overflow the clock.
+#[test]
+fn huge_body_timeout_is_cut() {
+    let lim = Limits::from_dart(1, 1, i64::MAX, 0, i64::MAX);
+    assert_eq!(lim.body_timeout, MAX_TIMEOUT);
+    assert_eq!(lim.idle_timeout, MAX_TIMEOUT);
+    let _ = Instant::now() + lim.body_timeout + lim.idle_timeout; // no panic
+}
+
+/// With a connection limit, Rust stops accepting at the limit, and accepts
+/// again when a connection closes. An idle connection holds no read buffer.
+#[test]
+fn connection_limit_and_no_buffer_for_idle_connections() {
+    let (mut core, port) = new_core(Limits {
+        max_connections: 1,
+        ..limits()
+    });
+    let mut inb = vec![0u8; 1 << 18];
+    let a = connect(port);
+    accept(&mut core, &mut inb, 1);
+    let (_, c) = core.connections.iter().next().unwrap();
+    assert_eq!(
+        c.read_buf.capacity(),
+        0,
+        "an idle connection holds a buffer"
+    );
+    let mut b = connect(port); // waits in the listen queue
+    b.write_all(b"GET /b HTTP/1.1\r\nConnection: close\r\n\r\n")
+        .unwrap();
+    assert!(collect(&mut core, &mut inb, 1).is_empty(), "over the limit");
+    assert_eq!(core.connections.len(), 1);
+    drop(a);
+    let got = collect(&mut core, &mut inb, 1);
+    assert_eq!(got.first().map(|r| r.target.as_str()), Some("/b"));
+}
+
+/// Reads go into the core's one shared buffer. A keep-alive connection
+/// holds no read buffer after a whole request, and only the part of a
+/// request that is not whole yet. A big answer leaves no big write buffer.
+#[test]
+fn keep_alive_connections_share_one_read_buffer() {
+    let (mut core, port) = new_core(limits());
+    let mut inb = vec![0u8; 1 << 18];
+    let mut s = connect(port);
+    s.write_all(b"GET /a HTTP/1.1\r\n\r\n").unwrap();
+    let got = collect(&mut core, &mut inb, 1);
+    assert_eq!(got.len(), 1);
+    let read_buf_capacity = |core: &EventLoop| {
+        core.connections
+            .iter()
+            .next()
+            .unwrap()
+            .1
+            .read_buf
+            .capacity()
+    };
+    assert_eq!(read_buf_capacity(&core), 0, "a whole request left a buffer");
+    assert!(core.scratch.capacity() >= READ_ROOM);
+    // a big answer: the write buffer is freed once it is written
+    let mut out = Vec::new();
+    respond_with(&mut out, got[0].id, 200, 0, b"", &vec![b'x'; 200_000]);
+    core.run_us(&out, &mut inb, 0).unwrap();
+    let mut seen = 0;
+    let mut buf = [0u8; 65536];
+    while seen < 200_000 {
+        seen += s.read(&mut buf).unwrap();
+        core.run_us(&[], &mut inb, 0).unwrap();
+    }
+    for _ in 0..10 {
+        core.run_us(&[], &mut inb, 0).unwrap();
+    }
+    let c = core.connections.iter().next().unwrap().1;
+    assert!(
+        c.write_buf.capacity() <= KEEP_WRITE_BUFFER,
+        "{}",
+        c.write_buf.capacity()
+    );
+    // a request in two parts: only the first part is kept, then nothing
+    let part = b"GET /b HTTP/1.1\r\nHo";
+    s.write_all(part).unwrap();
+    let end = Instant::now() + Duration::from_secs(2);
+    while read_buf_capacity(&core) == 0 && Instant::now() < end {
+        core.run_us(&[], &mut inb, 1000).unwrap();
+    }
+    let c = core.connections.iter().next().unwrap().1;
+    assert_eq!(
+        (c.read_len - c.read_pos, c.read_buf.capacity()),
+        (part.len(), part.len())
+    );
+    s.write_all(b"st: x\r\n\r\nGET /c HTTP/1.1\r\n\r\n")
+        .unwrap();
+    let got = collect(&mut core, &mut inb, 2);
+    let targets: Vec<&str> = got.iter().map(|r| r.target.as_str()).collect();
+    assert_eq!(targets, ["/b", "/c"]);
+    assert_eq!(read_buf_capacity(&core), 0);
+}

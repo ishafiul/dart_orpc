@@ -107,6 +107,12 @@ pub unsafe fn initialize(table: *mut c_void) -> Result<(), InitError> {
     }
 }
 
+/// Whether [`initialize`] succeeded.
+#[must_use]
+pub fn is_initialized() -> bool {
+    POST_C_OBJECT.get().is_some()
+}
+
 /// Posts `data` to the Dart port `port` as a `Uint8List`. Dart copies it.
 ///
 /// Returns `false` when the API is not initialized or the port is closed,

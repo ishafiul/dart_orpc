@@ -62,6 +62,12 @@ impl Outbox {
         self.unacked_websocket_bytes
     }
 
+    /// Sets the unacknowledged byte count. For tests.
+    #[cfg(test)]
+    pub fn force_unacked(&mut self, bytes: usize) {
+        self.unacked_websocket_bytes = bytes;
+    }
+
     /// Dart handled `bytes` of client messages.
     pub fn acknowledge(&mut self, bytes: usize) {
         self.unacked_websocket_bytes = self.unacked_websocket_bytes.saturating_sub(bytes);
