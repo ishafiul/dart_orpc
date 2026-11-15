@@ -49,25 +49,25 @@ const TodoAnalysisSummaryDtoSchemaKeys = (
   completionRate: "completionRate",
 );
 
-Validator $TodoAnalysisSummaryDtoSchema = l
-    .withName('TodoAnalysisSummaryDto')
+final SchemaValidator $TodoAnalysisSummaryDtoSchema = l
     .schema({
       TodoAnalysisSummaryDtoSchemaKeys.total: l.int().required(),
       TodoAnalysisSummaryDtoSchemaKeys.completed: l.int().required(),
       TodoAnalysisSummaryDtoSchemaKeys.pending: l.int().required(),
       TodoAnalysisSummaryDtoSchemaKeys.completionRate: l.double().required(),
-    });
+    })
+    .withName("TodoAnalysisSummaryDto");
 
-SchemaValidationResult<TodoAnalysisSummaryDto> $TodoAnalysisSummaryDtoValidate(
-  Map<String, dynamic> json,
+ValidationResult<TodoAnalysisSummaryDto> $TodoAnalysisSummaryDtoValidate(
+  Object? json,
 ) => $TodoAnalysisSummaryDtoSchema.validateSchema(
   json,
   fromJson: TodoAnalysisSummaryDto.fromJson,
 );
 
 extension TodoAnalysisSummaryDtoValidationExtension on TodoAnalysisSummaryDto {
-  SchemaValidationResult<TodoAnalysisSummaryDto> validateSelf() =>
-      $TodoAnalysisSummaryDtoValidate(toJson());
+  ValidationResult<TodoAnalysisSummaryDto> validateSelf() =>
+      $TodoAnalysisSummaryDtoValidate(_$luthorJsonMap(toJson()));
 }
 
 // ignore: constant_identifier_names
@@ -77,3 +77,25 @@ const TodoAnalysisSummaryDtoErrorKeys = (
   pending: "pending",
   completionRate: "completionRate",
 );
+
+Map<String, Object?> _$luthorJsonMap(Map<Object?, Object?> map) => {
+  for (final entry in map.entries)
+    entry.key.toString(): _$luthorJsonValue(entry.value),
+};
+
+Object? _$luthorJsonValue(Object? value) {
+  if (value == null || value is String || value is num || value is bool) {
+    return value;
+  }
+  if (value is Map) return _$luthorJsonMap(value);
+  if (value is Iterable) {
+    return [for (final item in value) _$luthorJsonValue(item)];
+  }
+  try {
+    // ignore: avoid_dynamic_calls
+    return _$luthorJsonValue((value as dynamic).toJson());
+    // ignore: avoid_catching_errors
+  } on NoSuchMethodError {
+    return value;
+  }
+}

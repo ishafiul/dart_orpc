@@ -14,7 +14,7 @@ String _decodeInputExpression(_ResolvedProcedure procedure) {
     return '(rawInput) => expectNoRpcInput(rawInput, context: \'RPC method "${procedure.rpcMethod}"\')';
   }
   if (procedure.inputUsesLuthor) {
-    return '(rawInput) => decodeRpcInputWithLuthor<${procedure.inputTypeCode!}>(rawInput: rawInput, method: \'${procedure.rpcMethod}\', validate: \$${procedure.inputTypeName!}Validate, validateReadOnly: \$${procedure.inputTypeName!}Validate)';
+    return '(rawInput) => decodeRpcInputWithLuthor<${procedure.inputTypeCode!}>(rawInput: rawInput, method: \'${procedure.rpcMethod}\', validate: \$${procedure.inputTypeName!}Validate)';
   }
   return '(rawInput) => ${procedure.inputTypeCode!}.fromJson(Map<String, dynamic>.from(expectJsonObject(rawInput, context: \'RPC method "${procedure.rpcMethod}" input\')))';
 }
@@ -27,7 +27,7 @@ String _encodeOutputExpression(_ResolvedProcedure procedure) {
     return '(output) => output';
   }
   if (procedure.outputUsesLuthor) {
-    return '(output) => encodeRpcOutputJsonWithLuthor<${procedure.outputTypeCode}>(output: output, method: \'${procedure.rpcMethod}\', toJson: (output) => output.toJson(), validateJson: (json) => \$${procedure.outputTypeName}Schema.validateSchema(json))';
+    return '(output) => encodeRpcOutputJsonWithLuthor<${procedure.outputTypeCode}>(output: output, method: \'${procedure.rpcMethod}\', toJson: (output) => output.toJson(), validateJson: \$${procedure.outputTypeName}Schema.validate)';
   }
   return '(output) => output.toJson()';
 }

@@ -9,4 +9,4 @@ workspace:
   - serverpod_benchmark_server
 
 dev_dependencies:
-  serverpod_cli: 3.4.11
+  serverpod_cli: 4.1.2

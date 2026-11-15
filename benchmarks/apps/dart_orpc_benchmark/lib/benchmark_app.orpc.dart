@@ -19,6 +19,9 @@ class _$BenchmarkModuleContainer {
   final BenchmarkService benchmarkService;
 
   final BenchmarkController benchmarkController;
+
+  Future<void> dispose() =>
+      disposeRpcProviders([benchmarkController, benchmarkService]);
 }
 
 _$BenchmarkModuleContainer _$createBenchmarkModuleContainer() {
@@ -127,7 +130,7 @@ RestRouteRegistry _$createBenchmarkModuleRestRouteRegistryFromContainer(
     RestUnaryRoute(
       method: 'GET',
       path: '/catalog',
-      handler: (context, request, pathParameters) async {
+      handler: (context, request, pathParameters) {
         final rawInput = <String, Object?>{};
         rawInput['category'] = decodeRestScalarParameter<String>(
           rawValue: request.queryParameters['category'],
@@ -152,15 +155,16 @@ RestRouteRegistry _$createBenchmarkModuleRestRouteRegistryFromContainer(
           method: 'benchmark.catalog',
           validate: $CatalogQueryDtoValidate,
         ))(rawInput);
-        final output = await container.benchmarkController.catalog(input);
-        return ((output) => output.toJson())(output);
+        final output = container.benchmarkController.catalog(input);
+        return ((output) =>
+            output is RpcJsonBytes ? output : output.toJson())(output);
       },
       metadata: metadataRegistry['benchmark.catalog']!,
     ),
     RestUnaryRoute(
       method: 'POST',
       path: '/checkout',
-      handler: (context, request, pathParameters) async {
+      handler: (context, request, pathParameters) {
         final rawInput = request.body.trim().isEmpty
             ? <String, Object?>{}
             : Map<String, Object?>.from(
@@ -177,8 +181,9 @@ RestRouteRegistry _$createBenchmarkModuleRestRouteRegistryFromContainer(
           method: 'benchmark.checkout',
           validate: $CheckoutInputDtoValidate,
         ))(rawInput);
-        final output = await container.benchmarkController.checkout(input);
-        return ((output) => output.toJson())(output);
+        final output = container.benchmarkController.checkout(input);
+        return ((output) =>
+            output is RpcJsonBytes ? output : output.toJson())(output);
       },
       metadata: metadataRegistry['benchmark.checkout']!,
     ),
@@ -274,36 +279,6 @@ ProcedureMetadataRegistry
 dartOrpcCreateBenchmarkModuleProcedureMetadataRegistry() =>
     _$createBenchmarkModuleProcedureMetadataRegistry();
 
-OpenApiSchemaRegistry _$createBenchmarkModuleLocalOpenApiSchemaRegistry() {
-  return OpenApiSchemaRegistry([
-    OpenApiSchemaComponent(
-      name: 'CatalogQueryDto',
-      validator: $CatalogQueryDtoSchema,
-    ),
-    OpenApiSchemaComponent(
-      name: 'CheckoutCustomerDto',
-      validator: $CheckoutCustomerDtoSchema,
-    ),
-    OpenApiSchemaComponent(
-      name: 'CheckoutInputDto',
-      validator: $CheckoutInputDtoSchema,
-    ),
-    OpenApiSchemaComponent(
-      name: 'CheckoutItemDto',
-      validator: $CheckoutItemDtoSchema,
-    ),
-  ]);
-}
-
-OpenApiSchemaRegistry _$createBenchmarkModuleOpenApiSchemaRegistry() {
-  return OpenApiSchemaRegistry([
-    ..._$createBenchmarkModuleLocalOpenApiSchemaRegistry().components,
-  ]);
-}
-
-OpenApiSchemaRegistry dartOrpcCreateBenchmarkModuleOpenApiSchemaRegistry() =>
-    _$createBenchmarkModuleOpenApiSchemaRegistry();
-
 JsonObject _$createBenchmarkModuleOpenApiDocument({
   OpenApiDocumentOptions? options,
 }) {
@@ -314,7 +289,7 @@ JsonObject _$createBenchmarkModuleOpenApiDocument({
     description: effectiveOptions.description,
     servers: effectiveOptions.servers,
     procedures: _$createBenchmarkModuleProcedureMetadataRegistry(),
-    schemas: _$createBenchmarkModuleOpenApiSchemaRegistry(),
+    schemas: _$createBenchmarkModuleDtoSchemaRegistry(),
   );
 }
 
@@ -332,16 +307,28 @@ RpcHttpApp _$buildBenchmarkModuleRpcApp({
   RpcContextBindings bindings = const RpcContextBindings.empty(),
   RpcContextFactory? contextFactory,
   Duration sseHeartbeatInterval = const Duration(seconds: 15),
+  bool sseFlushEachChunk = true,
+  bool encodeJsonToBytes = false,
+  int? maxConcurrentRequests,
+  Duration? requestBodyIdleTimeout,
+  RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
   Iterable<RpcHttpMiddleware> middleware = const [],
 }) {
   final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();
   final effectiveDocs = docs ?? const RpcHttpDocsOptions();
   final effectiveOpenApiTitle = effectiveOpenApi.title ?? 'Benchmark API';
   final effectiveOpenApiPath = effectiveDocs.openApiPath;
-  final runtime = _$createBenchmarkModuleRuntime();
+  final container = _$createBenchmarkModuleContainer();
+  final procedures = _$createBenchmarkModuleProcedureRegistryFromContainer(
+    container,
+  );
+  final restRoutes = _$createBenchmarkModuleRestRouteRegistryFromContainer(
+    container,
+  );
   return RpcHttpApp(
-    procedures: runtime.procedures,
-    restRoutes: runtime.restRoutes,
+    procedures: procedures,
+    restRoutes: restRoutes,
+    onClose: container.dispose,
     openApiDocument: _$createBenchmarkModuleOpenApiDocument(
       options: effectiveOpenApi,
     ),
@@ -360,12 +347,14 @@ RpcHttpApp _$buildBenchmarkModuleRpcApp({
     bindings: bindings,
     contextFactory: contextFactory,
     sseHeartbeatInterval: sseHeartbeatInterval,
+    sseFlushEachChunk: sseFlushEachChunk,
+    encodeJsonToBytes: encodeJsonToBytes,
+    maxConcurrentRequests: maxConcurrentRequests,
+    requestBodyIdleTimeout: requestBodyIdleTimeout,
+    serverOptions: serverOptions,
     upgradeHandlers: [
       if (webSocket != null)
-        RpcWebSocketUpgradeHandler(
-          procedures: runtime.procedures,
-          options: webSocket,
-        ),
+        RpcWebSocketUpgradeHandler(procedures: procedures, options: webSocket),
     ],
     middleware: middleware,
   );
@@ -378,9 +367,14 @@ RpcHttpApp dartOrpcBuildBenchmarkModuleRpcApp({
   RpcHttpHealthOptions? health,
   RpcHttpMetricsOptions? metrics,
   RpcWebSocketServerOptions? webSocket,
-  RpcContextBindings bindings = const RpcContextBindings.empty(),
   RpcContextFactory? contextFactory,
+  RpcContextBindings bindings = const RpcContextBindings.empty(),
   Duration sseHeartbeatInterval = const Duration(seconds: 15),
+  bool sseFlushEachChunk = true,
+  bool encodeJsonToBytes = false,
+  int? maxConcurrentRequests,
+  Duration? requestBodyIdleTimeout,
+  RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
   Iterable<RpcHttpMiddleware> middleware = const [],
 }) => _$buildBenchmarkModuleRpcApp(
   openApi: openApi,
@@ -392,8 +386,107 @@ RpcHttpApp dartOrpcBuildBenchmarkModuleRpcApp({
   bindings: bindings,
   contextFactory: contextFactory,
   sseHeartbeatInterval: sseHeartbeatInterval,
+  sseFlushEachChunk: sseFlushEachChunk,
+  encodeJsonToBytes: encodeJsonToBytes,
+  maxConcurrentRequests: maxConcurrentRequests,
+  requestBodyIdleTimeout: requestBodyIdleTimeout,
+  serverOptions: serverOptions,
   middleware: middleware,
 );
+
+DtoSchemaRegistry _$createBenchmarkModuleLocalDtoSchemaRegistry() {
+  return DtoSchemaRegistry(const [
+    DtoSchemaMetadata(
+      name: 'CatalogQueryDto',
+      fields: [
+        DtoFieldMetadata(
+          wireName: 'category',
+          type: DtoStringType(),
+          constraints: DtoFieldConstraints(min: 1),
+        ),
+        DtoFieldMetadata(
+          wireName: 'page',
+          type: DtoIntegerType(),
+          constraints: DtoFieldConstraints(min: 1),
+        ),
+        DtoFieldMetadata(
+          wireName: 'limit',
+          type: DtoIntegerType(),
+          constraints: DtoFieldConstraints(min: 1, max: 100),
+        ),
+      ],
+    ),
+    DtoSchemaMetadata(
+      name: 'CheckoutCustomerDto',
+      fields: [
+        DtoFieldMetadata(
+          wireName: 'id',
+          type: DtoStringType(),
+          constraints: DtoFieldConstraints(min: 1),
+        ),
+      ],
+    ),
+    DtoSchemaMetadata(
+      name: 'CheckoutInputDto',
+      fields: [
+        DtoFieldMetadata(
+          wireName: 'customer',
+          type: DtoObjectType('CheckoutCustomerDto'),
+        ),
+        DtoFieldMetadata(
+          wireName: 'currency',
+          type: DtoStringType(),
+          constraints: DtoFieldConstraints(min: 1),
+        ),
+        DtoFieldMetadata(
+          wireName: 'items',
+          type: DtoListType(DtoObjectType('CheckoutItemDto')),
+          customValidation: true,
+        ),
+        DtoFieldMetadata(
+          wireName: 'coupon',
+          type: DtoStringType(),
+          nullable: true,
+          required: false,
+        ),
+        DtoFieldMetadata(
+          wireName: 'shippingAddress',
+          type: DtoMapType(DtoAnyType(), valueNullable: true),
+          required: false,
+        ),
+      ],
+    ),
+    DtoSchemaMetadata(
+      name: 'CheckoutItemDto',
+      fields: [
+        DtoFieldMetadata(
+          wireName: 'sku',
+          type: DtoStringType(),
+          constraints: DtoFieldConstraints(min: 1),
+        ),
+        DtoFieldMetadata(
+          wireName: 'quantity',
+          type: DtoIntegerType(),
+          constraints: DtoFieldConstraints(min: 1),
+        ),
+        DtoFieldMetadata(
+          wireName: 'unitPriceCents',
+          type: DtoIntegerType(),
+          constraints: DtoFieldConstraints(min: 1),
+        ),
+      ],
+    ),
+  ]);
+}
+
+DtoSchemaRegistry _$createBenchmarkModuleDtoSchemaRegistry() {
+  return DtoSchemaRegistry([
+    ..._$createBenchmarkModuleLocalDtoSchemaRegistry().schemas,
+  ]);
+}
+
+DtoSchemaRegistry dartOrpcCreateBenchmarkModuleDtoSchemaRegistry() =>
+    _$createBenchmarkModuleDtoSchemaRegistry();
 
 class BenchmarkClientRoot {
   BenchmarkClientRoot({required RpcClientTransports transports})
@@ -410,37 +503,37 @@ class BenchmarkClient {
   final RpcClientTransports _transports;
 
   Future<CatalogResponseDto> catalog(CatalogQueryDto input) {
-    return RpcCaller(
-      _transports.requireUnary('benchmark.catalog'),
-    ).call<CatalogResponseDto>(
-      method: 'benchmark.catalog',
-      input: input.toJson(),
-      decode: (json) => CatalogResponseDto.fromJson(
-        Map<String, dynamic>.from(
-          expectJsonObject(
-            json,
-            context: 'RPC response for "benchmark.catalog"',
+    return RpcCaller(_transports.requireUnary('benchmark.catalog'))
+        .call<CatalogResponseDto>(
+          method: 'benchmark.catalog',
+          input: input.toJson(),
+          options: null,
+          decode: (json) => CatalogResponseDto.fromJson(
+            Map<String, dynamic>.from(
+              expectJsonObject(
+                json,
+                context: 'RPC response for "benchmark.catalog"',
+              ),
+            ),
           ),
-        ),
-      ),
-    );
+        );
   }
 
   Future<CheckoutResponseDto> checkout(CheckoutInputDto input) {
-    return RpcCaller(
-      _transports.requireUnary('benchmark.checkout'),
-    ).call<CheckoutResponseDto>(
-      method: 'benchmark.checkout',
-      input: input.toJson(),
-      decode: (json) => CheckoutResponseDto.fromJson(
-        Map<String, dynamic>.from(
-          expectJsonObject(
-            json,
-            context: 'RPC response for "benchmark.checkout"',
+    return RpcCaller(_transports.requireUnary('benchmark.checkout'))
+        .call<CheckoutResponseDto>(
+          method: 'benchmark.checkout',
+          input: input.toJson(),
+          options: null,
+          decode: (json) => CheckoutResponseDto.fromJson(
+            Map<String, dynamic>.from(
+              expectJsonObject(
+                json,
+                context: 'RPC response for "benchmark.checkout"',
+              ),
+            ),
           ),
-        ),
-      ),
-    );
+        );
   }
 
   Future<EchoResponseDto> echo(EchoInputDto input) {
@@ -449,6 +542,7 @@ class BenchmarkClient {
     ).call<EchoResponseDto>(
       method: 'benchmark.echo',
       input: input.toJson(),
+      options: null,
       decode: (json) => EchoResponseDto.fromJson(
         Map<String, dynamic>.from(
           expectJsonObject(json, context: 'RPC response for "benchmark.echo"'),
@@ -465,8 +559,8 @@ extension DartOrpcBenchmarkModuleGenerated on BenchmarkModule {
       dartOrpcCreateBenchmarkModuleRestRouteRegistry();
   ProcedureMetadataRegistry procedureMetadata() =>
       dartOrpcCreateBenchmarkModuleProcedureMetadataRegistry();
-  OpenApiSchemaRegistry openApiSchemaRegistry() =>
-      dartOrpcCreateBenchmarkModuleOpenApiSchemaRegistry();
+  DtoSchemaRegistry dtoSchemaRegistry() =>
+      dartOrpcCreateBenchmarkModuleDtoSchemaRegistry();
   JsonObject openApiDocument({OpenApiDocumentOptions? options}) =>
       dartOrpcCreateBenchmarkModuleOpenApiDocument(options: options);
   RpcHttpApp buildRpcApp({
@@ -479,6 +573,11 @@ extension DartOrpcBenchmarkModuleGenerated on BenchmarkModule {
     RpcContextBindings bindings = const RpcContextBindings.empty(),
     RpcContextFactory? contextFactory,
     Duration sseHeartbeatInterval = const Duration(seconds: 15),
+    bool sseFlushEachChunk = true,
+    bool encodeJsonToBytes = false,
+    int? maxConcurrentRequests,
+    Duration? requestBodyIdleTimeout,
+    RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
     Iterable<RpcHttpMiddleware> middleware = const [],
   }) => dartOrpcBuildBenchmarkModuleRpcApp(
     openApi: openApi,
@@ -490,6 +589,11 @@ extension DartOrpcBenchmarkModuleGenerated on BenchmarkModule {
     bindings: bindings,
     contextFactory: contextFactory,
     sseHeartbeatInterval: sseHeartbeatInterval,
+    sseFlushEachChunk: sseFlushEachChunk,
+    encodeJsonToBytes: encodeJsonToBytes,
+    maxConcurrentRequests: maxConcurrentRequests,
+    requestBodyIdleTimeout: requestBodyIdleTimeout,
+    serverOptions: serverOptions,
     middleware: middleware,
   );
   BenchmarkClientRoot createClient({required RpcClientTransports transports}) =>

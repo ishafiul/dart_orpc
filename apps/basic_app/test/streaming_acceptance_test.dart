@@ -9,344 +9,365 @@ import 'package:dart_orpc/dart_orpc.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test(
-    'Given one generated application When every transport is used then contracts, guards, and streams stay aligned',
-    () async {
-      final temporaryDirectory = Directory.systemTemp.createTempSync(
-        'dart-orpc-acceptance',
-      );
-      databasePathOverride = '${temporaryDirectory.path}/todos.db';
-      final env = AppEnv.fromMap({
-        'JWT_SECRET': 'acceptance-secret',
-        'JWT_ISSUER': 'basic_app_acceptance',
-        'JWT_EXPIRES_IN_SECONDS': '3600',
-      });
-      final accessToken = _createAccessToken(env);
-      final app = const TodoModule().buildRpcApp(
-        openApi: const OpenApiDocumentOptions(title: 'Acceptance API'),
-        webSocket: const RpcWebSocketServerOptions(),
-        sseHeartbeatInterval: Duration.zero,
-        contextFactory: _permissionContext,
-        bindings: RpcContextBindings.empty().withValue(appEnvKey, env),
-      );
-      final server = await app.listen(
-        0,
-        hostname: InternetAddress.loopbackIPv4.address,
-      );
-      final baseUri = Uri.parse(
-        'http://${server.address.address}:${server.port}',
-      );
-      final httpClient = HttpClient();
-      final authorizedHttp = HttpRpcTransport(
-        baseUrl: baseUri.toString(),
-        interceptors: [_PermissionInterceptor(_allPermissions, accessToken)],
-      );
-      final authorizedWebSocket = await WebSocketRpcTransport.connect(
-        Uri.parse('ws://${server.address.address}:${server.port}/rpc/ws'),
-        headers: {
-          'x-permissions': _allPermissions,
-          'authorization': 'Bearer $accessToken',
-        },
-      );
-      final splitClient = const TodoModule().createClient(
-        transports: RpcClientTransports.split(
-          unary: authorizedHttp,
-          streaming: authorizedWebSocket,
+  test('Given one generated application When every transport is used then contracts, guards, and streams stay aligned', () async {
+    final temporaryDirectory = Directory.systemTemp.createTempSync(
+      'dart-orpc-acceptance',
+    );
+    databasePathOverride = '${temporaryDirectory.path}/todos.db';
+    final env = AppEnv.fromMap({
+      'JWT_SECRET': 'acceptance-secret',
+      'JWT_ISSUER': 'basic_app_acceptance',
+      'JWT_EXPIRES_IN_SECONDS': '3600',
+    });
+    final accessToken = _createAccessToken(env);
+    final app = const TodoModule().buildRpcApp(
+      openApi: const OpenApiDocumentOptions(title: 'Acceptance API'),
+      webSocket: const RpcWebSocketServerOptions(),
+      sseHeartbeatInterval: Duration.zero,
+      contextFactory: _permissionContext,
+      bindings: RpcContextBindings.empty().withValue(appEnvKey, env),
+    );
+    final server = await app.listen(
+      0,
+      hostname: InternetAddress.loopbackIPv4.address,
+    );
+    final baseUri = Uri.parse(
+      'http://${server.address.address}:${server.port}',
+    );
+    final httpClient = HttpClient();
+    final authorizedHttp = HttpRpcTransport(
+      baseUrl: baseUri.toString(),
+      interceptors: [_PermissionInterceptor(_allPermissions, accessToken)],
+    );
+    final authorizedWebSocket = await WebSocketRpcTransport.connect(
+      Uri.parse('ws://${server.address.address}:${server.port}/rpc/ws'),
+      headers: {
+        'x-permissions': _allPermissions,
+        'authorization': 'Bearer $accessToken',
+      },
+    );
+    final splitClient = const TodoModule().createClient(
+      transports: RpcClientTransports.split(
+        unary: authorizedHttp,
+        streaming: authorizedWebSocket,
+      ),
+    );
+    final duplexClient = const TodoModule().createClient(
+      transports: RpcClientTransports.duplex(authorizedWebSocket),
+    );
+
+    addTearDown(() async {
+      httpClient.close(force: true);
+      authorizedHttp.close();
+      await authorizedWebSocket.close();
+      await server.close(gracePeriod: const Duration(seconds: 1));
+      databasePathOverride = null;
+      if (temporaryDirectory.existsSync()) {
+        temporaryDirectory.deleteSync(recursive: true);
+      }
+    });
+
+    final created = await splitClient.todo.create(
+      const CreateTodoDto(title: 'Production stream'),
+    );
+    expect(created.id, greaterThan(0));
+
+    final rpcResult = await duplexClient.todo.getById(
+      GetTodoDto(id: created.id),
+    );
+    expect(rpcResult.title, 'Production stream');
+    await expectLater(
+      splitClient.todo.getById(const GetTodoDto(id: 999999)),
+      throwsA(
+        isA<RpcException>().having(
+          (error) => error.code,
+          'code',
+          RpcErrorCode.notFound,
         ),
-      );
-      final duplexClient = const TodoModule().createClient(
-        transports: RpcClientTransports.duplex(authorizedWebSocket),
-      );
+      ),
+    );
 
-      addTearDown(() async {
-        httpClient.close(force: true);
-        authorizedHttp.close();
-        await authorizedWebSocket.close();
-        await server.close(gracePeriod: const Duration(seconds: 1));
-        databasePathOverride = null;
-        if (temporaryDirectory.existsSync()) {
-          temporaryDirectory.deleteSync(recursive: true);
-        }
-      });
+    final restSuccess = await _get(
+      httpClient,
+      baseUri.resolve('/todos/${created.id}'),
+      permissions: _allPermissions,
+      authorization: accessToken,
+    );
+    final restMissing = await _get(
+      httpClient,
+      baseUri.resolve('/todos/999999'),
+      permissions: _allPermissions,
+      authorization: accessToken,
+    );
+    expect(restSuccess.statusCode, HttpStatus.ok);
+    expect(
+      (jsonDecode(restSuccess.body) as Map<String, Object?>)['id'],
+      created.id,
+    );
+    expect(restMissing.statusCode, HttpStatus.notFound);
 
-      final created = await splitClient.todo.create(
-        const CreateTodoDto(title: 'Production stream'),
-      );
-      expect(created.id, greaterThan(0));
+    // Unknown input keys are stripped, not rejected, over RPC and REST.
+    final rpcWithUnknownKey = await _post(
+      httpClient,
+      baseUri.resolve('/rpc'),
+      {
+        'method': 'todo.create',
+        'input': {'title': 'RPC extra key', 'unknown': true},
+      },
+      permissions: _allPermissions,
+      authorization: accessToken,
+    );
+    final restWithUnknownKey = await _post(
+      httpClient,
+      baseUri.resolve('/todos'),
+      {'title': 'REST extra key', 'unknown': true},
+      permissions: _allPermissions,
+      authorization: accessToken,
+    );
+    expect(rpcWithUnknownKey.statusCode, HttpStatus.ok);
+    expect(
+      ((jsonDecode(rpcWithUnknownKey.body) as Map<String, Object?>)['data']
+          as Map<String, Object?>)['title'],
+      'RPC extra key',
+    );
+    expect(restWithUnknownKey.statusCode, HttpStatus.ok);
+    expect(
+      (jsonDecode(restWithUnknownKey.body) as Map<String, Object?>)['title'],
+      'REST extra key',
+    );
 
-      final rpcResult = await duplexClient.todo.getById(
-        GetTodoDto(id: created.id),
-      );
-      expect(rpcResult.title, 'Production stream');
-      await expectLater(
-        splitClient.todo.getById(const GetTodoDto(id: 999999)),
-        throwsA(
-          isA<RpcException>().having(
-            (error) => error.code,
-            'code',
-            RpcErrorCode.notFound,
-          ),
-        ),
-      );
+    final webSocketEvents = await splitClient.todo.watch().toList();
+    expect(webSocketEvents.map((event) => event.id), contains(created.id));
 
-      final restSuccess = await _get(
-        httpClient,
-        baseUri.resolve('/todos/${created.id}'),
-        permissions: _allPermissions,
-        authorization: accessToken,
-      );
-      final restMissing = await _get(
-        httpClient,
-        baseUri.resolve('/todos/999999'),
-        permissions: _allPermissions,
-        authorization: accessToken,
-      );
-      expect(restSuccess.statusCode, HttpStatus.ok);
-      expect(
-        (jsonDecode(restSuccess.body) as Map<String, Object?>)['id'],
-        created.id,
-      );
-      expect(restMissing.statusCode, HttpStatus.notFound);
+    final sse = await _get(
+      httpClient,
+      baseUri.resolve('/todos/events'),
+      permissions: _allPermissions,
+      authorization: accessToken,
+    );
+    expect(sse.statusCode, HttpStatus.ok);
+    expect(sse.contentType, contains('text/event-stream'));
+    expect(sse.body, contains('"id":${created.id}'));
+    expect(sse.body, endsWith('event: dart-orpc-complete\ndata: {}\n\n'));
 
-      final webSocketEvents = await splitClient.todo.watch().toList();
-      expect(webSocketEvents.map((event) => event.id), contains(created.id));
+    final openApi = await _get(httpClient, baseUri.resolve('/openapi.json'));
+    final document = jsonDecode(openApi.body) as Map<String, Object?>;
+    final paths = document['paths'] as Map<String, Object?>;
+    final eventPath = paths['/todos/events'] as Map<String, Object?>;
+    final eventOperation = eventPath['get'] as Map<String, Object?>;
+    expect(
+      eventOperation['x-dart-orpc-stream'],
+      containsPair('kind', 'server-stream'),
+    );
+    expect(
+      (document['components'] as Map<String, Object?>)['securitySchemes'],
+      containsPair('bearerAuth', containsPair('scheme', 'bearer')),
+    );
+    expect(
+      eventOperation['security'],
+      equals([
+        {'bearerAuth': <String>[]},
+      ]),
+    );
 
-      final sse = await _get(
-        httpClient,
-        baseUri.resolve('/todos/events'),
-        permissions: _allPermissions,
-        authorization: accessToken,
-      );
-      expect(sse.statusCode, HttpStatus.ok);
-      expect(sse.contentType, contains('text/event-stream'));
-      expect(sse.body, contains('"id":${created.id}'));
-      expect(sse.body, endsWith('event: dart-orpc-complete\ndata: {}\n\n'));
+    final liveChanges = duplexClient.todo.watchLive().take(3).toList();
+    final liveTodo = await duplexClient.todo.create(
+      const CreateTodoDto(title: 'Live change'),
+    );
+    await duplexClient.todo.update(
+      UpdateTodoDto(id: liveTodo.id, completed: true),
+    );
+    await duplexClient.todo.delete(GetTodoDto(id: liveTodo.id));
+    final receivedChanges = await liveChanges;
+    expect(
+      receivedChanges.map((change) => change.type),
+      orderedEquals(['created', 'updated', 'deleted']),
+    );
+    expect(
+      receivedChanges.map((change) => change.todo.id),
+      everyElement(liveTodo.id),
+    );
 
-      final openApi = await _get(httpClient, baseUri.resolve('/openapi.json'));
-      final document = jsonDecode(openApi.body) as Map<String, Object?>;
-      final paths = document['paths'] as Map<String, Object?>;
-      final eventPath = paths['/todos/events'] as Map<String, Object?>;
-      final eventOperation = eventPath['get'] as Map<String, Object?>;
-      expect(
-        eventOperation['x-dart-orpc-stream'],
-        containsPair('kind', 'server-stream'),
-      );
-      expect(
-        (document['components'] as Map<String, Object?>)['securitySchemes'],
-        containsPair('bearerAuth', containsPair('scheme', 'bearer')),
-      );
-      expect(
-        eventOperation['security'],
-        equals([
-          {'bearerAuth': <String>[]},
-        ]),
-      );
+    final deniedHttpTransport = HttpRpcTransport(
+      baseUrl: baseUri.toString(),
+      headers: {'authorization': 'Bearer $accessToken'},
+    );
+    final deniedHttpClient = const TodoModule().createClient(
+      transports: RpcClientTransports.unary(deniedHttpTransport),
+    );
+    addTearDown(deniedHttpTransport.close);
+    await expectLater(
+      deniedHttpClient.todo.list(),
+      throwsA(_forbiddenRpcError),
+    );
 
-      final liveChanges = duplexClient.todo.watchLive().take(3).toList();
-      final liveTodo = await duplexClient.todo.create(
-        const CreateTodoDto(title: 'Live change'),
-      );
-      await duplexClient.todo.update(
-        UpdateTodoDto(id: liveTodo.id, completed: true),
-      );
-      await duplexClient.todo.delete(GetTodoDto(id: liveTodo.id));
-      final receivedChanges = await liveChanges;
-      expect(
-        receivedChanges.map((change) => change.type),
-        orderedEquals(['created', 'updated', 'deleted']),
-      );
-      expect(
-        receivedChanges.map((change) => change.todo.id),
-        everyElement(liveTodo.id),
-      );
+    final unauthenticatedHttpTransport = HttpRpcTransport(
+      baseUrl: baseUri.toString(),
+    );
+    final unauthenticatedClient = const TodoModule().createClient(
+      transports: RpcClientTransports.unary(unauthenticatedHttpTransport),
+    );
+    addTearDown(unauthenticatedHttpTransport.close);
+    await expectLater(
+      unauthenticatedClient.todo.list(),
+      throwsA(_unauthorizedRpcError),
+    );
 
-      final deniedHttpTransport = HttpRpcTransport(
-        baseUrl: baseUri.toString(),
-        headers: {'authorization': 'Bearer $accessToken'},
-      );
-      final deniedHttpClient = const TodoModule().createClient(
-        transports: RpcClientTransports.unary(deniedHttpTransport),
-      );
-      addTearDown(deniedHttpTransport.close);
-      await expectLater(
-        deniedHttpClient.todo.list(),
-        throwsA(_forbiddenRpcError),
-      );
+    final deniedRest = await _get(
+      httpClient,
+      baseUri.resolve('/todos'),
+      authorization: accessToken,
+    );
+    final deniedSse = await _get(
+      httpClient,
+      baseUri.resolve('/todos/events'),
+      authorization: accessToken,
+    );
+    expect(deniedRest.statusCode, HttpStatus.forbidden);
+    expect(deniedSse.statusCode, HttpStatus.forbidden);
+    expect(deniedSse.contentType, contains('application/json'));
 
-      final unauthenticatedHttpTransport = HttpRpcTransport(
-        baseUrl: baseUri.toString(),
-      );
-      final unauthenticatedClient = const TodoModule().createClient(
-        transports: RpcClientTransports.unary(unauthenticatedHttpTransport),
-      );
-      addTearDown(unauthenticatedHttpTransport.close);
-      await expectLater(
-        unauthenticatedClient.todo.list(),
-        throwsA(_unauthorizedRpcError),
-      );
+    final unauthenticatedRest = await _get(
+      httpClient,
+      baseUri.resolve('/todos'),
+    );
+    expect(unauthenticatedRest.statusCode, HttpStatus.unauthorized);
 
-      final deniedRest = await _get(
-        httpClient,
-        baseUri.resolve('/todos'),
-        authorization: accessToken,
-      );
-      final deniedSse = await _get(
-        httpClient,
-        baseUri.resolve('/todos/events'),
-        authorization: accessToken,
-      );
-      expect(deniedRest.statusCode, HttpStatus.forbidden);
-      expect(deniedSse.statusCode, HttpStatus.forbidden);
-      expect(deniedSse.contentType, contains('application/json'));
+    final deniedWebSocket = await WebSocketRpcTransport.connect(
+      Uri.parse('ws://${server.address.address}:${server.port}/rpc/ws'),
+      headers: {'authorization': 'Bearer $accessToken'},
+    );
+    addTearDown(deniedWebSocket.close);
+    final deniedWebSocketClient = const TodoModule().createClient(
+      transports: RpcClientTransports.duplex(deniedWebSocket),
+    );
+    await expectLater(
+      deniedWebSocketClient.todo.list(),
+      throwsA(_forbiddenRpcError),
+    );
+  }, timeout: const Timeout(Duration(seconds: 20)));
 
-      final unauthenticatedRest = await _get(
-        httpClient,
-        baseUri.resolve('/todos'),
-      );
-      expect(unauthenticatedRest.statusCode, HttpStatus.unauthorized);
+  test('Given a missing todo When every transport reports it then error details stay aligned', () async {
+    const missingId = 999999;
+    const expectedDetails = {'todoId': missingId};
+    final temporaryDirectory = Directory.systemTemp.createTempSync(
+      'dart-orpc-details-acceptance',
+    );
+    databasePathOverride = '${temporaryDirectory.path}/todos.db';
+    final env = AppEnv.fromMap({
+      'JWT_SECRET': 'acceptance-secret',
+      'JWT_ISSUER': 'basic_app_acceptance',
+      'JWT_EXPIRES_IN_SECONDS': '3600',
+    });
+    final accessToken = _createAccessToken(env);
+    final server = await const TodoModule()
+        .buildRpcApp(
+          openApi: const OpenApiDocumentOptions(title: 'Acceptance API'),
+          webSocket: const RpcWebSocketServerOptions(),
+          sseHeartbeatInterval: Duration.zero,
+          contextFactory: _permissionContext,
+          bindings: RpcContextBindings.empty().withValue(appEnvKey, env),
+        )
+        .listen(0, hostname: InternetAddress.loopbackIPv4.address);
+    final baseUri = Uri.parse(
+      'http://${server.address.address}:${server.port}',
+    );
+    final httpClient = HttpClient();
+    final httpTransport = HttpRpcTransport(
+      baseUrl: baseUri.toString(),
+      interceptors: [_PermissionInterceptor(_allPermissions, accessToken)],
+    );
+    final webSocketTransport = await WebSocketRpcTransport.connect(
+      Uri.parse('ws://${server.address.address}:${server.port}/rpc/ws'),
+      headers: {
+        'x-permissions': _allPermissions,
+        'authorization': 'Bearer $accessToken',
+      },
+    );
+    final httpClientApi = const TodoModule().createClient(
+      transports: RpcClientTransports.split(
+        unary: httpTransport,
+        streaming: webSocketTransport,
+      ),
+    );
+    final webSocketClientApi = const TodoModule().createClient(
+      transports: RpcClientTransports.duplex(webSocketTransport),
+    );
+    addTearDown(() async {
+      httpClient.close(force: true);
+      httpTransport.close();
+      await webSocketTransport.close();
+      await server.close(gracePeriod: const Duration(seconds: 1));
+      databasePathOverride = null;
+      if (temporaryDirectory.existsSync()) {
+        temporaryDirectory.deleteSync(recursive: true);
+      }
+    });
+    final missing = isA<RpcException>()
+        .having((error) => error.code, 'code', RpcErrorCode.notFound)
+        .having((error) => error.details, 'details', expectedDetails);
 
-      final deniedWebSocket = await WebSocketRpcTransport.connect(
-        Uri.parse('ws://${server.address.address}:${server.port}/rpc/ws'),
-        headers: {'authorization': 'Bearer $accessToken'},
-      );
-      addTearDown(deniedWebSocket.close);
-      final deniedWebSocketClient = const TodoModule().createClient(
-        transports: RpcClientTransports.duplex(deniedWebSocket),
-      );
-      await expectLater(
-        deniedWebSocketClient.todo.list(),
-        throwsA(_forbiddenRpcError),
-      );
-    },
-    timeout: const Timeout(Duration(seconds: 20)),
-  );
+    // Generated client over HTTP RPC (POST /rpc).
+    await expectLater(
+      httpClientApi.todo.getById(const GetTodoDto(id: missingId)),
+      throwsA(missing),
+    );
 
-  test(
-    'Given a missing todo When every transport reports it then error details stay aligned',
-    () async {
-      const missingId = 999999;
-      const expectedDetails = {'todoId': missingId};
-      final temporaryDirectory = Directory.systemTemp.createTempSync(
-        'dart-orpc-details-acceptance',
-      );
-      databasePathOverride = '${temporaryDirectory.path}/todos.db';
-      final env = AppEnv.fromMap({
-        'JWT_SECRET': 'acceptance-secret',
-        'JWT_ISSUER': 'basic_app_acceptance',
-        'JWT_EXPIRES_IN_SECONDS': '3600',
-      });
-      final accessToken = _createAccessToken(env);
-      final server = await const TodoModule()
-          .buildRpcApp(
-            openApi: const OpenApiDocumentOptions(title: 'Acceptance API'),
-            webSocket: const RpcWebSocketServerOptions(),
-            sseHeartbeatInterval: Duration.zero,
-            contextFactory: _permissionContext,
-            bindings: RpcContextBindings.empty().withValue(appEnvKey, env),
-          )
-          .listen(0, hostname: InternetAddress.loopbackIPv4.address);
-      final baseUri = Uri.parse(
-        'http://${server.address.address}:${server.port}',
-      );
-      final httpClient = HttpClient();
-      final httpTransport = HttpRpcTransport(
-        baseUrl: baseUri.toString(),
-        interceptors: [_PermissionInterceptor(_allPermissions, accessToken)],
-      );
-      final webSocketTransport = await WebSocketRpcTransport.connect(
-        Uri.parse('ws://${server.address.address}:${server.port}/rpc/ws'),
-        headers: {
-          'x-permissions': _allPermissions,
-          'authorization': 'Bearer $accessToken',
-        },
-      );
-      final httpClientApi = const TodoModule().createClient(
-        transports: RpcClientTransports.split(
-          unary: httpTransport,
-          streaming: webSocketTransport,
-        ),
-      );
-      final webSocketClientApi = const TodoModule().createClient(
-        transports: RpcClientTransports.duplex(webSocketTransport),
-      );
-      addTearDown(() async {
-        httpClient.close(force: true);
-        httpTransport.close();
-        await webSocketTransport.close();
-        await server.close(gracePeriod: const Duration(seconds: 1));
-        databasePathOverride = null;
-        if (temporaryDirectory.existsSync()) {
-          temporaryDirectory.deleteSync(recursive: true);
-        }
-      });
-      final missing = isA<RpcException>()
-          .having((error) => error.code, 'code', RpcErrorCode.notFound)
-          .having((error) => error.details, 'details', expectedDetails);
+    // Generated client over WebSocket, unary and stream.
+    await expectLater(
+      webSocketClientApi.todo.getById(const GetTodoDto(id: missingId)),
+      throwsA(missing),
+    );
+    await expectLater(
+      httpClientApi.todo.watchById(const GetTodoDto(id: missingId)),
+      emitsError(missing),
+    );
 
-      // Generated client over HTTP RPC (POST /rpc).
-      await expectLater(
-        httpClientApi.todo.getById(const GetTodoDto(id: missingId)),
-        throwsA(missing),
-      );
+    // REST.
+    final rest = await _get(
+      httpClient,
+      baseUri.resolve('/todos/$missingId'),
+      permissions: _allPermissions,
+      authorization: accessToken,
+    );
+    expect(rest.statusCode, HttpStatus.notFound);
+    final restError =
+        (jsonDecode(rest.body) as Map<String, Object?>)['error']
+            as Map<String, Object?>;
+    expect(restError['details'], expectedDetails);
 
-      // Generated client over WebSocket, unary and stream.
-      await expectLater(
-        webSocketClientApi.todo.getById(const GetTodoDto(id: missingId)),
-        throwsA(missing),
-      );
-      await expectLater(
-        httpClientApi.todo.watchById(const GetTodoDto(id: missingId)),
-        emitsError(missing),
-      );
+    // SSE terminal error event.
+    final sse = await _get(
+      httpClient,
+      baseUri.resolve('/todos/$missingId/events'),
+      permissions: _allPermissions,
+      authorization: accessToken,
+    );
+    final sseError = RegExp(r'event: dart-orpc-error\ndata: (.*)\n\n$')
+        .firstMatch(sse.body);
+    expect(sseError, isNotNull, reason: sse.body);
+    final sseEnvelope =
+        (jsonDecode(sseError!.group(1)!) as Map<String, Object?>)['error']
+            as Map<String, Object?>;
+    expect(sseEnvelope['code'], 'NOT_FOUND');
+    expect(sseEnvelope['details'], expectedDetails);
 
-      // REST.
-      final rest = await _get(
-        httpClient,
-        baseUri.resolve('/todos/$missingId'),
-        permissions: _allPermissions,
-        authorization: accessToken,
-      );
-      expect(rest.statusCode, HttpStatus.notFound);
-      final restError =
-          (jsonDecode(rest.body) as Map<String, Object?>)['error']
-              as Map<String, Object?>;
-      expect(restError['details'], expectedDetails);
+    // The same error object everywhere: REST and SSE envelopes match.
+    expect(sseEnvelope, restError);
 
-      // SSE terminal error event.
-      final sse = await _get(
-        httpClient,
-        baseUri.resolve('/todos/$missingId/events'),
-        permissions: _allPermissions,
-        authorization: accessToken,
-      );
-      final sseError = RegExp(
-        r'event: dart-orpc-error\ndata: (.*)\n\n$',
-      ).firstMatch(sse.body);
-      expect(sseError, isNotNull, reason: sse.body);
-      final sseEnvelope =
-          (jsonDecode(sseError!.group(1)!) as Map<String, Object?>)['error']
-              as Map<String, Object?>;
-      expect(sseEnvelope['code'], 'NOT_FOUND');
-      expect(sseEnvelope['details'], expectedDetails);
-
-      // The same error object everywhere: REST and SSE envelopes match.
-      expect(sseEnvelope, restError);
-
-      // OpenAPI documents the optional details.
-      final openApi = await _get(httpClient, baseUri.resolve('/openapi.json'));
-      final schemas =
-          ((jsonDecode(openApi.body) as Map<String, Object?>)['components']
-                  as Map<String, Object?>)['schemas']
-              as Map<String, Object?>;
-      final errorBody = schemas['RpcErrorBody'] as Map<String, Object?>;
-      expect(errorBody['required'], ['code', 'message']);
-      expect(
-        (errorBody['properties'] as Map<String, Object?>)['details'],
-        containsPair('type', 'object'),
-      );
-    },
-    timeout: const Timeout(Duration(seconds: 20)),
-  );
+    // OpenAPI documents the optional details.
+    final openApi = await _get(httpClient, baseUri.resolve('/openapi.json'));
+    final schemas =
+        ((jsonDecode(openApi.body) as Map<String, Object?>)['components']
+                as Map<String, Object?>)['schemas']
+            as Map<String, Object?>;
+    final errorBody = schemas['RpcErrorBody'] as Map<String, Object?>;
+    expect(errorBody['required'], ['code', 'message']);
+    expect(
+      (errorBody['properties'] as Map<String, Object?>)['details'],
+      containsPair('type', 'object'),
+    );
+  }, timeout: const Timeout(Duration(seconds: 20)));
 }
 
 const _allPermissions = 'todo.read,todo.write,todo.admin,tenant.active';
@@ -421,6 +442,27 @@ Future<_HttpResult> _get(
   if (authorization != null) {
     request.headers.set('authorization', 'Bearer $authorization');
   }
+  final response = await request.close();
+  return _HttpResult(
+    statusCode: response.statusCode,
+    contentType: response.headers.contentType?.toString() ?? '',
+    body: await utf8.decodeStream(response),
+  );
+}
+
+Future<_HttpResult> _post(
+  HttpClient client,
+  Uri uri,
+  Object? body, {
+  required String permissions,
+  required String authorization,
+}) async {
+  final request = await client.postUrl(uri);
+  request.headers
+    ..contentType = ContentType.json
+    ..set('x-permissions', permissions)
+    ..set('authorization', 'Bearer $authorization');
+  request.write(jsonEncode(body));
   final response = await request.close();
   return _HttpResult(
     statusCode: response.statusCode,

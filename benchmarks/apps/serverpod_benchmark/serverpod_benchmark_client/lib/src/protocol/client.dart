@@ -10,59 +10,45 @@
 // ignore_for_file: invalid_use_of_internal_member
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'package:serverpod_client/serverpod_client.dart' as _i1;
-import 'dart:async' as _i2;
-import 'protocol.dart' as _i3;
+import 'dart:async' as _ida;
+
+import 'package:http/http.dart' as _i85jenna;
+import 'package:serverpod_client/serverpod_client.dart' as _isc;
+
+import 'protocol.dart' as _il2as5qe;
 
 /// {@category Endpoint}
-class EndpointBenchmark extends _i1.EndpointRef {
-  EndpointBenchmark(_i1.EndpointCaller caller) : super(caller);
+class EndpointBenchmark extends _isc.EndpointRef {
+  EndpointBenchmark(_isc.EndpointCaller caller) : super(caller);
 
   @override
   String get name => 'benchmark';
 
-  _i2.Future<String> plaintext() => caller.callServerEndpoint<String>(
-    'benchmark',
-    'plaintext',
-    {},
-  );
+  _ida.Future<String> plaintext() =>
+      caller.callServerEndpoint<String>('benchmark', 'plaintext', {});
 
-  _i2.Future<Map<String, String>> json() =>
-      caller.callServerEndpoint<Map<String, String>>(
-        'benchmark',
-        'json',
-        {},
-      );
+  _ida.Future<Map<String, String>> json() =>
+      caller.callServerEndpoint<Map<String, String>>('benchmark', 'json', {});
 
-  _i2.Future<Map<String, String>> echo(Map<String, String> input) =>
-      caller.callServerEndpoint<Map<String, String>>(
-        'benchmark',
-        'echo',
-        {'input': input},
-      );
+  _ida.Future<Map<String, String>> echo(Map<String, String> input) =>
+      caller.callServerEndpoint<Map<String, String>>('benchmark', 'echo', {
+        'input': input,
+      });
 }
 
-class Client extends _i1.ServerpodClientShared {
+class Client extends _isc.ServerpodClientShared {
   Client(
     String host, {
     dynamic securityContext,
-    @Deprecated(
-      'Use authKeyProvider instead. This will be removed in future releases.',
-    )
-    super.authenticationKeyManager,
     Duration? streamingConnectionTimeout,
     Duration? connectionTimeout,
-    Function(
-      _i1.MethodCallContext,
-      Object,
-      StackTrace,
-    )?
-    onFailedCall,
-    Function(_i1.MethodCallContext)? onSucceededCall,
+    Function(_isc.MethodCallContext, Object, StackTrace)? onFailedCall,
+    Function(_isc.MethodCallContext)? onSucceededCall,
     bool? disconnectStreamsOnLostInternetConnection,
+    _i85jenna.Client? httpClientOverride,
   }) : super(
          host,
-         _i3.Protocol(),
+         _il2as5qe.Protocol(),
          securityContext: securityContext,
          streamingConnectionTimeout: streamingConnectionTimeout,
          connectionTimeout: connectionTimeout,
@@ -70,6 +56,7 @@ class Client extends _i1.ServerpodClientShared {
          onSucceededCall: onSucceededCall,
          disconnectStreamsOnLostInternetConnection:
              disconnectStreamsOnLostInternetConnection,
+         httpClientOverride: httpClientOverride,
        ) {
     benchmark = EndpointBenchmark(this);
   }
@@ -77,10 +64,10 @@ class Client extends _i1.ServerpodClientShared {
   late final EndpointBenchmark benchmark;
 
   @override
-  Map<String, _i1.EndpointRef> get endpointRefLookup => {
+  Map<String, _isc.EndpointRef> get endpointRefLookup => {
     'benchmark': benchmark,
   };
 
   @override
-  Map<String, _i1.ModuleEndpointCaller> get moduleLookup => {};
+  Map<String, _isc.ModuleEndpointCaller> get moduleLookup => {};
 }

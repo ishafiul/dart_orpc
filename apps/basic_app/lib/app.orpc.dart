@@ -137,13 +137,12 @@ RpcProcedureRegistry _$createAppModuleProcedureRegistryFromContainer(
         rawInput: rawInput,
         method: 'auth.signUp',
         validate: $SignUpDtoValidate,
-        validateReadOnly: $SignUpDtoValidate,
       ),
       encodeOutput: (output) => encodeRpcOutputJsonWithLuthor<AuthResponseDto>(
         output: output,
         method: 'auth.signUp',
         toJson: (output) => output.toJson(),
-        validateJson: (json) => $AuthResponseDtoSchema.validateSchema(json),
+        validateJson: $AuthResponseDtoSchema.validate,
       ),
       metadata: metadataRegistry['auth.signUp']!,
 
@@ -156,13 +155,12 @@ RpcProcedureRegistry _$createAppModuleProcedureRegistryFromContainer(
         rawInput: rawInput,
         method: 'auth.login',
         validate: $LoginDtoValidate,
-        validateReadOnly: $LoginDtoValidate,
       ),
       encodeOutput: (output) => encodeRpcOutputJsonWithLuthor<AuthResponseDto>(
         output: output,
         method: 'auth.login',
         toJson: (output) => output.toJson(),
-        validateJson: (json) => $AuthResponseDtoSchema.validateSchema(json),
+        validateJson: $AuthResponseDtoSchema.validate,
       ),
       metadata: metadataRegistry['auth.login']!,
 
@@ -187,8 +185,7 @@ RpcProcedureRegistry _$createAppModuleProcedureRegistryFromContainer(
             output: output,
             method: 'todo.list',
             toJson: (output) => output.toJson(),
-            validateJson: (json) =>
-                $TodoListResponseDtoSchema.validateSchema(json),
+            validateJson: $TodoListResponseDtoSchema.validate,
           ),
       metadata: metadataRegistry['todo.list']!,
       guards: [
@@ -207,7 +204,7 @@ RpcProcedureRegistry _$createAppModuleProcedureRegistryFromContainer(
         output: output,
         method: 'todo.watch',
         toJson: (output) => output.toJson(),
-        validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+        validateJson: $TodoResponseDtoSchema.validate,
       ),
       metadata: metadataRegistry['todo.watch']!,
       guards: [
@@ -227,8 +224,7 @@ RpcProcedureRegistry _$createAppModuleProcedureRegistryFromContainer(
             output: output,
             method: 'todo.watchLive',
             toJson: (output) => output.toJson(),
-            validateJson: (json) =>
-                $TodoChangeResponseDtoSchema.validateSchema(json),
+            validateJson: $TodoChangeResponseDtoSchema.validate,
           ),
       metadata: metadataRegistry['todo.watchLive']!,
       guards: [
@@ -245,13 +241,12 @@ RpcProcedureRegistry _$createAppModuleProcedureRegistryFromContainer(
         rawInput: rawInput,
         method: 'todo.getById',
         validate: $GetTodoDtoValidate,
-        validateReadOnly: $GetTodoDtoValidate,
       ),
       encodeOutput: (output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
         output: output,
         method: 'todo.getById',
         toJson: (output) => output.toJson(),
-        validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+        validateJson: $TodoResponseDtoSchema.validate,
       ),
       metadata: metadataRegistry['todo.getById']!,
       guards: [
@@ -269,13 +264,12 @@ RpcProcedureRegistry _$createAppModuleProcedureRegistryFromContainer(
         rawInput: rawInput,
         method: 'todo.watchById',
         validate: $GetTodoDtoValidate,
-        validateReadOnly: $GetTodoDtoValidate,
       ),
       encodeOutput: (output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
         output: output,
         method: 'todo.watchById',
         toJson: (output) => output.toJson(),
-        validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+        validateJson: $TodoResponseDtoSchema.validate,
       ),
       metadata: metadataRegistry['todo.watchById']!,
       guards: [
@@ -293,13 +287,12 @@ RpcProcedureRegistry _$createAppModuleProcedureRegistryFromContainer(
         rawInput: rawInput,
         method: 'todo.create',
         validate: $CreateTodoDtoValidate,
-        validateReadOnly: $CreateTodoDtoValidate,
       ),
       encodeOutput: (output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
         output: output,
         method: 'todo.create',
         toJson: (output) => output.toJson(),
-        validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+        validateJson: $TodoResponseDtoSchema.validate,
       ),
       metadata: metadataRegistry['todo.create']!,
       guards: [
@@ -317,13 +310,12 @@ RpcProcedureRegistry _$createAppModuleProcedureRegistryFromContainer(
         rawInput: rawInput,
         method: 'todo.update',
         validate: $UpdateTodoDtoValidate,
-        validateReadOnly: $UpdateTodoDtoValidate,
       ),
       encodeOutput: (output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
         output: output,
         method: 'todo.update',
         toJson: (output) => output.toJson(),
-        validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+        validateJson: $TodoResponseDtoSchema.validate,
       ),
       metadata: metadataRegistry['todo.update']!,
       guards: [
@@ -341,15 +333,13 @@ RpcProcedureRegistry _$createAppModuleProcedureRegistryFromContainer(
         rawInput: rawInput,
         method: 'todo.delete',
         validate: $GetTodoDtoValidate,
-        validateReadOnly: $GetTodoDtoValidate,
       ),
       encodeOutput: (output) =>
           encodeRpcOutputJsonWithLuthor<DeleteTodoResponseDto>(
             output: output,
             method: 'todo.delete',
             toJson: (output) => output.toJson(),
-            validateJson: (json) =>
-                $DeleteTodoResponseDtoSchema.validateSchema(json),
+            validateJson: $DeleteTodoResponseDtoSchema.validate,
           ),
       metadata: metadataRegistry['todo.delete']!,
       guards: [
@@ -372,8 +362,7 @@ RpcProcedureRegistry _$createAppModuleProcedureRegistryFromContainer(
             output: output,
             method: 'todoAnalysis.summary',
             toJson: (output) => output.toJson(),
-            validateJson: (json) =>
-                $TodoAnalysisSummaryDtoSchema.validateSchema(json),
+            validateJson: $TodoAnalysisSummaryDtoSchema.validate,
           ),
       metadata: metadataRegistry['todoAnalysis.summary']!,
 
@@ -443,14 +432,13 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
           rawInput: rawInput,
           method: 'auth.signUp',
           validate: $SignUpDtoValidate,
-          validateReadOnly: $SignUpDtoValidate,
         ))(rawInput);
         final output = await container.authController.signUp(context, input);
         return ((output) => encodeRpcOutputJsonWithLuthor<AuthResponseDto>(
           output: output,
           method: 'auth.signUp',
           toJson: (output) => output.toJson(),
-          validateJson: (json) => $AuthResponseDtoSchema.validateSchema(json),
+          validateJson: $AuthResponseDtoSchema.validate,
         ))(output);
       },
       metadata: metadataRegistry['auth.signUp']!,
@@ -476,14 +464,13 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
           rawInput: rawInput,
           method: 'auth.login',
           validate: $LoginDtoValidate,
-          validateReadOnly: $LoginDtoValidate,
         ))(rawInput);
         final output = await container.authController.login(context, input);
         return ((output) => encodeRpcOutputJsonWithLuthor<AuthResponseDto>(
           output: output,
           method: 'auth.login',
           toJson: (output) => output.toJson(),
-          validateJson: (json) => $AuthResponseDtoSchema.validateSchema(json),
+          validateJson: $AuthResponseDtoSchema.validate,
         ))(output);
       },
       metadata: metadataRegistry['auth.login']!,
@@ -506,8 +493,7 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
           output: output,
           method: 'todo.list',
           toJson: (output) => output.toJson(),
-          validateJson: (json) =>
-              $TodoListResponseDtoSchema.validateSchema(json),
+          validateJson: $TodoListResponseDtoSchema.validate,
         ))(output);
       },
       metadata: metadataRegistry['todo.list']!,
@@ -526,7 +512,7 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
             output: output,
             method: 'todo.watch',
             toJson: (output) => output.toJson(),
-            validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+            validateJson: $TodoResponseDtoSchema.validate,
           ),
         );
       },
@@ -546,8 +532,7 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
             output: output,
             method: 'todo.watchLive',
             toJson: (output) => output.toJson(),
-            validateJson: (json) =>
-                $TodoChangeResponseDtoSchema.validateSchema(json),
+            validateJson: $TodoChangeResponseDtoSchema.validate,
           ),
         );
       },
@@ -573,14 +558,13 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
           rawInput: rawInput,
           method: 'todo.getById',
           validate: $GetTodoDtoValidate,
-          validateReadOnly: $GetTodoDtoValidate,
         ))(rawInput);
         final output = await container.todoController.getById(context, input);
         return ((output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
           output: output,
           method: 'todo.getById',
           toJson: (output) => output.toJson(),
-          validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+          validateJson: $TodoResponseDtoSchema.validate,
         ))(output);
       },
       metadata: metadataRegistry['todo.getById']!,
@@ -604,7 +588,6 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
           rawInput: rawInput,
           method: 'todo.watchById',
           validate: $GetTodoDtoValidate,
-          validateReadOnly: $GetTodoDtoValidate,
         ))(rawInput);
         final output = container.todoController.watchById(context, input);
         return output.map(
@@ -612,7 +595,7 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
             output: output,
             method: 'todo.watchById',
             toJson: (output) => output.toJson(),
-            validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+            validateJson: $TodoResponseDtoSchema.validate,
           ),
         );
       },
@@ -642,14 +625,13 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
           rawInput: rawInput,
           method: 'todo.create',
           validate: $CreateTodoDtoValidate,
-          validateReadOnly: $CreateTodoDtoValidate,
         ))(rawInput);
         final output = await container.todoController.create(context, input);
         return ((output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
           output: output,
           method: 'todo.create',
           toJson: (output) => output.toJson(),
-          validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+          validateJson: $TodoResponseDtoSchema.validate,
         ))(output);
       },
       metadata: metadataRegistry['todo.create']!,
@@ -686,14 +668,13 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
           rawInput: rawInput,
           method: 'todo.update',
           validate: $UpdateTodoDtoValidate,
-          validateReadOnly: $UpdateTodoDtoValidate,
         ))(rawInput);
         final output = await container.todoController.update(context, input);
         return ((output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
           output: output,
           method: 'todo.update',
           toJson: (output) => output.toJson(),
-          validateJson: (json) => $TodoResponseDtoSchema.validateSchema(json),
+          validateJson: $TodoResponseDtoSchema.validate,
         ))(output);
       },
       metadata: metadataRegistry['todo.update']!,
@@ -718,7 +699,6 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
           rawInput: rawInput,
           method: 'todo.delete',
           validate: $GetTodoDtoValidate,
-          validateReadOnly: $GetTodoDtoValidate,
         ))(rawInput);
         final output = await container.todoController.delete(context, input);
         return ((output) =>
@@ -726,8 +706,7 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
               output: output,
               method: 'todo.delete',
               toJson: (output) => output.toJson(),
-              validateJson: (json) =>
-                  $DeleteTodoResponseDtoSchema.validateSchema(json),
+              validateJson: $DeleteTodoResponseDtoSchema.validate,
             ))(output);
       },
       metadata: metadataRegistry['todo.delete']!,
@@ -747,8 +726,7 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
               output: output,
               method: 'todoAnalysis.summary',
               toJson: (output) => output.toJson(),
-              validateJson: (json) =>
-                  $TodoAnalysisSummaryDtoSchema.validateSchema(json),
+              validateJson: $TodoAnalysisSummaryDtoSchema.validate,
             ))(output);
       },
       metadata: metadataRegistry['todoAnalysis.summary']!,

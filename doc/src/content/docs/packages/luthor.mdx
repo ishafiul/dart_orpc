@@ -10,12 +10,11 @@ This package re-exports Luthor and adapts its schema results to framework errors
 | `decodeRpcInputWithLuthor<T>` | Checks object input, validates, returns DTO; validation failure is BAD_REQUEST |
 | `encodeRpcOutputWithLuthor<T>` | Serializes DTO, validates serialized value, returns JSON; failure is INTERNAL_ERROR |
 | `encodeRpcOutputJsonWithLuthor<T>` | Validates serialized JSON without reconstructing a DTO |
-| `LuthorSchemaValidator<T>` | Schema callback accepting JSON object |
-| `LuthorReadOnlySchemaValidator<T>` | Callback contract that must not mutate input |
-| `LuthorJsonSchemaValidator` | Read-only JSON validation callback |
+| `LuthorValidator<T>` | `ValidationResult<T> Function(Object? json)`, such as a generated `$XValidate` |
+| `LuthorJsonValidator` | JSON-only validation, such as a generated schema's `validate` |
 
-Input decoder arguments are `rawInput`, `method`, required `validate`, and optional `validateReadOnly`. Output bridges take `output`, `method`, `toJson`, and their validator. Read-only callbacks allow the bridge to avoid defensive copies; custom callbacks must honor that contract.
+The input decoder takes `rawInput`, `method` and one `validate` function. Output bridges take `output`, `method`, `toJson` and their validator. Validators must not mutate the JSON they receive. Keys a DTO does not declare are stripped by its luthor schema, not rejected.
 
 Use `@HasMin(1)` for the non-empty title example, not invented `@LString`/`@LInt` annotations. See [DTOs and Validation](/dart-orpc/guides/procedures-and-dtos) and [Create an Application](/dart-orpc/guides/create-an-app) for complete supported source patterns.
 
-Validation errors are formatted into `error.message`; the framework does not add a structured `details` array. Rich OpenAPI components derive from Luthor validators, so keep schemas and serialization in agreement.
+Validation issues are formatted into `error.message` as `path: message` entries joined by `; `; the framework does not add a structured `details` array. OpenAPI components come from build-time DTO metadata, not from the validators.

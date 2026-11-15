@@ -311,9 +311,9 @@ final class _DtoSchemaExtractor {
       for (final (name, value) in _luthorAnnotations(source)) {
         final reader = ConstantReader(value);
         switch (name) {
-          case 'HasMin' || 'HasMinDouble' || 'HasMinNumber':
+          case 'HasMin':
             min = reader.peek('min')?.literalValue as num?;
-          case 'HasMax' || 'HasMaxDouble' || 'HasMaxNumber':
+          case 'HasMax':
             max = reader.peek('max')?.literalValue as num?;
           case 'HasLength':
             length = reader.peek('length')?.intValue;

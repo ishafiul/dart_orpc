@@ -182,8 +182,8 @@ class NodeDto {
 @luthor
 class RulesDto {
   const RulesDto({
-    @HasMinDouble(0.5) @HasMaxDouble(9.5) required this.ratio,
-    @HasMinNumber(1) @HasMaxNumber(99) required this.amount,
+    @HasMin(0.5) @HasMax(9.5) required this.ratio,
+    @HasMin(1) @HasMax(99) required this.amount,
     @IsDateTime() required this.at,
     @IsUri() required this.link,
     @IsUuid() required this.ref,

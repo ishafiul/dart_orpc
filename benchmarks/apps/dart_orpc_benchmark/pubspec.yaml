@@ -13,13 +13,23 @@ dependencies:
     path: ../../../packages/dart_orpc
 
 dependency_overrides:
+  dart_orpc_annotations:
+    path: ../../../packages/dart_orpc_annotations
+  dart_orpc_client:
+    path: ../../../packages/dart_orpc_client
   dart_orpc_core:
     path: ../../../packages/dart_orpc_core
   dart_orpc_http:
     path: ../../../packages/dart_orpc_http
+  dart_orpc_luthor:
+    path: ../../../packages/dart_orpc_luthor
+  dart_orpc_openapi:
+    path: ../../../packages/dart_orpc_openapi
+  dart_orpc_websocket:
+    path: ../../../packages/dart_orpc_websocket
 
 dev_dependencies:
-  build_runner: ^2.12.2
+  build_runner: ^2.16.2
   dart_orpc_generator:
     path: ../../../packages/dart_orpc_generator
-  luthor_generator: ^0.17.0
+  luthor_generator: ^1.1.0

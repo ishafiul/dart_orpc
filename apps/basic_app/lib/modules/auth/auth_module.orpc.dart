@@ -62,13 +62,12 @@ RpcProcedureRegistry _$createAuthModuleProcedureRegistryFromContainer(
         rawInput: rawInput,
         method: 'auth.signUp',
         validate: $SignUpDtoValidate,
-        validateReadOnly: $SignUpDtoValidate,
       ),
       encodeOutput: (output) => encodeRpcOutputJsonWithLuthor<AuthResponseDto>(
         output: output,
         method: 'auth.signUp',
         toJson: (output) => output.toJson(),
-        validateJson: (json) => $AuthResponseDtoSchema.validateSchema(json),
+        validateJson: $AuthResponseDtoSchema.validate,
       ),
       metadata: metadataRegistry['auth.signUp']!,
 
@@ -81,13 +80,12 @@ RpcProcedureRegistry _$createAuthModuleProcedureRegistryFromContainer(
         rawInput: rawInput,
         method: 'auth.login',
         validate: $LoginDtoValidate,
-        validateReadOnly: $LoginDtoValidate,
       ),
       encodeOutput: (output) => encodeRpcOutputJsonWithLuthor<AuthResponseDto>(
         output: output,
         method: 'auth.login',
         toJson: (output) => output.toJson(),
-        validateJson: (json) => $AuthResponseDtoSchema.validateSchema(json),
+        validateJson: $AuthResponseDtoSchema.validate,
       ),
       metadata: metadataRegistry['auth.login']!,
 
@@ -166,14 +164,13 @@ RestRouteRegistry _$createAuthModuleRestRouteRegistryFromContainer(
           rawInput: rawInput,
           method: 'auth.signUp',
           validate: $SignUpDtoValidate,
-          validateReadOnly: $SignUpDtoValidate,
         ))(rawInput);
         final output = await container.authController.signUp(context, input);
         return ((output) => encodeRpcOutputJsonWithLuthor<AuthResponseDto>(
           output: output,
           method: 'auth.signUp',
           toJson: (output) => output.toJson(),
-          validateJson: (json) => $AuthResponseDtoSchema.validateSchema(json),
+          validateJson: $AuthResponseDtoSchema.validate,
         ))(output);
       },
       metadata: metadataRegistry['auth.signUp']!,
@@ -199,14 +196,13 @@ RestRouteRegistry _$createAuthModuleRestRouteRegistryFromContainer(
           rawInput: rawInput,
           method: 'auth.login',
           validate: $LoginDtoValidate,
-          validateReadOnly: $LoginDtoValidate,
         ))(rawInput);
         final output = await container.authController.login(context, input);
         return ((output) => encodeRpcOutputJsonWithLuthor<AuthResponseDto>(
           output: output,
           method: 'auth.login',
           toJson: (output) => output.toJson(),
-          validateJson: (json) => $AuthResponseDtoSchema.validateSchema(json),
+          validateJson: $AuthResponseDtoSchema.validate,
         ))(output);
       },
       metadata: metadataRegistry['auth.login']!,
@@ -506,33 +502,31 @@ class AuthClient {
   final RpcClientTransports _transports;
 
   Future<AuthResponseDto> signUp(SignUpDto input) {
-    return RpcCaller(
-      _transports.requireUnary('auth.signUp'),
-    ).call<AuthResponseDto>(
-      method: 'auth.signUp',
-      input: input.toJson(),
-      options: null,
-      decode: (json) => AuthResponseDto.fromJson(
-        Map<String, dynamic>.from(
-          expectJsonObject(json, context: 'RPC response for "auth.signUp"'),
-        ),
-      ),
-    );
+    return RpcCaller(_transports.requireUnary('auth.signUp'))
+        .call<AuthResponseDto>(
+          method: 'auth.signUp',
+          input: input.toJson(),
+          options: null,
+          decode: (json) => AuthResponseDto.fromJson(
+            Map<String, dynamic>.from(
+              expectJsonObject(json, context: 'RPC response for "auth.signUp"'),
+            ),
+          ),
+        );
   }
 
   Future<AuthResponseDto> login(LoginDto input) {
-    return RpcCaller(
-      _transports.requireUnary('auth.login'),
-    ).call<AuthResponseDto>(
-      method: 'auth.login',
-      input: input.toJson(),
-      options: null,
-      decode: (json) => AuthResponseDto.fromJson(
-        Map<String, dynamic>.from(
-          expectJsonObject(json, context: 'RPC response for "auth.login"'),
-        ),
-      ),
-    );
+    return RpcCaller(_transports.requireUnary('auth.login'))
+        .call<AuthResponseDto>(
+          method: 'auth.login',
+          input: input.toJson(),
+          options: null,
+          decode: (json) => AuthResponseDto.fromJson(
+            Map<String, dynamic>.from(
+              expectJsonObject(json, context: 'RPC response for "auth.login"'),
+            ),
+          ),
+        );
   }
 
   Future<int> test() {
