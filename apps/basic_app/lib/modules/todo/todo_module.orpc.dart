@@ -933,6 +933,7 @@ DtoSchemaRegistry _$createTodoModuleLocalDtoSchemaRegistry() {
           constraints: DtoFieldConstraints(min: 1),
         ),
       ],
+      unknownKeys: DtoUnknownKeys.strict,
     ),
     DtoSchemaMetadata(
       name: 'DeleteTodoResponseDto',
@@ -947,6 +948,7 @@ DtoSchemaRegistry _$createTodoModuleLocalDtoSchemaRegistry() {
     DtoSchemaMetadata(
       name: 'GetTodoDto',
       fields: [DtoFieldMetadata(wireName: 'id', type: DtoIntegerType())],
+      unknownKeys: DtoUnknownKeys.strict,
     ),
     DtoSchemaMetadata(
       name: 'TodoChangeResponseDto',
@@ -1014,6 +1016,7 @@ DtoSchemaRegistry _$createTodoModuleLocalDtoSchemaRegistry() {
           required: false,
         ),
       ],
+      unknownKeys: DtoUnknownKeys.strict,
     ),
   ]);
 }

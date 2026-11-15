@@ -4,11 +4,37 @@ import 'dart:io';
 import 'package:basic_app/basic_app.dart';
 import 'package:basic_app/database/database_open.dart';
 import 'package:basic_app/environment/app_env.dart';
+import 'package:basic_app/test_support/strip_module.orpc.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:dart_orpc/dart_orpc.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('Given a strip DTO When RPC and REST receive extra keys then both drop them before deserialization', () async {
+    final server = await const StripModule().buildRpcApp().listen(
+      0,
+      hostname: InternetAddress.loopbackIPv4.address,
+    );
+    addTearDown(() => server.close(gracePeriod: const Duration(seconds: 1)));
+    final client = HttpClient();
+    addTearDown(() => client.close(force: true));
+    final baseUri = Uri.parse(
+      'http://${server.address.address}:${server.port}',
+    );
+    const input = {'value': 'known', 'unknown': true};
+
+    final rpc = await _send(client, 'POST', baseUri.resolve('/rpc'), {
+      'method': 'strip.echo',
+      'input': input,
+    });
+    final rest = await _send(client, 'POST', baseUri.resolve('/strip'), input);
+
+    expect(rpc.statusCode, HttpStatus.ok, reason: rpc.body);
+    expect(jsonDecode(rpc.body), containsPair('data', {'value': 'known'}));
+    expect(rest.statusCode, HttpStatus.ok, reason: rest.body);
+    expect(jsonDecode(rest.body), {'value': 'known'});
+  });
+
   test('Given one generated application When every transport is used then contracts, guards, and streams stay aligned', () async {
     final temporaryDirectory = Directory.systemTemp.createTempSync(
       'dart-orpc-acceptance',
@@ -106,34 +132,51 @@ void main() {
     );
     expect(restMissing.statusCode, HttpStatus.notFound);
 
-    // Unknown input keys are stripped, not rejected, over RPC and REST.
-    final rpcWithUnknownKey = await _post(
+    // Input DTOs are strict: an unknown key is rejected over RPC and REST.
+    Future<_HttpResult> send(String method, String path, Object? body) => _send(
       httpClient,
-      baseUri.resolve('/rpc'),
-      {
+      method,
+      baseUri.resolve(path),
+      body,
+      permissions: _allPermissions,
+      authorization: accessToken,
+    );
+    final unknownKeyRequests = {
+      'RPC todo.create': await send('POST', '/rpc', {
         'method': 'todo.create',
-        'input': {'title': 'RPC extra key', 'unknown': true},
-      },
-      permissions: _allPermissions,
-      authorization: accessToken,
-    );
-    final restWithUnknownKey = await _post(
-      httpClient,
-      baseUri.resolve('/todos'),
-      {'title': 'REST extra key', 'unknown': true},
-      permissions: _allPermissions,
-      authorization: accessToken,
-    );
-    expect(rpcWithUnknownKey.statusCode, HttpStatus.ok);
+        'input': {'title': 'Extra key', 'unknown': true},
+      }),
+      'REST POST /todos': await send('POST', '/todos', {
+        'title': 'Extra key',
+        'unknown': true,
+      }),
+      'RPC todo.update': await send('POST', '/rpc', {
+        'method': 'todo.update',
+        'input': {'id': created.id, 'title': 'Extra key', 'unknown': true},
+      }),
+      'REST PATCH /todos/:id': await send('PATCH', '/todos/${created.id}', {
+        'title': 'Extra key',
+        'unknown': true,
+      }),
+    };
+    for (final MapEntry(key: request, value: result)
+        in unknownKeyRequests.entries) {
+      expect(result.statusCode, HttpStatus.badRequest, reason: request);
+      expect(
+        ((jsonDecode(result.body) as Map<String, Object?>)['error']
+            as Map<String, Object?>)['code'],
+        'BAD_REQUEST',
+        reason: request,
+      );
+    }
+    final unchanged = await send('POST', '/rpc', {
+      'method': 'todo.getById',
+      'input': {'id': created.id},
+    });
     expect(
-      ((jsonDecode(rpcWithUnknownKey.body) as Map<String, Object?>)['data']
+      ((jsonDecode(unchanged.body) as Map<String, Object?>)['data']
           as Map<String, Object?>)['title'],
-      'RPC extra key',
-    );
-    expect(restWithUnknownKey.statusCode, HttpStatus.ok);
-    expect(
-      (jsonDecode(restWithUnknownKey.body) as Map<String, Object?>)['title'],
-      'REST extra key',
+      'Production stream',
     );
 
     final webSocketEvents = await splitClient.todo.watch().toList();
@@ -450,18 +493,22 @@ Future<_HttpResult> _get(
   );
 }
 
-Future<_HttpResult> _post(
+Future<_HttpResult> _send(
   HttpClient client,
+  String method,
   Uri uri,
   Object? body, {
-  required String permissions,
-  required String authorization,
+  String? permissions,
+  String? authorization,
 }) async {
-  final request = await client.postUrl(uri);
-  request.headers
-    ..contentType = ContentType.json
-    ..set('x-permissions', permissions)
-    ..set('authorization', 'Bearer $authorization');
+  final request = await client.openUrl(method, uri);
+  request.headers.contentType = ContentType.json;
+  if (permissions != null) {
+    request.headers.set('x-permissions', permissions);
+  }
+  if (authorization != null) {
+    request.headers.set('authorization', 'Bearer $authorization');
+  }
   request.write(jsonEncode(body));
   final response = await request.close();
   return _HttpResult(

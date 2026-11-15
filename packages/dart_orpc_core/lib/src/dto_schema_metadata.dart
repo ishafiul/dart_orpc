@@ -6,10 +6,14 @@ final class DtoSchemaMetadata {
   const DtoSchemaMetadata({
     required this.name,
     required List<DtoFieldMetadata> fields,
+    this.unknownKeys = DtoUnknownKeys.strip,
   }) : _fields = fields;
 
   /// The component name, unique within a [DtoSchemaRegistry].
   final String name;
+
+  /// How input validation treats keys the DTO does not declare.
+  final DtoUnknownKeys unknownKeys;
 
   final List<DtoFieldMetadata> _fields;
 
@@ -28,6 +32,19 @@ final class DtoSchemaMetadata {
       field.type._prepare();
     }
   }
+}
+
+/// How a DTO's validation treats JSON keys it does not declare, matching
+/// luthor's unknown-key modes.
+enum DtoUnknownKeys {
+  /// Unknown keys are accepted and dropped.
+  strip,
+
+  /// Unknown keys are accepted and kept.
+  passthrough,
+
+  /// Unknown keys fail validation.
+  strict,
 }
 
 /// One JSON property of a DTO.

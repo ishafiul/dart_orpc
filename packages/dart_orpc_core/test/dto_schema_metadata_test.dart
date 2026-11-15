@@ -61,6 +61,22 @@ void main() {
     });
   });
 
+  group('Given DTO metadata without an unknown-key mode', () {
+    test('When read then unknown keys are stripped', () {
+      expect(_address.unknownKeys, DtoUnknownKeys.strip);
+    });
+
+    test('When a mode is given then it is kept', () {
+      const schema = DtoSchemaMetadata(
+        name: 'StrictDto',
+        fields: [],
+        unknownKeys: DtoUnknownKeys.strict,
+      );
+
+      expect(schema.unknownKeys, DtoUnknownKeys.strict);
+    });
+  });
+
   group('Given DTO metadata covering every field type', () {
     test('When the types are matched then each case is reachable', () {
       final described = [

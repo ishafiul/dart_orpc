@@ -162,7 +162,38 @@ void main() {
 
       expect(again.generatedOutput, run.generatedOutput);
     });
+
+    test('When DTOs strip unknown keys then no mode is emitted', () {
+      expect(run.generatedOutput, isNot(contains('unknownKeys:')));
+    });
   });
+
+  group('Given luthor unknown-key modes', () {
+    test('When a DTO annotates strict then its metadata is strict', () async {
+      final run = await runModuleBuilder(
+        _source.replaceFirst(
+          '@luthor\nfinal class ParentDto',
+          '@Luthor(unknownKeys: .strict)\nfinal class ParentDto',
+        ),
+      );
+
+      expect(run.succeeded, isTrue, reason: run.errors.join('\n'));
+      expect(_modeOf(run, 'ParentDto'), 'strict');
+      expect(_modeOf(run, 'ChildDto'), isNull);
+    });
+  });
+}
+
+/// The `unknownKeys` emitted for [dto], or `null` when none is emitted.
+String? _modeOf(GeneratorBuilderRun run, String dto) {
+  final output = _normalized(run.generatedOutput);
+  final start = output.indexOf("DtoSchemaMetadata(name:'$dto',");
+  expect(start, isNonNegative, reason: '$dto metadata is missing');
+  final end = output.indexOf('DtoSchemaMetadata(name:', start + 1);
+  final literal = output.substring(start, end < 0 ? null : end);
+  return RegExp(r'unknownKeys:DtoUnknownKeys\.(\w+)')
+      .firstMatch(literal)
+      ?.group(1);
 }
 
 /// Generated code is formatted, so compare without whitespace and trailing

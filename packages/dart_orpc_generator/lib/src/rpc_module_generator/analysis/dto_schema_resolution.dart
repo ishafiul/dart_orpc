@@ -2,10 +2,19 @@ part of '../../rpc_module_generator.dart';
 
 /// Schema metadata for the module's OpenAPI components and every DTO they
 /// reference, sorted by component name, plus the packages that own them.
-({List<DtoSchemaMetadata> schemas, Set<String> packages})
+///
+/// Schemas whose `@Luthor` annotation sets no `unknownKeys` are listed in
+/// `unannotated` with their owning package; [_resolveDtoUnknownKeys] applies
+/// that package's builder option to them.
+({
+  List<DtoSchemaMetadata> schemas,
+  Set<String> packages,
+  Map<String, String?> unannotated,
+})
 _extractModuleDtoSchemas(List<_ResolvedOpenApiSchemaComponent> components) {
   final schemas = <String, DtoSchemaMetadata>{};
   final packages = <String>{};
+  final unannotated = <String, String?>{};
   final pending = <InterfaceElement>[
     for (final component in components) ?component.element,
   ];
@@ -14,14 +23,55 @@ _extractModuleDtoSchemas(List<_ResolvedOpenApiSchemaComponent> components) {
     if (schemas.containsKey(element.displayName)) continue;
     final extraction = extractDtoSchema(element);
     schemas[element.displayName] = extraction.schema;
-    if (dtoOwningPackage(element) case final package?) packages.add(package);
+    final package = dtoOwningPackage(element);
+    if (package != null) packages.add(package);
+    if (extraction.annotatedUnknownKeys == null) {
+      unannotated[element.displayName] = package;
+    }
     pending.addAll(extraction.references);
   }
   return (
     schemas: schemas.values.toList(growable: false)
       ..sort((left, right) => left.name.compareTo(right.name)),
     packages: packages,
+    unannotated: unannotated,
   );
+}
+
+/// [schemas] with luthor_generator's `unknown_keys` builder option applied
+/// to the DTOs that don't annotate a mode, as luthor_generator applies it.
+///
+/// A DTO outside any package's `lib/` uses the root package's option.
+List<DtoSchemaMetadata> _resolveDtoUnknownKeys(
+  InterfaceElement module,
+  List<DtoSchemaMetadata> schemas, {
+  required String rootPackage,
+  required Map<String, String?> unannotated,
+  required Map<String, String?> buildYamlByPackage,
+}) {
+  try {
+    return applyLuthorUnknownKeys(
+      schemas,
+      rootPackage: rootPackage,
+      unannotated: unannotated,
+      buildYamlByPackage: buildYamlByPackage,
+    );
+  } on LuthorUnknownKeysConfigException catch (error) {
+    throw InvalidGenerationSourceError(error.message, element: module);
+  }
+}
+
+/// The `build.yaml` of the module's package and of every package that owns
+/// one of its DTOs.
+Future<Map<String, String?>> _readDtoBuildYamls(
+  BuildStep buildStep,
+  Set<String> dtoPackages,
+) async {
+  final rootPackage = buildStep.inputId.package;
+  return {
+    for (final package in {rootPackage, ...dtoPackages})
+      package: await _readPackageBuildYaml(buildStep, package),
+  };
 }
 
 /// Fails the build when json_serializable's `field_rename` is configured in
@@ -30,16 +80,11 @@ _extractModuleDtoSchemas(List<_ResolvedOpenApiSchemaComponent> components) {
 ///
 /// Wire names are derived from DTO annotations, which don't see builder
 /// options, so such a rename would make the schema metadata wrong.
-Future<void> _rejectJsonFieldRename(
-  InterfaceElement module,
-  BuildStep buildStep,
-  Set<String> dtoPackages,
-) async {
-  final rootPackage = buildStep.inputId.package;
-  final buildYamlByPackage = <String, String?>{
-    for (final package in {rootPackage, ...dtoPackages})
-      package: await _readPackageBuildYaml(buildStep, package),
-  };
+void _rejectJsonFieldRename(
+  InterfaceElement module, {
+  required String rootPackage,
+  required Map<String, String?> buildYamlByPackage,
+}) {
   final violation = findJsonFieldRename(
     rootPackage: rootPackage,
     buildYamlByPackage: buildYamlByPackage,

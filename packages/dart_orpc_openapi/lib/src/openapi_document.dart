@@ -406,6 +406,10 @@ JsonObject _schemaForDto(DtoSchemaMetadata schema) {
       for (final field in fields) field.wireName: _schemaForField(field),
     },
     if (required.isNotEmpty) 'required': required,
+    // Strip and passthrough both accept unknown keys, so only strict
+    // narrows the documented shape.
+    if (schema.unknownKeys == DtoUnknownKeys.strict)
+      'additionalProperties': false,
   };
 }
 

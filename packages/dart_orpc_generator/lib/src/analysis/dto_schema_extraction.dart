@@ -27,9 +27,16 @@ final class DtoSchemaExtraction {
     required this.schema,
     required this.references,
     required this.jsonKeys,
+    this.annotatedUnknownKeys,
   });
 
+  /// The schema, with the annotated unknown-key mode or else the default
+  /// given to [extractDtoSchema].
   final DtoSchemaMetadata schema;
+
+  /// The mode from `@Luthor(unknownKeys: ...)`, or `null` when the DTO does
+  /// not set one and luthor_generator's builder option applies.
+  final DtoUnknownKeys? annotatedUnknownKeys;
 
   /// Each serialized field's JSON key, by Dart parameter name.
   final Map<String, String> jsonKeys;
@@ -47,22 +54,26 @@ final class DtoSchemaExtraction {
 /// an [InvalidGenerationSourceError] naming the DTO and field.
 ///
 /// [isDto] decides which class types become references; by default, classes
-/// annotated with `@luthor`.
+/// annotated with `@luthor`. [defaultUnknownKeys] applies when the DTO's
+/// `@Luthor` annotation sets no `unknownKeys`.
 DtoSchemaExtraction extractDtoSchema(
   InterfaceElement dto, {
   bool Function(InterfaceElement element)? isDto,
+  DtoUnknownKeys defaultUnknownKeys = DtoUnknownKeys.strip,
 }) {
   return _DtoSchemaExtractor(
     dto,
     isDto ?? _luthorChecker.hasAnnotationOfExact,
+    defaultUnknownKeys,
   ).extract();
 }
 
 final class _DtoSchemaExtractor {
-  _DtoSchemaExtractor(this.dto, this.isDto);
+  _DtoSchemaExtractor(this.dto, this.isDto, this.defaultUnknownKeys);
 
   final InterfaceElement dto;
   final bool Function(InterfaceElement element) isDto;
+  final DtoUnknownKeys defaultUnknownKeys;
   final List<InterfaceElement> _references = [];
 
   String get _dtoName => dto.displayName;
@@ -70,6 +81,7 @@ final class _DtoSchemaExtractor {
   DtoSchemaExtraction extract() {
     _checkShape();
     final rename = _classFieldRename();
+    final annotatedUnknownKeys = _annotatedUnknownKeys();
     final fields = <DtoFieldMetadata>[];
     final jsonKeys = <String, String>{};
     for (final candidate in discoverDtoConstructorParameters(dto)) {
@@ -83,7 +95,9 @@ final class _DtoSchemaExtractor {
       schema: DtoSchemaMetadata(
         name: _dtoName,
         fields: List.unmodifiable(fields),
+        unknownKeys: annotatedUnknownKeys ?? defaultUnknownKeys,
       ),
+      annotatedUnknownKeys: annotatedUnknownKeys,
       references: List.unmodifiable(_references),
       jsonKeys: Map.unmodifiable(jsonKeys),
     );
@@ -144,6 +158,23 @@ final class _DtoSchemaExtractor {
     return _FieldRename.none;
   }
 
+  /// The `unknownKeys` of the DTO's `@Luthor` annotation, if it sets one.
+  DtoUnknownKeys? _annotatedUnknownKeys() {
+    final luthor = _annotation(dto, 'luthor', 'Luthor');
+    final value = luthor == null
+        ? null
+        : ConstantReader(luthor).peek('unknownKeys');
+    if (value == null || value.isNull) return null;
+    final name =
+        value.objectValue.variable?.displayName ??
+        value.objectValue.getField('_name')?.toStringValue();
+    return DtoUnknownKeys.values.firstWhere(
+      (mode) => mode.name == name,
+      orElse: () =>
+          _fail('DTO "$_dtoName" uses an unsupported unknownKeys "$name"', dto),
+    );
+  }
+
   DartObject? _serializable(Element element) =>
       _annotation(element, 'json_annotation', 'JsonSerializable');
 
@@ -157,8 +188,17 @@ final class _DtoSchemaExtractor {
     final jsonKey = _firstAnnotation(sources, 'json_annotation', 'JsonKey');
     final jsonKeyReader = jsonKey == null ? null : ConstantReader(jsonKey);
     if (_isTrue(jsonKeyReader, 'ignore') ||
-        _isFalse(jsonKeyReader, 'includeFromJson') ||
-        _isFalse(jsonKeyReader, 'includeToJson')) {
+        _isFalse(jsonKeyReader, 'includeFromJson')) {
+      return null;
+    }
+    if (!(jsonKeyReader?.peek('readValue')?.isNull ?? true)) {
+      _fail(
+        'DTO "$_dtoName" field "$name" uses JsonKey readValue, which can '
+        'read keys the schema does not declare',
+        parameter,
+      );
+    }
+    if (_isFalse(jsonKeyReader, 'includeToJson')) {
       return null;
     }
 

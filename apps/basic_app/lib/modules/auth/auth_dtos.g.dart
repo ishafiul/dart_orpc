@@ -116,6 +116,7 @@ final SchemaValidator $SignUpDtoSchema = l
           )
           .required(),
     })
+    .strict()
     .withName("SignUpDto");
 
 ValidationResult<SignUpDto> $SignUpDtoValidate(Object? json) =>
@@ -150,6 +151,7 @@ final SchemaValidator $LoginDtoSchema = l
           )
           .required(),
     })
+    .strict()
     .withName("LoginDto");
 
 ValidationResult<LoginDto> $LoginDtoValidate(Object? json) =>

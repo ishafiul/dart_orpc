@@ -4,7 +4,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'todo_dtos.freezed.dart';
 part 'todo_dtos.g.dart';
 
-@luthor
+@Luthor(unknownKeys: .strict)
 @freezed
 abstract class CreateTodoDto with _$CreateTodoDto {
   const factory CreateTodoDto({@HasMin(1) required String title}) =
@@ -14,7 +14,7 @@ abstract class CreateTodoDto with _$CreateTodoDto {
       _$CreateTodoDtoFromJson(json);
 }
 
-@luthor
+@Luthor(unknownKeys: .strict)
 @freezed
 abstract class GetTodoDto with _$GetTodoDto {
   const factory GetTodoDto({@FromPath() required int id}) = _GetTodoDto;
@@ -23,7 +23,7 @@ abstract class GetTodoDto with _$GetTodoDto {
       _$GetTodoDtoFromJson(json);
 }
 
-@luthor
+@Luthor(unknownKeys: .strict)
 @freezed
 abstract class UpdateTodoDto with _$UpdateTodoDto {
   const factory UpdateTodoDto({
