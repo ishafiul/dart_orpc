@@ -176,10 +176,44 @@ void main() {
       },
     );
 
+    test('When the details carry issues then they are typed', () async {
+      final error = await errorFrom({
+        'issues': [
+          {
+            'path': ['items', 0, 'name'],
+            'code': 'futureCode',
+            'message': 'name is required',
+          },
+          {'path': 'bad', 'code': 'c', 'message': 'skipped'},
+          {
+            'path': <Object?>[],
+            'code': 'custom',
+            'message': 'whole value failed',
+          },
+        ],
+        'traceId': 'abc',
+      });
+
+      expect(error.validationIssues, [
+        RpcValidationIssue(
+          path: ['items', 0, 'name'],
+          code: 'futureCode',
+          message: 'name is required',
+        ),
+        RpcValidationIssue(
+          path: [],
+          code: 'custom',
+          message: 'whole value failed',
+        ),
+      ]);
+      expect(error.details?['traceId'], 'abc');
+    });
+
     test('When the details are missing then they are null', () async {
       final error = await errorFrom(null, include: false);
 
       expect(error.details, isNull);
+      expect(error.validationIssues, isEmpty);
       expect(error.code, RpcErrorCode.conflict);
     });
 

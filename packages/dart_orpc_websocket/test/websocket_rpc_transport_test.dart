@@ -319,6 +319,39 @@ void main() {
       return transport;
     }
 
+    test('When the details carry issues then they are typed', () async {
+      final transport = await connect({
+        'issues': [
+          {
+            'path': ['items', 0, 'name'],
+            'code': 'futureCode',
+            'message': 'name is required',
+          },
+          {'path': 'bad', 'code': 'c', 'message': 'skipped'},
+          {
+            'path': <Object?>[],
+            'code': 'custom',
+            'message': 'whole value failed',
+          },
+        ],
+        'traceId': 'abc',
+      });
+
+      await expectLater(
+        transport.send(const RpcRequest(method: 'item.update')),
+        throwsA(
+          isA<RpcException>().having(
+            (error) => [
+              for (final issue in error.validationIssues)
+                (issue.path.join('.'), issue.code),
+            ],
+            'validationIssues',
+            [('items.0.name', 'futureCode'), ('', 'custom')],
+          ),
+        ),
+      );
+    });
+
     test('When a unary call fails then the exception has details', () async {
       final transport = await connect({'version': 2});
 
