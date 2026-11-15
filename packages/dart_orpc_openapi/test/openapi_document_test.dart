@@ -73,6 +73,53 @@ void main() {
       expect(details['description'], contains('`issues`'));
       expect(details['description'], contains('reserved'));
     });
+
+    test('When read then details documents optional validation issues', () {
+      final details =
+          (errorBody['properties'] as JsonObject)['details'] as JsonObject;
+      final issues =
+          (details['properties'] as JsonObject)['issues'] as JsonObject;
+      final item = issues['items'] as JsonObject;
+      final properties = item['properties'] as JsonObject;
+
+      expect(details['required'], isNull);
+      expect(issues['type'], 'array');
+      expect(item['required'], ['path', 'code', 'message']);
+      expect(properties['path'], {
+        'type': 'array',
+        'description': isA<String>(),
+        'items': {
+          'oneOf': [
+            {'type': 'string'},
+            {'type': 'integer', 'minimum': 0},
+          ],
+        },
+      });
+      expect(properties['code'], containsPair('type', 'string'));
+      expect((properties['code'] as JsonObject).containsKey('enum'), isFalse);
+      expect(properties['message'], containsPair('type', 'string'));
+    });
+
+    test('When matched against the wire example then every field fits', () {
+      final details =
+          (errorBody['properties'] as JsonObject)['details'] as JsonObject;
+      final item =
+          (((details['properties'] as JsonObject)['issues']
+                      as JsonObject)['items']
+                  as JsonObject)['properties']
+              as JsonObject;
+      final example = RpcValidationIssue(
+        path: ['items', 0, 'name'],
+        code: 'required',
+        message: 'name is required',
+      ).toJson();
+
+      expect(item.keys.toSet(), example.keys.toSet());
+      for (final segment in example['path']! as List<Object?>) {
+        expect(segment is String || segment is int, isTrue);
+      }
+      expect(details['additionalProperties'], isTrue);
+    });
   });
 
   group('Given createOpenApiDocument', () {
