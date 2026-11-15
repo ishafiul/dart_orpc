@@ -663,6 +663,42 @@ void main() {
       expect(properties['extra'], <String, Object?>{});
     });
 
+    test('When a DTO is strict then it forbids additional properties', () {
+      final schemas = _componentSchemas(const [
+        DtoSchemaMetadata(
+          name: 'StrictDto',
+          fields: [DtoFieldMetadata(wireName: 'id', type: DtoStringType())],
+          unknownKeys: DtoUnknownKeys.strict,
+        ),
+        DtoSchemaMetadata(
+          name: 'StripDto',
+          fields: [DtoFieldMetadata(wireName: 'id', type: DtoStringType())],
+        ),
+        DtoSchemaMetadata(
+          name: 'PassthroughDto',
+          fields: [DtoFieldMetadata(wireName: 'id', type: DtoStringType())],
+          unknownKeys: DtoUnknownKeys.passthrough,
+        ),
+      ]);
+
+      expect(schemas['StrictDto'], {
+        'type': 'object',
+        'properties': {
+          'id': {'type': 'string'},
+        },
+        'required': ['id'],
+        'additionalProperties': false,
+      });
+      expect(
+        schemas['StripDto'] as Map<String, Object?>,
+        isNot(contains('additionalProperties')),
+      );
+      expect(
+        schemas['PassthroughDto'] as Map<String, Object?>,
+        isNot(contains('additionalProperties')),
+      );
+    });
+
     test('When DTOs reference DTOs then fields use component refs', () {
       final schemas = _componentSchemas(const [
         DtoSchemaMetadata(
