@@ -12,6 +12,9 @@ abstract final class RequestFlags {
   /// The body lives in native memory and is freed by a finalizer.
   static const int externalBody = 1 << 2;
 
+  /// The body follows in separate records.
+  static const int streamingBody = 1 << 3;
+
   /// Shift of the [InboundKind] in the flags.
   static const int kindShift = 8;
 }
@@ -34,7 +37,13 @@ enum InboundKind {
   streamSent,
 
   /// The client of a streamed body is gone.
-  streamGone;
+  streamGone,
+
+  /// A request body chunk.
+  requestBody,
+
+  /// End of a request body, with an optional HTTP error.
+  requestBodyEnd;
 
   /// The kind encoded in [flags], or null for an unknown one.
   static InboundKind? fromFlags(int flags) {

@@ -9,6 +9,8 @@ pub mod request_flags {
     /// The body lives in native memory; see
     /// [`crate::protocol::request_record::ExternalBody`].
     pub const EXTERNAL_BODY: u32 = 1 << 2;
+    /// The request body follows in separate records.
+    pub const STREAMING_BODY: u32 = 1 << 3;
     /// Shift of the [`super::InboundKind`] in the flags.
     pub const KIND_SHIFT: u32 = 8;
 }
@@ -31,6 +33,10 @@ pub enum InboundKind {
     StreamSent = 4,
     /// The client of a streamed body is gone; Dart stops sending.
     StreamGone = 5,
+    /// A request body chunk.
+    RequestBody = 6,
+    /// End of a request body. The port field holds the HTTP error, or zero.
+    RequestBodyEnd = 7,
 }
 
 impl InboundKind {

@@ -196,16 +196,13 @@ pub fn parse_request(
         http10,
         websocket_key: upgrade.then(|| facts.key.map(Box::from)).flatten(),
     };
-    let mut flags = 0;
-    if http10 {
-        flags |= request_flags::HTTP10;
-    }
-    if upgrade {
-        flags |= request_flags::WEBSOCKET_UPGRADE;
-    }
+    let flags = (u32::from(http10) * request_flags::HTTP10)
+        | (u32::from(upgrade) * request_flags::WEBSOCKET_UPGRADE);
     let content_length = facts.content_length.unwrap_or(0);
     let max = limits.body_for(facts.multipart);
-    if content_length > max
+    let streaming = limits.stream_request_bodies;
+    if !streaming
+        && content_length > max
         && (facts.expect_continue || content_length > max.saturating_add(DRAIN_MAX))
     {
         // Too big, and the client waits for our go (or would send far too
@@ -214,7 +211,7 @@ pub fn parse_request(
     }
     let mut head = RecordHead::request(flags, method.len(), target.len(), facts.headers_len, peer);
     let names_len = HEAD_LEN + method.len() + target.len() + facts.headers_len;
-    let whole = !facts.chunked && data.len() >= head_len + content_length;
+    let whole = !facts.chunked && data.len() - head_len >= content_length;
     if whole && content_length < EXTERNAL_MIN && content_length <= max {
         // The common case: the whole request is here.
         let size = names_len + content_length;
@@ -232,11 +229,23 @@ pub fn parse_request(
             info,
         };
     }
-    // The body arrives separately: keep the record prefix until it is whole.
-    let mut prefix = vec![0; names_len];
-    head.write(&mut prefix);
-    write_names(&mut prefix[HEAD_LEN..], method, target, request.headers);
-    let reserve = if facts.chunked {
+    let prefix = if streaming {
+        if out.len() - at < names_len {
+            return HeadParse::NoRoom(names_len);
+        }
+        let record = &mut out[at..at + names_len];
+        head.id = id;
+        head.flags |= request_flags::STREAMING_BODY;
+        head.write(record);
+        write_names(&mut record[HEAD_LEN..], method, target, request.headers);
+        Vec::new()
+    } else {
+        let mut prefix = vec![0; names_len];
+        head.write(&mut prefix);
+        write_names(&mut prefix[HEAD_LEN..], method, target, request.headers);
+        prefix
+    };
+    let reserve = if streaming || facts.chunked {
         0
     } else {
         content_length.min(MAX_RESERVE).min(max)
@@ -250,11 +259,10 @@ pub fn parse_request(
         reserve,
         now,
     );
-    let more = facts.chunked || data.len() < head_len + content_length;
     HeadParse::BodyFollows {
         used: head_len,
         body: Box::new(body),
-        send_continue: facts.expect_continue && more,
+        send_continue: facts.expect_continue && !whole && content_length <= max,
     }
 }
 
@@ -293,6 +301,7 @@ mod tests {
         Limits {
             body: 10,
             multipart: 20,
+            stream_request_bodies: false,
             body_timeout: Duration::from_millis(50),
             idle_timeout: Duration::from_secs(30),
             max_connections: 0,
@@ -438,6 +447,27 @@ mod tests {
             parse(json.as_bytes()),
             HeadParse::BodyFollows { .. }
         ));
+    }
+
+    #[test]
+    fn a_streamed_content_length_can_exceed_the_available_buffer() {
+        let request = format!("POST / HTTP/1.1\r\nContent-Length: {}\r\n\r\n", usize::MAX);
+        let limits = Limits {
+            stream_request_bodies: true,
+            ..limits()
+        };
+        let mut out = [0; 256];
+        let parsed = parse_request(
+            request.as_bytes(),
+            1,
+            &[0; 18],
+            &mut out,
+            0,
+            &limits,
+            Instant::now(),
+        );
+        assert!(matches!(parsed, HeadParse::BodyFollows { .. }));
+        assert_eq!(RecordHead::read(&out).flags, request_flags::STREAMING_BODY);
     }
 
     #[test]

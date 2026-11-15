@@ -19,6 +19,7 @@ use crate::limits::{
     MAX_PENDING, READ_ROOM, SEND_WAIT,
 };
 use crate::protocol::request_record::{Peer, RecordHead};
+use crate::protocol::{kinds::InboundKind, outbox::Outbox};
 use crate::websocket::WebSocketState;
 
 /// How a streamed body is framed and ends.
@@ -109,6 +110,8 @@ pub struct Connection {
     pub slots: VecDeque<PendingAnswer>,
     /// A body being read.
     pub body: Option<Box<BodyReader>>,
+    /// Request id when Dart has the head of the current body.
+    pub streaming_body: Option<u64>,
     /// The WebSocket after an accepted upgrade.
     pub websocket: Option<Box<WebSocketState>>,
     /// In the loop's ready queue.
@@ -150,6 +153,8 @@ pub struct ParseContext<'a> {
     pub index: usize,
     /// Dart's buffer.
     pub out: &'a mut [u8],
+    /// Body chunks and completion records.
+    pub outbox: &'a mut Outbox,
     /// Bytes used in `out`.
     pub used: &'a mut usize,
     /// The server's request sequence counter.
@@ -186,6 +191,7 @@ impl Connection {
             stream_marks: VecDeque::new(),
             slots: VecDeque::new(),
             body: None,
+            streaming_body: None,
             websocket: None,
             queued: false,
             touched: false,
@@ -464,12 +470,21 @@ impl Connection {
                 }
                 HeadParse::BodyFollows {
                     used,
-                    body,
+                    mut body,
                     send_continue,
                 } => {
                     self.read_pos += used;
+                    let first = self.slots.is_empty();
+                    if cx.limits.stream_request_bodies {
+                        *cx.used += RecordHead::read(&cx.out[*cx.used..]).record_len();
+                        self.streaming_body = Some(id);
+                        body.set_streaming();
+                        let info = body.request_info();
+                        self.closing = info.close;
+                        self.push_slot(info, cx);
+                    }
                     self.body = Some(body);
-                    if send_continue && self.slots.is_empty() {
+                    if send_continue && first {
                         // Only with no earlier answer due, so it never lands
                         // inside one; else the client sends after its wait.
                         self.write_buf
@@ -496,7 +511,29 @@ impl Connection {
             return Ok(false);
         };
         let before = self.read_pos;
-        match body.feed(&self.read_buf[..self.read_len], &mut self.read_pos) {
+        let progress = body.feed(&self.read_buf[..self.read_len], &mut self.read_pos);
+        if let Some(id) = self.streaming_body {
+            let bytes = body.take_chunk();
+            if !bytes.is_empty() {
+                cx.outbox.push(id, InboundKind::RequestBody, 0, &bytes);
+            }
+            match progress {
+                BodyProgress::More if !self.eof => {
+                    if self.read_pos > before {
+                        body.touch(cx.now);
+                    }
+                    return Ok(false);
+                }
+                BodyProgress::More => self.end_streaming_body(cx.outbox, 400),
+                BodyProgress::Reject(status) => self.end_streaming_body(cx.outbox, status),
+                BodyProgress::Whole => {
+                    self.end_streaming_body(cx.outbox, 0);
+                    return Ok(true);
+                }
+            }
+            return Ok(false);
+        }
+        match progress {
             BodyProgress::More => {
                 if self.read_pos > before {
                     body.touch(cx.now);
@@ -524,6 +561,18 @@ impl Connection {
                         Err(NeedsRoom(size))
                     }
                 }
+            }
+        }
+    }
+
+    /// Ends the current streamed request body, retaining its response slot.
+    pub fn end_streaming_body(&mut self, outbox: &mut Outbox, status: u16) {
+        if let Some(id) = self.streaming_body.take() {
+            self.body = None;
+            self.closing |= status != 0;
+            outbox.push(id, InboundKind::RequestBodyEnd, status, b"");
+            if self.closing && self.slots.is_empty() {
+                self.shut = true;
             }
         }
     }

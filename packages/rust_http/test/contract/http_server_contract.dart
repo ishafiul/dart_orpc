@@ -142,6 +142,91 @@ void runHttpServerContract({
       });
     });
 
+    group('slow request bodies', () {
+      Future<Socket> sendHead(String head) async {
+        final socket = await Socket.connect('127.0.0.1', server.port);
+        addTearDown(socket.destroy);
+        socket.write(head);
+        await socket.flush();
+        return socket;
+      }
+
+      test(
+        'a request and its first chunk arrive before the body ends',
+        () async {
+          final firstChunk = Completer<String>();
+          handler = (request) {
+            late final StreamSubscription<List<int>> subscription;
+            subscription = request.listen((chunk) {
+              firstChunk.complete(latin1.decode(chunk));
+              // Stop before the test ends the connection mid-body.
+              unawaited(subscription.cancel());
+            });
+            request.response.done.ignore();
+          };
+
+          await sendHead(
+            'POST / HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n\r\n'
+            '1\r\nx\r\n',
+          );
+
+          expect(
+            await firstChunk.future.timeout(const Duration(seconds: 3)),
+            'x',
+          );
+        },
+      );
+
+      test('a large body arrives on a connection marked for closure', () async {
+        const size = 256 * 1024;
+        final received = Completer<int>();
+        handler = (request) async {
+          received.complete(
+            await request.fold(0, (sum, chunk) => sum + chunk.length),
+          );
+          await request.response.close();
+        };
+
+        // sendHead destroys the socket after the test.
+        // ignore: close_sinks
+        final socket = await sendHead(
+          'POST / HTTP/1.1\r\nHost: x\r\nConnection: close\r\n'
+          'Content-Length: $size\r\n\r\n',
+        );
+        socket.add(List.filled(size, 0x78));
+        await socket.flush();
+
+        expect(await received.future.timeout(const Duration(seconds: 3)), size);
+        await socket.drain<void>();
+      });
+
+      test('body chunks are delivered as they arrive', () async {
+        final firstChunk = Completer<void>();
+        final body = Completer<String>();
+        handler = (request) async {
+          final received = StringBuffer();
+          await for (final chunk in request) {
+            received.write(latin1.decode(chunk));
+            if (!firstChunk.isCompleted) firstChunk.complete();
+          }
+          body.complete(received.toString());
+          request.response.write('ok');
+          await request.response.close();
+        };
+
+        // sendHead destroys the socket at the end of the test.
+        // ignore: close_sinks
+        final socket = await sendHead(
+          'POST / HTTP/1.1\r\nHost: x\r\nContent-Length: 6\r\n\r\nabc',
+        );
+        await firstChunk.future.timeout(const Duration(seconds: 3));
+        socket.write('def');
+        await socket.flush();
+
+        expect(await body.future.timeout(const Duration(seconds: 3)), 'abcdef');
+      });
+    });
+
     group('responses', () {
       test('carry the dart:io default headers', () async {
         handler = (request) {

@@ -24,6 +24,7 @@ final class BindConfig {
     required this.maxConnections,
     required this.idleTimeout,
     this.shared = false,
+    this.streamRequestBodies = false,
   });
 
   /// The port, 0 for any.
@@ -49,6 +50,9 @@ final class BindConfig {
 
   /// Whether other shared servers of this process may bind the same port.
   final bool shared;
+
+  /// Whether requests can reach Dart before their body is complete.
+  final bool streamRequestBodies;
 }
 
 /// The native HTTP core, as the Dart server sees it.

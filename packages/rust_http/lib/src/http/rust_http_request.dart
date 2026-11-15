@@ -10,8 +10,8 @@ import 'response/rust_http_response.dart';
 
 /// [HttpRequest] of the Rust-backed server.
 ///
-/// The whole body is already read — Rust answers 413 past the limit — so
-/// the stream delivers it in one event.
+/// Buffered bodies arrive in one event. With streamed bodies, the stream
+/// reports chunks and native read errors as they arrive.
 final class RustHttpRequest extends Stream<Uint8List> implements HttpRequest {
   /// A request decoded from [record].
   RustHttpRequest(this._channel, this.webSocketHost, RequestRecord record)
@@ -20,6 +20,7 @@ final class RustHttpRequest extends Stream<Uint8List> implements HttpRequest {
       _target = record.target,
       _rawHeaders = record.rawHeaders,
       _body = record.body,
+      _bodyStream = record.streamingBody ? StreamController<Uint8List>() : null,
       _remoteIp = record.remoteIp,
       _remotePort = record.remotePort,
       _http10 = record.http10,
@@ -39,6 +40,7 @@ final class RustHttpRequest extends Stream<Uint8List> implements HttpRequest {
   final String _target;
   Uint8List _rawHeaders;
   Uint8List _body;
+  final StreamController<Uint8List>? _bodyStream;
   Uint8List _remoteIp;
   final int _remotePort;
   final bool _http10;
@@ -57,7 +59,7 @@ final class RustHttpRequest extends Stream<Uint8List> implements HttpRequest {
   RequestHeaders get headers =>
       _headers ??= RequestHeaders(_rawHeaders, http10: _http10);
 
-  /// The body bytes, the same the stream delivers.
+  /// Body bytes from the initial record. Streamed bytes arrive via [listen].
   Uint8List get body => _body;
 
   @override
@@ -75,7 +77,23 @@ final class RustHttpRequest extends Stream<Uint8List> implements HttpRequest {
   bool get isAnswered => _response?.isClosed ?? false;
 
   @override
-  int get contentLength => headers.chunkedTransferEncoding ? -1 : _body.length;
+  int get contentLength => headers.chunkedTransferEncoding
+      ? -1
+      : _bodyStream == null
+      ? _body.length
+      : headers.contentLength;
+
+  /// Queues a chunk without retaining the native batch.
+  void addBodyChunk(Uint8List bytes) =>
+      _bodyStream?.add(Uint8List.fromList(bytes));
+
+  /// Ends the input, optionally with a native HTTP read error.
+  void endBody(int status) {
+    final stream = _bodyStream;
+    if (stream == null || stream.isClosed) return;
+    if (status != 0) stream.addError(RustHttpBodyException(status));
+    unawaited(stream.close());
+  }
 
   @override
   Uri get requestedUri {
@@ -129,9 +147,11 @@ final class RustHttpRequest extends Stream<Uint8List> implements HttpRequest {
     void Function()? onDone,
     bool? cancelOnError,
   }) {
-    final stream = _body.isEmpty
-        ? const Stream<Uint8List>.empty()
-        : Stream<Uint8List>.value(_body);
+    final stream =
+        _bodyStream?.stream ??
+        (_body.isEmpty
+            ? const Stream<Uint8List>.empty()
+            : Stream<Uint8List>.value(_body));
     return stream.listen(
       onData,
       onError: onError,
@@ -183,6 +203,18 @@ final class RustHttpRequest extends Stream<Uint8List> implements HttpRequest {
     }
     return out;
   }
+}
+
+/// A native HTTP error while reading a streamed request body.
+final class RustHttpBodyException implements IOException {
+  /// Creates a body read error with the HTTP status for the failure.
+  const RustHttpBodyException(this.statusCode);
+
+  /// The HTTP status for the failure.
+  final int statusCode;
+
+  @override
+  String toString() => 'Could not read HTTP request body (HTTP $statusCode).';
 }
 
 final class _ConnectionInfo implements HttpConnectionInfo {

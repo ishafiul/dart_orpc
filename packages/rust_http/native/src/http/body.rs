@@ -45,6 +45,7 @@ pub struct BodyReader {
     /// Over the limit: drop the bytes and answer 413 at the end.
     too_big: bool,
     whole: bool,
+    streaming: bool,
     /// When the last body bytes came, for the body timeout.
     last_progress: Instant,
 }
@@ -71,8 +72,14 @@ impl BodyReader {
             seen: 0,
             too_big: false,
             whole: false,
+            streaming: false,
             last_progress: now,
         }
+    }
+
+    /// Publish parsed chunks and fail immediately at the body limit.
+    pub fn set_streaming(&mut self) {
+        self.streaming = true;
     }
 
     /// Whether the body is complete and waits for room in Dart's buffer.
@@ -129,6 +136,9 @@ impl BodyReader {
     pub fn feed(&mut self, buf: &[u8], pos: &mut usize) -> BodyProgress {
         if self.whole {
             return BodyProgress::Whole;
+        }
+        if self.streaming && self.left > self.max && self.chunk.is_none() && self.seen == 0 {
+            return BodyProgress::Reject(413);
         }
         loop {
             let available = &buf[*pos..];
@@ -224,7 +234,7 @@ impl BodyReader {
         }
         self.seen += taken;
         if self.seen > self.max {
-            if self.seen > self.max.saturating_add(DRAIN_MAX) {
+            if self.streaming || self.seen > self.max.saturating_add(DRAIN_MAX) {
                 return Err(413);
             }
             self.too_big = true;
@@ -233,6 +243,17 @@ impl BodyReader {
             self.data.extend_from_slice(&available[..taken]);
         }
         Ok(taken)
+    }
+
+    /// The request metadata for the streamed head.
+    #[must_use]
+    pub fn request_info(&self) -> RequestInfo {
+        self.info.clone()
+    }
+
+    /// Bytes decoded this turn in streaming mode.
+    pub fn take_chunk(&mut self) -> Vec<u8> {
+        std::mem::take(&mut self.data)
     }
 
     /// The body read so far. For tests.

@@ -340,6 +340,7 @@ impl EventLoop {
             return;
         };
         let _ = self.poll.registry().deregister(&mut connection.socket);
+        connection.end_streaming_body(&mut self.outbox, 400);
         for slot in &connection.slots {
             if let Some((stream, _)) = slot.stream
                 && self.streams.remove(&stream).is_some()
@@ -416,7 +417,11 @@ impl EventLoop {
             {
                 match what {
                     Due::Body => {
-                        connection.reject(408, self.date.bytes());
+                        if connection.streaming_body.is_some() {
+                            connection.end_streaming_body(&mut self.outbox, 408);
+                        } else {
+                            connection.reject(408, self.date.bytes());
+                        }
                         self.service(index);
                     }
                     Due::WebSocketPing => self.websocket_ping(index),
@@ -533,6 +538,7 @@ impl EventLoop {
             let parsed = connection.parse(&mut ParseContext {
                 index,
                 out: inbox,
+                outbox: &mut self.outbox,
                 used: &mut used,
                 sequence: &mut self.sequence,
                 limits: &self.limits,
@@ -786,8 +792,7 @@ impl EventLoop {
         }
         let mut read_on = false;
         if connection.paused
-            && connection.can_parse()
-            && !connection.closing
+            && (connection.body.is_some() || (!connection.closing && connection.can_parse()))
             && connection.linger.is_none()
             && !connection.is_live_websocket()
         {
@@ -913,7 +918,11 @@ impl EventLoop {
         if record.says_close() {
             slot.request.close = true;
             connection.closing = true;
+            if record.kind == OutboundKind::Answer {
+                connection.end_streaming_body(&mut self.outbox, 0);
+            }
         }
+        let slot = &mut connection.slots[position];
         let mut framing = slot.framing();
         framing.lines_say_close = record.says_close();
         match record.kind {

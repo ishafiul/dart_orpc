@@ -67,6 +67,8 @@ final class RustHttpServer extends Stream<HttpRequest>
   ///   more clients wait in the OS listen queue.
   /// - A keep-alive connection with no request for [idleTimeout] closes.
   ///   Behind a load balancer, set it above the balancer's idle timeout.
+  /// - With [streamRequestBodies], handlers can read before the upload is
+  ///   complete. Native body read failures are delivered as stream errors.
   /// - With [shared], other shared servers of this process (e.g. in other
   ///   isolates) can bind the same port and the OS spreads connections
   ///   over them, like `HttpServer.bind`. Without it, a second bind fails.
@@ -79,6 +81,7 @@ final class RustHttpServer extends Stream<HttpRequest>
     int? maxConnections,
     Duration idleTimeout = const Duration(seconds: 30),
     bool shared = false,
+    bool streamRequestBodies = false,
   }) async {
     ensureAvailable();
     if (port < 0 || port > 65535) {
@@ -119,6 +122,7 @@ final class RustHttpServer extends Stream<HttpRequest>
           maxConnections: maxConnections,
           idleTimeout: idleTimeout,
           shared: shared,
+          streamRequestBodies: streamRequestBodies,
         ),
         receivePort.sendPort.nativePort,
       );
@@ -156,6 +160,7 @@ final class RustHttpServer extends Stream<HttpRequest>
     sync: true,
   );
   final Map<int, WebSocketReceiver> _sockets = {};
+  final Map<int, RustHttpRequest> _requestBodies = {};
   final Map<int, StreamListener> _streams = {};
   final List<RustHttpRequest> _batch = [];
   int _nextSocketId = 1;
@@ -267,6 +272,10 @@ final class RustHttpServer extends Stream<HttpRequest>
       stream.onClientGone();
     }
     _streams.clear();
+    for (final request in _requestBodies.values) {
+      request.endBody(HttpStatus.badRequest);
+    }
+    _requestBodies.clear();
     _drained();
   }
 
@@ -305,8 +314,15 @@ final class RustHttpServer extends Stream<HttpRequest>
           case RequestRecord():
             _open++;
             final request = RustHttpRequest(this, this, record);
+            if (record.streamingBody) _requestBodies[record.id] = request;
             _batch.add(request);
             _requests.add(request);
+          case RequestBodyRecord(:final id, :final bytes, :final status):
+            if (status == null) {
+              _requestBodies[id]?.addBodyChunk(bytes);
+            } else {
+              _requestBodies.remove(id)?.endBody(status);
+            }
           case StreamProgressRecord(:final id, :final sentBytes):
             final stream = sentBytes == null
                 ? _streams.remove(id)

@@ -33,6 +33,7 @@ final class RequestRecord extends InboundRecord {
     required this.remotePort,
     required this.http10,
     required this.isWebSocketUpgrade,
+    this.streamingBody = false,
   }) : super(id);
 
   /// The request method.
@@ -44,7 +45,10 @@ final class RequestRecord extends InboundRecord {
   /// The header block; see `RequestHeaders`.
   final Uint8List rawHeaders;
 
-  /// The whole body.
+  /// Whether the request body follows in separate records.
+  final bool streamingBody;
+
+  /// The buffered body.
   final Uint8List body;
 
   /// The remote IP, 16 bytes, IPv4 mapped.
@@ -58,6 +62,18 @@ final class RequestRecord extends InboundRecord {
 
   /// The request is a valid WebSocket upgrade request.
   final bool isWebSocketUpgrade;
+}
+
+/// A body chunk, or completion with zero for success and an HTTP error otherwise.
+final class RequestBodyRecord extends InboundRecord {
+  /// Creates a body chunk or end record.
+  const RequestBodyRecord(super.id, this.bytes, this.status);
+
+  /// Bytes of this chunk, empty for an end record.
+  final Uint8List bytes;
+
+  /// Null for a chunk. Zero for success, or an HTTP status on error.
+  final int? status;
 }
 
 /// A message or the close of a WebSocket.
@@ -138,9 +154,14 @@ final class InboundBatchReader {
             body: body,
             remoteIp: ip,
             remotePort: port,
+            streamingBody: flags & RequestFlags.streamingBody != 0,
             http10: flags & RequestFlags.http10 != 0,
             isWebSocketUpgrade: flags & RequestFlags.webSocketUpgrade != 0,
           );
+        case InboundKind.requestBody:
+          yield RequestBodyRecord(id, body, null);
+        case InboundKind.requestBodyEnd:
+          yield RequestBodyRecord(id, body, port);
         case InboundKind.streamSent:
           yield StreamProgressRecord(
             id,

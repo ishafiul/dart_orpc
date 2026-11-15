@@ -13,6 +13,7 @@ fuzz_target!(|data: &[u8]| {
     let limits = Limits {
         body: 64,
         multipart: 128,
+        stream_request_bodies: false,
         body_timeout: Duration::from_secs(1),
         idle_timeout: Duration::from_secs(1),
         max_connections: 0,

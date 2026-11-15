@@ -47,9 +47,10 @@ pub unsafe extern "C" fn rust_http_init(api_dl_data: *mut c_void) -> i32 {
 /// Binds a server and starts its idle helper, which posts to `send_port`.
 ///
 /// `family` (0 all interfaces, 4 IPv4, 6 IPv6), `address_high` and
-/// `address_low` encode the host. Flag bit 0 enables sharing. Returns a
-/// handle (> 0), -1 when not initialized, -2 without resources, or
-/// `-(1000 + errno)` when the bind fails.
+/// `address_low` encode the host. Flag bit 0 enables sharing and bit 1
+/// enables streaming request bodies. Returns a handle (> 0), -1 when not
+/// initialized, -2 without resources, or `-(1000 + errno)` when the bind
+/// fails.
 #[unsafe(no_mangle)]
 #[allow(clippy::too_many_arguments)]
 pub extern "C" fn rust_http_bind(
@@ -74,13 +75,14 @@ pub extern "C" fn rust_http_bind(
         address_low,
         u16::try_from(port).unwrap_or(0),
     );
-    let limits = Limits::from_dart(
+    let mut limits = Limits::from_dart(
         max_body,
         max_multipart,
         body_timeout_ms,
         max_connections,
         idle_timeout_ms,
     );
+    limits.stream_request_bodies = flags & 2 != 0;
     match Server::bind(address, flags & 1 != 0, limits, send_port) {
         Ok(server) => Arc::into_raw(server) as i64,
         Err(BindError::Os(error)) => {

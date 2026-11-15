@@ -37,6 +37,7 @@ fn limits() -> Limits {
     Limits {
         body: 10,
         multipart: 20,
+        stream_request_bodies: false,
         body_timeout: Duration::from_millis(50),
         max_connections: 0,
         idle_timeout: IDLE,

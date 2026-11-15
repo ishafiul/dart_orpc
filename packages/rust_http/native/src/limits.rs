@@ -65,6 +65,8 @@ pub struct Limits {
     pub multipart: usize,
     /// Max idle time between body bytes. Longer gets 408.
     pub body_timeout: Duration,
+    /// Deliver request heads and body chunks as they arrive.
+    pub stream_request_bodies: bool,
     /// Keep-alive timeout, and the time a request head may take.
     pub idle_timeout: Duration,
     /// Most open connections; 0 is no limit.
@@ -86,6 +88,7 @@ impl Limits {
             body: to_usize(max_body),
             multipart: to_usize(max_multipart),
             body_timeout: millis(body_timeout_ms),
+            stream_request_bodies: false,
             idle_timeout: millis(idle_timeout_ms),
             max_connections: to_usize(max_connections),
         }
