@@ -1,6 +1,6 @@
 # PRD — ERR-002: Structured validation issues
 
-- **Status** — Proposed, awaiting issue-level approval.
+- **Status** — Approved in [#96](https://github.com/ishafiul/dart_orpc/issues/96#issuecomment-6899337800).
 - **Requirements map** — [#54](https://github.com/ishafiul/dart_orpc/issues/54)
 - **Trackers** — `ERR-002` and `SEC-002` in [TODO.md](../../TODO.md)
 - **Prerequisites** — [ERR-001](https://github.com/ishafiul/dart_orpc/issues/16) reserved `error.details.issues`. [DEPS-001](https://github.com/ishafiul/dart_orpc/issues/61) shipped Luthor 1.1. Both are complete.
