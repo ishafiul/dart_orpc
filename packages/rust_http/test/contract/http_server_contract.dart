@@ -477,6 +477,55 @@ void runHttpServerContract({
         expect(socket.protocol, 'b');
       });
 
+      test('pingInterval keeps a client that answers pings', () async {
+        handler = (request) async {
+          final socket = await upgradeWebSocket(request);
+          unawaited(socket.drain<void>());
+          socket.pingInterval = const Duration(milliseconds: 100);
+          await Future<void>.delayed(const Duration(milliseconds: 350));
+          socket.add('still connected');
+          await socket.close(WebSocketStatus.normalClosure);
+        };
+
+        final client = await WebSocket.connect(
+          'ws://127.0.0.1:${server.port}/ws',
+        );
+        addTearDown(client.close);
+        expect(await client.toList().timeout(const Duration(seconds: 3)), [
+          'still connected',
+        ]);
+        expect(client.closeCode, WebSocketStatus.normalClosure);
+      });
+
+      test('pingInterval drops a client that never answers pings', () async {
+        handler = (request) async {
+          // The ping timeout closes this socket.
+          // ignore: close_sinks
+          final socket = await upgradeWebSocket(request);
+          socket.pingInterval = const Duration(milliseconds: 100);
+          await socket.drain<void>();
+        };
+
+        final client = await Socket.connect('127.0.0.1', server.port);
+        addTearDown(client.destroy);
+        client.write(
+          'GET /ws HTTP/1.1\r\nHost: x\r\nConnection: Upgrade\r\n'
+          'Upgrade: websocket\r\nSec-WebSocket-Version: 13\r\n'
+          'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n',
+        );
+        await client.flush();
+        final received = <int>[];
+        // Never answers: reads until the server drops the connection.
+        await client
+            .forEach(received.addAll)
+            .timeout(const Duration(seconds: 3));
+
+        final text = latin1.decode(received);
+        expect(text, startsWith('HTTP/1.1 101'));
+        final frames = received.sublist(text.indexOf('\r\n\r\n') + 4);
+        expect(frames, contains(0x89), reason: 'a ping frame');
+      });
+
       test('echoes text and binary and reports the close code', () async {
         handler = (request) async {
           final socket = await upgradeWebSocket(request);

@@ -414,11 +414,13 @@ impl EventLoop {
             if let Some((due_at, what)) = connection.due(&limits)
                 && due_at <= now
             {
-                if what == Due::Body {
-                    connection.reject(408, self.date.bytes());
-                    self.service(index);
-                } else {
-                    self.kill(index);
+                match what {
+                    Due::Body => {
+                        connection.reject(408, self.date.bytes());
+                        self.service(index);
+                    }
+                    Due::WebSocketPing => self.websocket_ping(index),
+                    _ => self.kill(index),
                 }
             }
             self.arm_timer(index);
@@ -635,6 +637,10 @@ impl EventLoop {
                         ws.close_status = Some(close_parts(frame));
                     }
                 }
+                Ok(Message::Pong(data)) if data.is_empty() && ws.awaiting_pong => {
+                    ws.awaiting_pong = false;
+                    ws.ping_due = ws.ping_interval.map(|interval| self.now + interval);
+                }
                 Ok(_) => {} // tungstenite answers pings itself
                 Err(WsError::Io(e)) if e.kind() == ErrorKind::WouldBlock => {
                     read_again = io.read_budget == 0;
@@ -709,7 +715,7 @@ impl EventLoop {
             self.ready.push_back(index);
         }
         let connection = &mut self.connections[index];
-        let mut close_started = false;
+        let mut websocket_timer_started = false;
         if connection.is_live_websocket() {
             let Connection {
                 websocket,
@@ -734,8 +740,13 @@ impl EventLoop {
                         ws.closing_since = Some(now);
                         ws.queue.clear();
                         ws.queued_bytes = 0;
-                        close_started = true;
+                        websocket_timer_started = true;
                     } else {
+                        if matches!(message, Message::Ping(_)) {
+                            ws.awaiting_pong = true;
+                            ws.ping_due = ws.ping_interval.map(|interval| now + interval);
+                            websocket_timer_started = true;
+                        }
                         let _ = ws.context.write(&mut io, message);
                     }
                 }
@@ -810,7 +821,7 @@ impl EventLoop {
         if read_on {
             self.queue(index);
         }
-        if linger_starts || close_started || wait_starts {
+        if linger_starts || websocket_timer_started || wait_starts {
             self.arm_timer(index);
         }
     }
@@ -832,6 +843,7 @@ impl EventLoop {
                     self.websocket_send(&record);
                 }
                 OutboundKind::WebSocketAck => self.acknowledge(record.id),
+                OutboundKind::WebSocketPingInterval => self.websocket_ping_interval(&record),
                 OutboundKind::StreamPart => self.stream_part(record.id, record.body, false, true),
                 OutboundKind::StreamEnd => {
                     self.stream_part(record.id, b"", true, record.status == 0);
@@ -1089,6 +1101,46 @@ impl EventLoop {
         }
         connection.put(position, &out, data.len() as u64);
         self.touch(index);
+    }
+
+    fn websocket_ping_interval(&mut self, record: &ResponseRecord<'_>) {
+        let (Some(&index), Some(milliseconds)) =
+            (self.websockets.get(&record.id), record.body_word(0))
+        else {
+            return;
+        };
+        if let Some(ws) = self.connections[index].websocket.as_mut() {
+            let interval = Duration::from_millis(milliseconds).min(crate::limits::MAX_TIMEOUT);
+            ws.ping_interval = (!interval.is_zero()).then_some(interval);
+            ws.ping_due = ws.ping_interval.map(|interval| self.now + interval);
+            ws.awaiting_pong = false;
+            ws.queue
+                .retain(|message| !matches!(message, Message::Ping(_)));
+        }
+        self.arm_timer(index);
+    }
+
+    fn websocket_ping(&mut self, index: usize) {
+        let connection = &mut self.connections[index];
+        let Some(ws) = connection.websocket.as_mut() else {
+            return;
+        };
+        if ws.awaiting_pong {
+            ws.ping_due = None;
+            ws.queue.clear();
+            ws.queued_bytes = 0;
+            ws.queue
+                .push_back(Message::Close(close_frame(CloseCode::Away)));
+            if connection.pending() > 0 {
+                self.kill(index);
+                return;
+            }
+            connection.shut = true;
+        } else {
+            ws.ping_due = None;
+            ws.queue.push_front(Message::Ping(Bytes::new()));
+        }
+        self.service(index);
     }
 
     /// A message or the close from Dart for a WebSocket.

@@ -77,6 +77,8 @@ pub enum Due {
     Head,
     /// A closing WebSocket got no close frame back.
     WebSocketClose,
+    /// Send a heartbeat or close if the last one went unanswered.
+    WebSocketPing,
     /// A write made no progress: the client does not read.
     Send,
 }
@@ -552,6 +554,9 @@ impl Connection {
         }
         if let Some(since) = self.stuck_since {
             return Some((since + SEND_WAIT, Due::Send));
+        }
+        if let Some(at) = self.websocket.as_ref().and_then(|ws| ws.ping_due) {
+            return Some((at, Due::WebSocketPing));
         }
         if self.websocket.is_some() || self.body.is_some() {
             return None;

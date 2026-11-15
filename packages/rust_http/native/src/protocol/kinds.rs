@@ -63,6 +63,8 @@ pub enum OutboundKind {
     /// The end of a streamed body. Status 0: complete; else the connection
     /// is cut so the client sees a short body.
     StreamEnd,
+    /// The ping interval in milliseconds as a u64. Zero disables it.
+    WebSocketPingInterval,
 }
 
 impl OutboundKind {
@@ -79,6 +81,7 @@ impl OutboundKind {
             6 => Self::StreamStart,
             7 => Self::StreamPart,
             8 => Self::StreamEnd,
+            9 => Self::WebSocketPingInterval,
             _ => return None,
         })
     }
@@ -108,11 +111,11 @@ mod tests {
 
     #[test]
     fn outbound_kinds_round_trip_through_the_low_byte() {
-        for wire in 0..=8u16 {
+        for wire in 0..=9u16 {
             let kind = OutboundKind::from_wire(wire | answer_flags::GZIP);
             assert!(kind.is_some(), "kind {wire}");
         }
-        assert_eq!(OutboundKind::from_wire(9), None);
+        assert_eq!(OutboundKind::from_wire(10), None);
     }
 
     #[test]

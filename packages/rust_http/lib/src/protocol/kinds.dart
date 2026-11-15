@@ -70,7 +70,10 @@ enum OutboundKind {
   streamPart(7),
 
   /// Ends a streamed body.
-  streamEnd(8);
+  streamEnd(8),
+
+  /// Configures the WebSocket heartbeat.
+  webSocketPingInterval(9);
 
   const OutboundKind(this.wire);
 

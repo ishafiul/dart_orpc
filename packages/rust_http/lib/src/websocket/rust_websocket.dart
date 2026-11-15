@@ -117,10 +117,19 @@ final class RustWebSocket extends Stream<dynamic>
   @override
   String? get closeReason => _closeReason;
 
-  /// Rust answers the client's pings but sends none itself, so this has
-  /// no effect yet.
+  Duration? _pingInterval;
+
   @override
-  Duration? pingInterval;
+  Duration? get pingInterval => _pingInterval;
+
+  @override
+  set pingInterval(Duration? value) {
+    _pingInterval = value;
+    final milliseconds =
+        value?.inMilliseconds.clamp(1, 0x7fffffffffffffff) ?? 0;
+    final body = ByteData(8)..setUint64(0, milliseconds, Endian.little);
+    _send(OutboundKind.webSocketPingInterval, body.buffer.asUint8List());
+  }
 
   @override
   StreamSubscription<dynamic> listen(

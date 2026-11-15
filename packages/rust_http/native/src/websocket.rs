@@ -3,7 +3,7 @@
 
 use std::collections::VecDeque;
 use std::io::{ErrorKind, Read, Write};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use mio::net::TcpStream;
 use tungstenite::protocol::frame::coding::CloseCode;
@@ -37,6 +37,12 @@ pub struct WebSocketState {
     pub closing_since: Option<Instant>,
     /// Frames are not read: Dart or the client is behind.
     pub paused: bool,
+    /// Heartbeat interval, when enabled.
+    pub ping_interval: Option<Duration>,
+    /// Next ping or pong deadline.
+    pub ping_due: Option<Instant>,
+    /// A ping is outstanding.
+    pub awaiting_pong: bool,
 }
 
 impl WebSocketState {
@@ -55,6 +61,9 @@ impl WebSocketState {
             told_dart: false,
             closing_since: None,
             paused: false,
+            ping_interval: None,
+            ping_due: None,
+            awaiting_pong: false,
         }
     }
 }
