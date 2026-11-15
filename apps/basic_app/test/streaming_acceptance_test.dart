@@ -162,12 +162,17 @@ void main() {
     for (final MapEntry(key: request, value: result)
         in unknownKeyRequests.entries) {
       expect(result.statusCode, HttpStatus.badRequest, reason: request);
-      expect(
-        ((jsonDecode(result.body) as Map<String, Object?>)['error']
-            as Map<String, Object?>)['code'],
-        'BAD_REQUEST',
-        reason: request,
+      final error =
+          (jsonDecode(result.body) as Map<String, Object?>)['error']
+              as Map<String, Object?>;
+      expect(error['code'], 'BAD_REQUEST', reason: request);
+      // RPC and REST report the same structured issue for the same key.
+      final issues = parseRpcValidationIssues(
+        error['details'] as Map<String, Object?>?,
       );
+      expect(issues, hasLength(1), reason: request);
+      expect(issues.single.path, ['unknown'], reason: request);
+      expect(issues.single.code, 'unrecognizedKey', reason: request);
     }
     final unchanged = await send('POST', '/rpc', {
       'method': 'todo.getById',
