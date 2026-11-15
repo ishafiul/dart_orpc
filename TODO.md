@@ -54,7 +54,7 @@ No ready items.
 - [ ] **ERR-002 · P1 · Feature:** Return structured validation issues (field path
   and message) from the Luthor bridge instead of one flattened string.
   Tracked by [#54](https://github.com/ishafiul/dart_orpc/issues/54) (PRD
-  [#96](https://github.com/ishafiul/dart_orpc/issues/96)); the issue model (#102) done; luthor input issues (#103) in review.
+  [#96](https://github.com/ishafiul/dart_orpc/issues/96)); the issue model (#102) and luthor input issues (#103) done; REST decoding issues (#104) in review.
 - [ ] **ERR-003 · P1 · Feature:** Allow application-defined typed error codes beyond
   the closed `RpcErrorCode` enum.
 - [ ] **ERR-004 · P1 · Feature:** Add a centralized exception-mapping hook that turns
