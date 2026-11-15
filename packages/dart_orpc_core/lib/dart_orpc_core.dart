@@ -15,3 +15,4 @@ export 'src/rpc_procedure.dart';
 export 'src/rpc_procedure_registry.dart';
 export 'src/rpc_request.dart';
 export 'src/rpc_response.dart';
+export 'src/rpc_validation_issue.dart';
