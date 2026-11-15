@@ -93,7 +93,7 @@ String _decodeRestBodyExpression(
     return "(rawBody) => expectJsonObject(rawBody, context: '$bodyContext')";
   }
   if (_isSupportedRestScalarType(parameter.typeCode)) {
-    return "(rawBody) => decodeRestJsonValue<${parameter.typeCode}>(rawValue: rawBody, source: 'body parameter', name: '${parameter.parameterName}', route: '$routeLabel')";
+    return "(rawBody) => decodeRestJsonValue<${parameter.typeCode}>(rawValue: rawBody, source: 'body parameter', name: '${parameter.parameterName}', issuePath: const [], route: '$routeLabel')";
   }
   if (parameter.usesLuthor) {
     return "(rawBody) => decodeRpcInputWithLuthor<${parameter.typeCode}>(rawInput: rawBody, method: '$bodyContext', validate: \$${parameter.typeName!}Validate)";
@@ -134,20 +134,27 @@ void _appendRestRpcInputAssignments(
 ) {
   for (final pathField in restRpcInput.pathFields) {
     lines.add(
-      "rawInput['${pathField.name}'] = decodeRestScalarParameter<${pathField.typeCode}>(rawValue: pathParameters['${pathField.wireName}'], source: 'path parameter', name: '${pathField.wireName}', route: '$routeLabel');",
+      "rawInput['${pathField.name}'] = decodeRestScalarParameter<${pathField.typeCode}>(rawValue: pathParameters['${pathField.wireName}'], source: 'path parameter', name: '${pathField.wireName}',${_inputKeyArgument(pathField)} route: '$routeLabel');",
     );
   }
   for (final queryField in restRpcInput.queryFields) {
     lines.add(
-      "rawInput['${queryField.name}'] = decodeRestScalarParameter<${queryField.typeCode}>(rawValue: request.queryParameters['${queryField.wireName}'], source: 'query parameter', name: '${queryField.wireName}', route: '$routeLabel');",
+      "rawInput['${queryField.name}'] = decodeRestScalarParameter<${queryField.typeCode}>(rawValue: request.queryParameters['${queryField.wireName}'], source: 'query parameter', name: '${queryField.wireName}',${_inputKeyArgument(queryField)} route: '$routeLabel');",
     );
   }
   for (final headerField in restRpcInput.headerFields) {
     lines.add(
-      "rawInput['${headerField.name}'] = decodeRestScalarParameter<${headerField.typeCode}>(rawValue: lookupRestHeader(request.headers, '${_escapeDartString(headerField.wireName)}'), source: 'header', name: '${_escapeDartString(headerField.wireName)}', route: '$routeLabel');",
+      "rawInput['${headerField.name}'] = decodeRestScalarParameter<${headerField.typeCode}>(rawValue: lookupRestHeader(request.headers, '${_escapeDartString(headerField.wireName)}'), source: 'header', name: '${_escapeDartString(headerField.wireName)}',${_inputKeyArgument(headerField)} route: '$routeLabel');",
     );
   }
 }
+
+/// The `inputKey:` argument naming the DTO JSON key a REST value fills, so
+/// its validation issue uses that key; empty when the wire name is the key.
+String _inputKeyArgument(_ResolvedRestInputField field) =>
+    field.jsonKey == field.wireName
+    ? ''
+    : " inputKey: '${_escapeDartString(field.jsonKey)}',";
 
 void _ensureUniqueWireNames(
   List<FormalParameterElement> parameters, {
