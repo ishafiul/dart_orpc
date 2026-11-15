@@ -33,6 +33,7 @@ void main() {
           ),
         ]),
         maxRequestBodyBytes: limit,
+        serverOptions: const RpcHttpServerOptions(cors: CorsOptions()),
         encodeJsonToBytes: bytes,
       );
 
@@ -66,6 +67,7 @@ void main() {
           request.add([1, 2, 3, 4, 5]);
           final response = await request.close();
           expect(response.statusCode, HttpStatus.requestEntityTooLarge);
+          expect(response.headers.value('access-control-allow-origin'), '*');
           expect(jsonDecode(await utf8.decodeStream(response)), {
             'error': {
               'code': 'PAYLOAD_TOO_LARGE',

@@ -11,6 +11,7 @@ environment:
 dependencies:
   dart_orpc_core: ^0.1.0-dev.6
   dotenv: ^4.2.0
+  rust_http: ^0.1.0-dev.1
 
 dev_dependencies:
   test: ^1.33.0

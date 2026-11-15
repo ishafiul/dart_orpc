@@ -1,10 +1,10 @@
 # rust_http
 
-A native HTTP/1.1 server for Dart. Rust owns the sockets and parses HTTP;
-your handlers stay in Dart and use the `dart:io` `HttpServer` API, so code
-written for `dart:io` runs unchanged.
+A native HTTP/1.1 server for Dart. Rust owns the sockets and parses HTTP.
+Your handlers stay in Dart and use the `dart:io` `HttpServer` API.
 
-> Status: experimental. `dart_orpc_http` still runs on `dart:io`.
+> Status: experimental. Set `DART_ORPC_HTTP_BACKEND=rust` to opt in for
+> `dart_orpc_http`. The default backend is `dart:io`.
 
 ## Usage
 
@@ -32,11 +32,15 @@ Every class implements its `dart:io` interface:
 | `RustHttpHeaders` | `HttpHeaders` |
 | `RustWebSocket` | `WebSocket` |
 
-`RustHttpServer.bind` accepts an address, body size and timeout limits,
-a connection limit, and a port-sharing option.
+Pass `shared: true` to `RustHttpServer.bind` on each listener that should
+share a port. Pass `streamRequestBodies: true` to receive upload chunks
+as they arrive and handle native body read failures in the request stream.
 
-WebSockets: check `RustWebSocket.isUpgradeRequest(request)`, then
-`await RustWebSocket.upgrade(request, protocol: ..., maxMessageSize: ...)`.
+For WebSockets, check `RustWebSocket.isUpgradeRequest(request)` and call
+`RustWebSocket.upgrade(request, protocolSelector: ...)`. The same calls
+work with `dart:io` requests. Set `socket.pingInterval` to detect peers
+that stop responding. During graceful shutdown, the app controls when
+to close its upgraded sockets.
 
 ## Supported platforms
 
