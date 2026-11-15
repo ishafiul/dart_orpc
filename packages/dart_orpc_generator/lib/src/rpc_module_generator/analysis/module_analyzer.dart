@@ -61,6 +61,7 @@ final class _ModuleAnalyzer {
       openApiSchemaComponents: openApiSchemaComponents,
       dtoSchemas: dtoSchemas.schemas,
       dtoSchemaPackages: dtoSchemas.packages,
+      unannotatedDtoSchemas: dtoSchemas.unannotated,
       containerMembers: [
         for (final instantiation in allProviderInstantiations)
           _GeneratedContainerMember(

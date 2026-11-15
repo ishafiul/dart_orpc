@@ -20,6 +20,7 @@ final class _ModuleGenerationPlan {
     required this.openApiSchemaComponents,
     required this.dtoSchemas,
     required this.dtoSchemaPackages,
+    required this.unannotatedDtoSchemas,
     required this.containerMembers,
     required this.externalProviderRequirements,
   });
@@ -41,8 +42,12 @@ final class _ModuleGenerationPlan {
   final List<DtoSchemaMetadata> dtoSchemas;
 
   /// Packages that own [dtoSchemas]; their build configuration affects the
-  /// DTOs' wire names.
+  /// DTOs' wire names and unknown-key modes.
   final Set<String> dtoSchemaPackages;
+
+  /// Names of [dtoSchemas] whose `@Luthor` sets no `unknownKeys`, with the
+  /// package that owns each, or `null` outside any package's `lib/`.
+  final Map<String, String?> unannotatedDtoSchemas;
   final List<_GeneratedContainerMember> containerMembers;
   final List<_ExternalProviderRequirement> externalProviderRequirements;
 }

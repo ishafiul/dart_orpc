@@ -3,6 +3,7 @@ part of '../../rpc_module_generator.dart';
 void _writeDtoSchemaSections(
   StringBuffer buffer,
   _ModuleGenerationPlan context,
+  List<DtoSchemaMetadata> dtoSchemas,
 ) {
   final names = context.generatedNames;
   buffer
@@ -10,11 +11,11 @@ void _writeDtoSchemaSections(
     ..writeln(
       'DtoSchemaRegistry ${names.createLocalDtoSchemaRegistryName}() {',
     );
-  if (context.dtoSchemas.isEmpty) {
+  if (dtoSchemas.isEmpty) {
     buffer.writeln('  return DtoSchemaRegistry(const []);');
   } else {
     buffer.writeln('  return DtoSchemaRegistry(const [');
-    for (final schema in context.dtoSchemas) {
+    for (final schema in dtoSchemas) {
       buffer.writeln('${_dtoSchemaLiteral(schema)},');
     }
     buffer.writeln('  ]);');
@@ -51,6 +52,11 @@ String _dtoSchemaLiteral(DtoSchemaMetadata schema) {
       buffer.writeln('        ${_dtoFieldLiteral(field)},');
     }
     buffer.writeln('      ],');
+  }
+  if (schema.unknownKeys != DtoUnknownKeys.strip) {
+    buffer.writeln(
+      '      unknownKeys: DtoUnknownKeys.${schema.unknownKeys.name},',
+    );
   }
   buffer.write('    )');
   return buffer.toString();

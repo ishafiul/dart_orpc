@@ -297,6 +297,30 @@ class CodedEnumDto {
 
   final Coded coded;
 }
+
+@Luthor(unknownKeys: .strict)
+class StrictDto {
+  const StrictDto({required this.id});
+
+  final String id;
+}
+
+@Luthor(unknownKeys: UnknownKeys.passthrough)
+class PassthroughDto {
+  const PassthroughDto({required this.id});
+
+  final String id;
+}
+
+Object? _readWhole(Map<dynamic, dynamic> json, String key) => json;
+
+@luthor
+class ReadValueDto {
+  const ReadValueDto({required this.whole});
+
+  @JsonKey(readValue: _readWhole)
+  final Map<String, Object?> whole;
+}
 ''';
 
 void main() {
@@ -546,8 +570,56 @@ void main() {
     });
   });
 
+  group('Given DTOs with luthor unknown-key modes', () {
+    test('When the annotation sets strict then the schema is strict', () {
+      return _extract('StrictDto', (extraction) {
+        expect(extraction.schema.unknownKeys, DtoUnknownKeys.strict);
+        expect(extraction.annotatedUnknownKeys, DtoUnknownKeys.strict);
+      });
+    });
+
+    test('When the annotation sets passthrough then it is kept', () {
+      return _extract('PassthroughDto', (extraction) {
+        expect(extraction.schema.unknownKeys, DtoUnknownKeys.passthrough);
+      });
+    });
+
+    test('When the annotation sets no mode then the default applies', () {
+      return resolveSource(_fixture, (resolver) async {
+        final dto = await _class(resolver, 'AddressDto');
+
+        final stripped = extractDtoSchema(dto);
+        final strict = extractDtoSchema(
+          dto,
+          defaultUnknownKeys: DtoUnknownKeys.strict,
+        );
+
+        expect(stripped.schema.unknownKeys, DtoUnknownKeys.strip);
+        expect(stripped.annotatedUnknownKeys, isNull);
+        expect(strict.schema.unknownKeys, DtoUnknownKeys.strict);
+      }, readAllSourcesFromFilesystem: true);
+    });
+
+    test('When an annotated mode meets a default then the annotation wins', () {
+      return resolveSource(_fixture, (resolver) async {
+        final dto = await _class(resolver, 'PassthroughDto');
+
+        final extraction = extractDtoSchema(
+          dto,
+          defaultUnknownKeys: DtoUnknownKeys.strict,
+        );
+
+        expect(extraction.schema.unknownKeys, DtoUnknownKeys.passthrough);
+      }, readAllSourcesFromFilesystem: true);
+    });
+  });
+
   group('Given DTO shapes that cannot be described', () {
     for (final (dto, message) in [
+      (
+        'ReadValueDto',
+        'DTO "ReadValueDto" field "whole" uses JsonKey readValue',
+      ),
       ('GenericDto', 'DTO "GenericDto" is generic'),
       ('SealedDto', 'DTO "SealedDto" is sealed'),
       ('UnionDto', 'DTO "UnionDto" is a union'),

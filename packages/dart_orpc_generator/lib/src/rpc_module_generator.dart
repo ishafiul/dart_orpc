@@ -14,6 +14,7 @@ import 'package:source_gen/source_gen.dart';
 import 'analysis/dto_field_discovery.dart';
 import 'analysis/dto_schema_extraction.dart';
 import 'analysis/json_serializable_config.dart';
+import 'analysis/luthor_build_config.dart';
 import 'contracts/rest_route_pattern.dart';
 import 'graph/depth_first_search.dart';
 import 'graph/topological_sort.dart';
