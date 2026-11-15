@@ -174,6 +174,28 @@ void main() {
       expect(issues.single.path, ['unknown'], reason: request);
       expect(issues.single.code, 'unrecognizedKey', reason: request);
     }
+    // A bad id reports the same issue whether REST decoding or luthor
+    // validation catches it.
+    final badIdRequests = {
+      'REST GET /todos/nope': await send('GET', '/todos/nope', null),
+      'RPC todo.getById': await send('POST', '/rpc', {
+        'method': 'todo.getById',
+        'input': {'id': 'nope'},
+      }),
+    };
+    for (final MapEntry(key: request, value: result) in badIdRequests.entries) {
+      expect(result.statusCode, HttpStatus.badRequest, reason: request);
+      final error =
+          (jsonDecode(result.body) as Map<String, Object?>)['error']
+              as Map<String, Object?>;
+      final issues = parseRpcValidationIssues(
+        error['details'] as Map<String, Object?>?,
+      );
+      expect(issues, hasLength(1), reason: request);
+      expect(issues.single.path, ['id'], reason: request);
+      expect(issues.single.code, 'invalidType', reason: request);
+    }
+
     final unchanged = await send('POST', '/rpc', {
       'method': 'todo.getById',
       'input': {'id': created.id},
@@ -514,7 +536,7 @@ Future<_HttpResult> _send(
   if (authorization != null) {
     request.headers.set('authorization', 'Bearer $authorization');
   }
-  request.write(jsonEncode(body));
+  if (body != null) request.write(jsonEncode(body));
   final response = await request.close();
   return _HttpResult(
     statusCode: response.statusCode,
