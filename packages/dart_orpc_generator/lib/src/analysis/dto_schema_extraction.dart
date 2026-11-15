@@ -188,8 +188,17 @@ final class _DtoSchemaExtractor {
     final jsonKey = _firstAnnotation(sources, 'json_annotation', 'JsonKey');
     final jsonKeyReader = jsonKey == null ? null : ConstantReader(jsonKey);
     if (_isTrue(jsonKeyReader, 'ignore') ||
-        _isFalse(jsonKeyReader, 'includeFromJson') ||
-        _isFalse(jsonKeyReader, 'includeToJson')) {
+        _isFalse(jsonKeyReader, 'includeFromJson')) {
+      return null;
+    }
+    if (!(jsonKeyReader?.peek('readValue')?.isNull ?? true)) {
+      _fail(
+        'DTO "$_dtoName" field "$name" uses JsonKey readValue, which can '
+        'read keys the schema does not declare',
+        parameter,
+      );
+    }
+    if (_isFalse(jsonKeyReader, 'includeToJson')) {
       return null;
     }
 
@@ -198,13 +207,6 @@ final class _DtoSchemaExtractor {
       _fail(
         'DTO "$_dtoName" field "$name" uses JsonKey fromJson/toJson, whose '
         'JSON type cannot be described',
-        parameter,
-      );
-    }
-    if (!(jsonKeyReader?.peek('readValue')?.isNull ?? true)) {
-      _fail(
-        'DTO "$_dtoName" field "$name" uses JsonKey readValue, which can '
-        'read keys the schema does not declare',
         parameter,
       );
     }

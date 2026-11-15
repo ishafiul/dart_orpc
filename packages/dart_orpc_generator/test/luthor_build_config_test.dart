@@ -17,7 +17,7 @@ global_options:
   luthor_generator:luthor:
 $sections''';
 
-DtoUnknownKeys? _find(
+DtoUnknownKeys _find(
   Map<String, String?> buildYamlByPackage, {
   String package = _root,
 }) => findLuthorUnknownKeys(
@@ -30,10 +30,10 @@ void main() {
   _applyTests();
 
   group('Given build.yaml files without the luthor option', () {
-    test('When resolved then no mode is set', () {
-      expect(_find({_root: null}), isNull);
-      expect(_find({_root: 'targets: {}'}), isNull);
-      expect(_find({_root: ': not yaml ['}), isNull);
+    test('When resolved then strip applies by default', () {
+      expect(_find({_root: null}), DtoUnknownKeys.strip);
+      expect(_find({_root: 'targets: {}'}), DtoUnknownKeys.strip);
+      expect(_find({_root: ': not yaml ['}), DtoUnknownKeys.strip);
     });
   });
 
@@ -65,7 +65,43 @@ void main() {
         ),
       });
 
-      expect(mode, isNull);
+      expect(mode, DtoUnknownKeys.strip);
+    });
+  });
+
+  group('Given disjoint build targets', () {
+    const targets = '''
+targets:
+  \$default:
+    sources: [lib/strict/**]
+    builders:
+      luthor_generator:luthor:
+        options:
+          unknown_keys: strict
+  other:
+    sources: [lib/other/**]
+''';
+
+    test('When their effective modes differ then resolution fails', () {
+      expect(
+        () => _find({_root: targets}),
+        throwsA(
+          isA<LuthorUnknownKeysConfigException>().having(
+            (error) => error.message,
+            'message',
+            contains(r'build targets ($default: strict, other: strip)'),
+          ),
+        ),
+      );
+    });
+
+    test('When a root option makes both modes agree then it applies', () {
+      final mode = _find({
+        _root:
+            '$targets${_global('    options:\n      unknown_keys: passthrough\n')}',
+      });
+
+      expect(mode, DtoUnknownKeys.passthrough);
     });
   });
 
@@ -90,17 +126,36 @@ void main() {
       expect(mode, DtoUnknownKeys.strict);
     });
 
+    test('When a global option clears a target mode then strip applies', () {
+      final mode = _find({
+        _root: _global('    options:\n      unknown_keys: null\n'),
+        _dependency: _target(
+          '        options:\n          unknown_keys: strict\n',
+        ),
+      }, package: _dependency);
+
+      expect(mode, DtoUnknownKeys.strip);
+    });
+
     test('When a dependency sets global_options then they are ignored', () {
       final mode = _find({
         _root: null,
         _dependency: _global('    options:\n      unknown_keys: strict\n'),
       }, package: _dependency);
 
-      expect(mode, isNull);
+      expect(mode, DtoUnknownKeys.strip);
     });
   });
 
   group('Given dev_options and release_options', () {
+    test('When only development sets strip then both modes agree', () {
+      final mode = _find({
+        _root: _target('        dev_options:\n          unknown_keys: strip\n'),
+      });
+
+      expect(mode, DtoUnknownKeys.strip);
+    });
+
     test('When both override options alike then that mode applies', () {
       final mode = _find({
         _root: _target(
@@ -124,7 +179,7 @@ void main() {
           isA<LuthorUnknownKeysConfigException>().having(
             (error) => error.message,
             'message',
-            contains('"strict" in development builds but "null" in release'),
+            contains('"strict" in development builds but "strip" in release'),
           ),
         ),
       );

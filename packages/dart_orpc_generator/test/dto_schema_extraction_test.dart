@@ -321,6 +321,14 @@ class ReadValueDto {
   @JsonKey(readValue: _readWhole)
   final Map<String, Object?> whole;
 }
+
+@luthor
+class InputOnlyReadValueDto {
+  const InputOnlyReadValueDto({required this.whole});
+
+  @JsonKey(includeToJson: false, readValue: _readWhole)
+  final Map<String, Object?> whole;
+}
 ''';
 
 void main() {
@@ -619,6 +627,10 @@ void main() {
       (
         'ReadValueDto',
         'DTO "ReadValueDto" field "whole" uses JsonKey readValue',
+      ),
+      (
+        'InputOnlyReadValueDto',
+        'DTO "InputOnlyReadValueDto" field "whole" uses JsonKey readValue',
       ),
       ('GenericDto', 'DTO "GenericDto" is generic'),
       ('SealedDto', 'DTO "SealedDto" is sealed'),

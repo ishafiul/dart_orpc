@@ -19,7 +19,7 @@ final class LuthorUnknownKeysConfigException implements Exception {
 }
 
 /// The luthor_generator `unknown_keys` builder option for DTOs owned by
-/// [package], or `null` when none is set and luthor strips unknown keys.
+/// [package], defaulting to [DtoUnknownKeys.strip].
 ///
 /// [buildYamlByPackage] maps package names to their `build.yaml` contents,
 /// or `null` when a package has none. Options combine as build_runner
@@ -28,38 +28,68 @@ final class LuthorUnknownKeysConfigException implements Exception {
 /// own `dev_options` or `release_options`, each overriding the last.
 ///
 /// Throws a [LuthorUnknownKeysConfigException] when the value is not a mode,
-/// or when development and release builds would use different modes, since
-/// one set of generated metadata can't describe both.
-DtoUnknownKeys? findLuthorUnknownKeys({
+/// or when targets or build modes disagree on the effective mode.
+DtoUnknownKeys findLuthorUnknownKeys({
   required String rootPackage,
   required String package,
   required Map<String, String?> buildYamlByPackage,
 }) {
-  final target = _targetBuilderConfig(buildYamlByPackage[package]);
   final global = _globalBuilderConfig(buildYamlByPackage[rootPackage]);
+  final targets = _load(buildYamlByPackage[package])?['targets'];
+  final targetConfigs = targets is YamlMap && targets.isNotEmpty
+      ? targets.entries
+      : const [MapEntry(r'$default', null)];
+  final modesByTarget = <Object?, DtoUnknownKeys>{};
+  for (final MapEntry(:key, :value) in targetConfigs) {
+    final target = _luthorConfigIn(value is YamlMap ? value['builders'] : null);
+    modesByTarget[key] = _resolveMode(global, target, package, key);
+  }
+  final modes = modesByTarget.values.toSet();
+  if (modes.length == 1) return modes.single;
 
-  Object? resolve(String modeSection) =>
-      _option(global, modeSection) ??
-      _option(global, 'options') ??
-      _option(target, modeSection) ??
-      _option(target, 'options');
+  final conflictingTargets = modesByTarget.entries
+      .map((entry) => '${entry.key}: ${entry.value.name}')
+      .join(', ');
+  throw LuthorUnknownKeysConfigException(
+    'luthor_generator unknown_keys for package "$package" differs across '
+    'build targets ($conflictingTargets). Use the same mode across targets, '
+    'or set @Luthor(unknownKeys: ...) on each DTO.',
+  );
+}
+
+DtoUnknownKeys _resolveMode(
+  YamlMap? global,
+  YamlMap? target,
+  String package,
+  Object? targetName,
+) {
+  Object resolve(String modeSection) {
+    final options = {
+      ...?_options(target, 'options'),
+      ...?_options(target, modeSection),
+      ...?_options(global, 'options'),
+      ...?_options(global, modeSection),
+    };
+    return options[_unknownKeysOption] ?? DtoUnknownKeys.strip.name;
+  }
 
   final dev = resolve('dev_options');
   final release = resolve('release_options');
   if (dev != release) {
     throw LuthorUnknownKeysConfigException(
-      'luthor_generator unknown_keys for package "$package" is "$dev" in '
+      'luthor_generator unknown_keys for package "$package", target '
+      '"$targetName", is "$dev" in '
       'development builds but "$release" in release builds. Use the same '
       'mode in both, or set @Luthor(unknownKeys: ...) on each DTO.',
     );
   }
-  if (dev == null) return null;
   for (final mode in DtoUnknownKeys.values) {
     if (mode.name == dev) return mode;
   }
   throw LuthorUnknownKeysConfigException(
-    'luthor_generator unknown_keys for package "$package" is "$dev"; it must '
-    'be one of ${DtoUnknownKeys.values.map((mode) => mode.name).join(', ')}.',
+    'luthor_generator unknown_keys for package "$package", target '
+    '"$targetName", is "$dev"; it must be one of '
+    '${DtoUnknownKeys.values.map((mode) => mode.name).join(', ')}.',
   );
 }
 
@@ -68,7 +98,7 @@ DtoUnknownKeys? findLuthorUnknownKeys({
 ///
 /// [unannotated] maps those DTO names to their owning package, or `null`
 /// for DTOs outside any package's `lib/`, which use [rootPackage]'s option.
-/// Other schemas, and DTOs whose package sets no option, are unchanged.
+/// Schemas with an explicit annotation keep their mode.
 /// Throws what [findLuthorUnknownKeys] throws.
 List<DtoSchemaMetadata> applyLuthorUnknownKeys(
   List<DtoSchemaMetadata> schemas, {
@@ -76,8 +106,8 @@ List<DtoSchemaMetadata> applyLuthorUnknownKeys(
   required Map<String, String?> unannotated,
   required Map<String, String?> buildYamlByPackage,
 }) {
-  final modeByPackage = <String, DtoUnknownKeys?>{};
-  DtoUnknownKeys? modeFor(String package) => modeByPackage.putIfAbsent(
+  final modeByPackage = <String, DtoUnknownKeys>{};
+  DtoUnknownKeys modeFor(String package) => modeByPackage.putIfAbsent(
     package,
     () => findLuthorUnknownKeys(
       rootPackage: rootPackage,
@@ -101,19 +131,6 @@ List<DtoSchemaMetadata> applyLuthorUnknownKeys(
   ];
 }
 
-/// The luthor builder's entry in the first target of [buildYaml] that
-/// configures it.
-YamlMap? _targetBuilderConfig(String? buildYaml) {
-  final targets = _load(buildYaml)?['targets'];
-  if (targets is! YamlMap) return null;
-  for (final target in targets.values) {
-    final builders = target is YamlMap ? target['builders'] : null;
-    final config = _luthorConfigIn(builders);
-    if (config != null) return config;
-  }
-  return null;
-}
-
 YamlMap? _globalBuilderConfig(String? buildYaml) =>
     _luthorConfigIn(_load(buildYaml)?['global_options']);
 
@@ -125,9 +142,9 @@ YamlMap? _luthorConfigIn(Object? builders) {
   return null;
 }
 
-Object? _option(YamlMap? config, String section) {
+YamlMap? _options(YamlMap? config, String section) {
   final options = config?[section];
-  return options is YamlMap ? options[_unknownKeysOption] : null;
+  return options is YamlMap ? options : null;
 }
 
 YamlMap? _load(String? buildYaml) {
