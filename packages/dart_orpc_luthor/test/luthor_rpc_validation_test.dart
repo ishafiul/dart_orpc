@@ -114,10 +114,13 @@ void main() {
           toJson: (output) => output.toJson(),
           validate: _validateTestDto,
         ),
-        _throwsRpc(
-          RpcErrorCode.internalError,
-          'Invalid RPC output for "user.getById": id: $_tooShort',
-        ),
+        _throwsOutputFailure('user.getById', [
+          RpcValidationIssue(
+            path: ['id'],
+            code: 'tooShort',
+            message: _tooShort,
+          ),
+        ]),
       );
     });
 
@@ -134,6 +137,28 @@ void main() {
           {'id': '1'},
         ],
       });
+    });
+
+    test('When output fails then the diagnostic leaves out the payload', () {
+      final schema = l.schema({'token': l.string().max(3).required()});
+      Object? caught;
+      try {
+        encodeRpcOutputJsonWithLuthor<Map<String, Object?>>(
+          output: {'token': 'super-secret-value'},
+          method: 'auth.token',
+          toJson: (output) => output,
+          validateJson: schema.validate,
+        );
+      } on RpcException catch (error) {
+        caught = error;
+      }
+
+      final error = caught! as RpcException;
+      final diagnostic = error.diagnostic! as RpcOutputValidationDiagnostic;
+      expect(diagnostic.issues.single.path, ['token']);
+      expect(diagnostic.issues.single.code, 'tooLong');
+      expect('$error', isNot(contains('super-secret-value')));
+      expect('${error.toResponse().toJson()}', isNot(contains('token')));
     });
 
     test('When output JSON is validated then no DTO is rebuilt', () {
@@ -160,10 +185,13 @@ void main() {
           toJson: (output) => output.toJson(),
           validateJson: _testDtoSchema.validate,
         ),
-        _throwsRpc(
-          RpcErrorCode.internalError,
-          'Invalid RPC output for "user.getById": id: $_tooShort',
-        ),
+        _throwsOutputFailure('user.getById', [
+          RpcValidationIssue(
+            path: ['id'],
+            code: 'tooShort',
+            message: _tooShort,
+          ),
+        ]),
       );
     });
 
@@ -371,6 +399,23 @@ List<RpcValidationIssue> _inputIssues<T>(
 
 /// luthor 1.1's message for an empty `id` with `min(1)`.
 const _tooShort = 'id must be at least 1 character long';
+
+/// A generic `INTERNAL_ERROR` whose server-only diagnostic names [method]
+/// and [issues], with nothing about them in the client-visible fields.
+Matcher _throwsOutputFailure(String method, List<RpcValidationIssue> issues) =>
+    throwsA(
+      isA<RpcException>()
+          .having((error) => error.code, 'code', RpcErrorCode.internalError)
+          .having((error) => error.message, 'message', 'Internal server error.')
+          .having((error) => error.details, 'details', isNull)
+          .having(
+            (error) => error.diagnostic,
+            'diagnostic',
+            isA<RpcOutputValidationDiagnostic>()
+                .having((diagnostic) => diagnostic.method, 'method', method)
+                .having((diagnostic) => diagnostic.issues, 'issues', issues),
+          ),
+    );
 
 Matcher _throwsRpc(RpcErrorCode code, String message) => throwsA(
   isA<RpcException>()

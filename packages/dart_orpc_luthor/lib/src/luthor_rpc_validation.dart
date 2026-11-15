@@ -54,7 +54,7 @@ Object _pathSegment(Object segment) =>
     : '$segment';
 
 /// Encodes [output] with [toJson] and checks it by decoding it again with
-/// [validate]. Failures become `INTERNAL_ERROR`.
+/// [validate]. Failures become a generic `INTERNAL_ERROR`.
 JsonObject encodeRpcOutputWithLuthor<T>({
   required T output,
   required String method,
@@ -73,7 +73,7 @@ JsonObject encodeRpcOutputWithLuthor<T>({
 /// deserializing it back into a DTO.
 ///
 /// Generated code uses this for output DTOs whose runtime type the handler
-/// has already checked. Failures become `INTERNAL_ERROR`.
+/// has already checked. Failures become a generic `INTERNAL_ERROR`.
 JsonObject encodeRpcOutputJsonWithLuthor<T>({
   required T output,
   required String method,
@@ -88,14 +88,25 @@ JsonObject encodeRpcOutputJsonWithLuthor<T>({
   return _validatedOutput(json, method, validateJson(json));
 }
 
+/// [json] when [result] passed; otherwise a generic `INTERNAL_ERROR`.
+///
+/// Output failures are the server's fault and can name internal fields, so
+/// clients only see `Internal server error.`. The issues travel in the
+/// exception's server-only `diagnostic` to `onError` hooks; the output
+/// payload is not included.
 JsonObject _validatedOutput<T>(
   JsonObject json,
   String method,
   ValidationResult<T> result,
 ) => switch (result) {
   ValidationSuccess<T>() => json,
-  ValidationFailure<T>(:final issues) => throw RpcException.internalError(
-    'Invalid RPC output for "$method": ${_formatIssues(issues)}',
+  ValidationFailure<T>(:final issues) => throw RpcException(
+    code: RpcErrorCode.internalError,
+    message: 'Internal server error.',
+    diagnostic: RpcOutputValidationDiagnostic(
+      method: method,
+      issues: [for (final issue in issues) _toRpcIssue(issue)],
+    ),
   ),
 };
 
