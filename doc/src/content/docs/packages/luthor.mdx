@@ -13,10 +13,18 @@ This package re-exports Luthor and adapts its schema results to framework errors
 | `LuthorValidator<T>` | `ValidationResult<T> Function(Object? json)`, such as a generated `$XValidate` |
 | `LuthorJsonValidator` | JSON-only validation, such as a generated schema's `validate` |
 
-The input decoder takes `rawInput`, `method` and one `validate` function. Output bridges take `output`, `method`, `toJson` and their validator. Validators must not mutate the JSON they receive. Keys a DTO does not declare follow its luthor unknown-key mode: stripped by default, kept with `@Luthor(unknownKeys: .passthrough)`, or rejected as `BAD_REQUEST` with `@Luthor(unknownKeys: .strict)`. Without an annotation, the `luthor_generator:luthor` `unknown_keys` builder option in the DTO package's `build.yaml` (or the root package's `global_options`) applies. Strict DTOs are documented with `additionalProperties: false`. A DTO field using `@JsonKey(readValue: ...)` fails the build, because it can read keys the schema does not declare.
+## Upgrade bridge calls to Luthor 1.1
+
+Regenerate application code after updating both `luthor` and `luthor_generator` to 1.1. In handwritten bridge calls, replace uses of `validateReadOnly` and `LuthorReadOnlySchemaValidator` with a single `validate` callback that returns Luthor's `ValidationResult<T>`. Use the generated DTO callback or call its schema's `validateSchema(json, fromJson: Dto.fromJson)`. Validators must leave the JSON they receive unmodified.
+
+Output bridges take `output`, `method`, and `toJson`. Pass `validate` to `encodeRpcOutputWithLuthor` or `validateJson` to `encodeRpcOutputJsonWithLuthor`.
+
+## Unknown keys
+
+Luthor strips undeclared keys by default. Use `@Luthor(unknownKeys: .passthrough)` to pass them to the decoder or `@Luthor(unknownKeys: .strict)` to reject them with `BAD_REQUEST` on input. An explicit DTO mode takes precedence over the `luthor_generator:luthor` `unknown_keys` builder option in the DTO package's `build.yaml` or the root package's `global_options`. Strict DTOs are documented with `additionalProperties: false`. A DTO field using `@JsonKey(readValue: ...)` fails the build because it can read keys the schema cannot describe.
 
 For DTOs that rely on builder options, the effective mode must agree across the package's build targets and across development and release builds. Set `@Luthor(unknownKeys: ...)` explicitly on DTOs in packages that need conflicting builder options.
 
-Use `@HasMin(1)` for the non-empty title example, not invented `@LString`/`@LInt` annotations. See [DTOs and Validation](/dart-orpc/guides/procedures-and-dtos) and [Create an Application](/dart-orpc/guides/create-an-app) for complete supported source patterns.
+See [DTOs and Validation](/dart-orpc/guides/procedures-and-dtos) for a strict input DTO with a non-empty title.
 
-Validation issues are formatted into `error.message` as `path: message` entries joined by `; `; the framework does not add a structured `details` array. OpenAPI components come from build-time DTO metadata, not from the validators.
+Validation issues are formatted into `error.message` as `path: message` entries joined by semicolons. The bridge leaves `error.details` unset. OpenAPI components come from build-time DTO metadata.

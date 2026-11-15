@@ -7,7 +7,7 @@ description: Configure document information and routes, generate schemas from DT
 
 OpenAPI is a machine-readable description of HTTP operations, input/output schemas, response statuses, and security requirements. Scalar is the interactive page that lets people browse and try that description.
 
-In dart_orpc, the document is derived from procedure/REST metadata and Luthor schemas. You do not maintain a second controller parser or manually duplicate every route in a YAML specification.
+In dart_orpc, the document comes from generated procedure, REST, and DTO schema metadata.
 
 ## Enable and name the docs
 
@@ -76,7 +76,7 @@ For a bearer-protected contract, `@BearerAuth(guard: ApiTokenGuard)` adds the se
 
 ## Schema generation and current scope
 
-The current implementation emits OpenAPI **3.0.3**. Luthor validators supply rich DTO schema components. Plain DTOs can serialize successfully while providing less documented schema detail; use validated DTOs when constraints matter to consumers.
+The current implementation emits OpenAPI **3.0.3**. The generator extracts DTO fields and supported Luthor constraints at build time. Luthor validates actual requests at runtime. See [the OpenAPI package reference](/dart-orpc/packages/openapi) for documented schema behavior.
 
 The current paths describe explicit REST/SSE projections. An RPC-only procedure remains callable by the generated client but does not automatically become its own OpenAPI HTTP path. WebSocket framing is documented separately in the framework protocol guide.
 

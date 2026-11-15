@@ -32,7 +32,7 @@ Plain DTOs need a compatible `fromJson(Map<String, ...>)` factory and `toJson()`
 For automatic schema validation, add `@luthor`, run `luthor_generator`, and ensure generated schema functions are available. See [Create an Application](/dart-orpc/guides/create-an-app) for a full Freezed + Luthor example.
 
 ```dart
-@luthor
+@Luthor(unknownKeys: .strict)
 @freezed
 abstract class CreateTodoDto with _$CreateTodoDto {
   const factory CreateTodoDto({@HasMin(1) required String title}) =
@@ -51,9 +51,11 @@ Put `part 'todo_dtos.freezed.dart';` and `part 'todo_dtos.g.dart';` in the conta
 - Luthor-backed output is serialized and validated; an invalid server response is an `INTERNAL_ERROR`.
 - Stream items are encoded/validated as they are emitted.
 - Plain `fromJson` decoding checks only what that decoder checks; adding `@RpcInput` alone does not create field constraints.
-- Luthor errors are formatted into `error.message`. The framework error body has no `details` array.
+- Luthor validation issues are flattened into `error.message`. The validation bridge leaves `error.details` unset.
 
-OpenAPI schema components come from Luthor validators. A plain DTO may serialize successfully without providing the same rich documented schema. Test schema constraints and output shape together.
+Luthor 1.1 strips undeclared JSON keys by default. The strict annotation above rejects them with `BAD_REQUEST` on RPC and REST inputs. Use `.passthrough` to let the decoder receive undeclared keys. See [the Luthor bridge reference](/dart-orpc/packages/luthor) for package defaults and precedence.
+
+The generator extracts DTO fields and supported constraints such as `@HasMin` into OpenAPI schema metadata at build time. Strict DTO schemas include `additionalProperties: false`. Plain DTOs can serialize with less schema detail.
 
 ## REST input defaults
 
