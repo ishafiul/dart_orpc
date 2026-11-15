@@ -206,7 +206,12 @@ impl EventLoop {
     /// Whether Dart has something to do.
     #[must_use]
     pub fn has_work(&self) -> bool {
-        !self.ready.is_empty() || self.accept_pending || !self.outbox.is_empty()
+        !self.ready.is_empty()
+            || self.accept_pending
+            || !self.outbox.is_empty()
+            // A finished gzip job wakes the poller, and on Windows the idle
+            // helper consumes that wake-up: the job itself must count.
+            || self.compressor.has_done()
     }
 
     /// The time of the next timer, if any.

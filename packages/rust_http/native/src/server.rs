@@ -128,8 +128,11 @@ impl Server {
         inbox: &mut [u8],
         budget: Duration,
     ) -> Result<usize, NeedsRoom> {
-        let mut event_loop = lock(&self.event_loop);
+        // Disarm before locking: a Windows helper holding the loop then
+        // stops at once instead of making Dart wait.
         self.armed.store(false, Ordering::Release);
+        self.interrupt_helper();
+        let mut event_loop = lock(&self.event_loop);
         let got = event_loop.run(answers, inbox, budget);
         if event_loop.take_drained() {
             let _ = dart_api::post_bytes(self.dart_port, &[DRAINED]);
@@ -155,6 +158,7 @@ impl Server {
 
     /// Starts a graceful shutdown. Dart gets `[2]` once it is complete.
     pub fn shutdown(&self) {
+        self.interrupt_helper();
         let mut event_loop = lock(&self.event_loop);
         event_loop.update_clock();
         event_loop.start_drain();
@@ -215,14 +219,26 @@ impl Server {
         ready > 0 && poll_fd.revents & libc::POLLIN != 0
     }
 
-    /// Windows has no poll file to watch: take the loop for at most 1 ms
-    /// at a time, so Dart waits at most that long.
+    /// Windows has no poll file to watch, so the helper polls the loop
+    /// itself while holding it. Dart never waits for that: before it takes
+    /// the loop it calls [`Self::interrupt_helper`], which ends the poll.
     #[cfg(not(unix))]
     fn ready_within(&self, wait: Duration) -> bool {
         let mut event_loop = lock(&self.event_loop);
+        if !self.armed.load(Ordering::Acquire) {
+            return false; // Dart wants the loop
+        }
         event_loop.update_clock();
-        event_loop.wait(Some(wait.min(Duration::from_millis(1))));
+        event_loop.wait(Some(wait));
         event_loop.has_work()
+    }
+
+    /// Ends a poll of the Windows helper, which holds the loop meanwhile.
+    /// On Unix the helper never holds the loop, so there is nothing to do.
+    #[cfg_attr(unix, allow(clippy::unused_self))]
+    fn interrupt_helper(&self) {
+        #[cfg(not(unix))]
+        let _ = self.waker.wake();
     }
 
     /// The isolate is gone without stopping the server (e.g. an uncaught

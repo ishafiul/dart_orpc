@@ -112,6 +112,16 @@ impl Compressor {
         )
     }
 
+    /// Whether finished answers wait to be taken.
+    #[must_use]
+    pub fn has_done(&self) -> bool {
+        !self
+            .done
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .is_empty()
+    }
+
     /// Stops the thread.
     pub fn stop(&mut self) {
         self.sender = None;

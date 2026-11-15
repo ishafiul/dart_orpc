@@ -782,6 +782,31 @@ fn streamed_body_sends_parts_and_counts_them() {
     wait_for(&log, |r| r.kind() == STREAM_GONE);
 }
 
+/// A finished gzip job is work for Dart, also when its wake-up was taken
+/// by someone else (the Windows idle helper polls the loop itself).
+#[test]
+fn a_finished_gzip_job_counts_as_work() {
+    let (mut core, _) = new_core(limits());
+    let mut inb = vec![0u8; 1 << 16];
+    core.run_us(&[], &mut inb, 0).unwrap();
+    assert!(!core.has_work());
+    core.compressor.submit(CompressJob {
+        connection: 0,
+        sequence: 0,
+        status: 200,
+        lines: Vec::new(),
+        body: b"zip".repeat(100),
+        date_line: Vec::new(),
+        framing: AnswerFraming::default(),
+    });
+    let end = Instant::now() + Duration::from_secs(5);
+    while !core.compressor.has_done() && Instant::now() < end {
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    core.wait(Some(Duration::ZERO)); // takes the wake-up, like the helper
+    assert!(core.has_work());
+}
+
 #[test]
 fn gzip_runs_on_the_helper_thread() {
     let (port, _) = serve(limits());
