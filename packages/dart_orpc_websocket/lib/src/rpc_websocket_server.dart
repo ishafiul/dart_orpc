@@ -530,14 +530,17 @@ final class _RpcWebSocketConnection {
     }
   }
 
-  /// Reports failures that are hidden from the client as `INTERNAL_ERROR`.
+  /// Reports failures that are hidden from the client: non-RPC errors sent
+  /// as `INTERNAL_ERROR`, and [RpcException]s with a server-only
+  /// `diagnostic`, such as output validation failures. Other explicit
+  /// [RpcException]s reach the client as they are and are not reported.
   void _reportCallFailure(
     Object error,
     StackTrace stackTrace,
     String id,
     String method,
   ) {
-    if (error is RpcException) return;
+    if (error is RpcException && error.diagnostic == null) return;
     reportError(error, stackTrace, rpcMethod: method, callId: id);
   }
 
