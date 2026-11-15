@@ -220,7 +220,7 @@ impl EventLoop {
     }
 
     /// Starts a graceful shutdown: no new connections, each connection
-    /// closes after its current answer, WebSockets get 1001.
+    /// closes after its current answer. Upgraded sockets belong to the app.
     pub fn start_drain(&mut self) {
         self.draining = true;
         self.close_listener();
@@ -228,11 +228,10 @@ impl EventLoop {
         for index in all {
             let connection = &mut self.connections[index];
             connection.closing = true;
-            if let Some(ws) = connection.websocket.as_mut() {
-                if ws.live {
-                    ws.close(CloseCode::Away);
-                }
-            } else if connection.slots.is_empty() && connection.body.is_none() {
+            if connection.websocket.is_none()
+                && connection.slots.is_empty()
+                && connection.body.is_none()
+            {
                 connection.shut = true;
             }
             self.service(index);
@@ -246,7 +245,10 @@ impl EventLoop {
         if self.draining
             && !self.drained_reported
             && self.outbox.is_empty()
-            && self.connections.iter().all(|(_, c)| c.linger.is_some())
+            && self
+                .connections
+                .iter()
+                .all(|(_, c)| c.linger.is_some() || c.is_live_websocket())
         {
             self.drained_reported = true;
             return true;
@@ -683,7 +685,6 @@ impl EventLoop {
     #[allow(clippy::too_many_lines)]
     fn service(&mut self, index: usize) {
         let now = self.now;
-        let draining = self.draining;
         let Some(connection) = self.connections.get_mut(index) else {
             return;
         };
@@ -702,9 +703,6 @@ impl EventLoop {
                 ws.context =
                     WebSocketContext::from_partially_read(early, Role::Server, Some(config));
                 ws.live = true;
-                if draining {
-                    ws.close(CloseCode::Away);
-                }
             }
             connection.paused = false;
             connection.queued = true;

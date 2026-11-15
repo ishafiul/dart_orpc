@@ -230,8 +230,8 @@ final class RustHttpServer extends Stream<HttpRequest>
 
   /// Stops listening. Like dart:io, open requests still get their answer:
   /// each connection closes after its current answer, and the future
-  /// completes when all are closed. With [force] every connection closes
-  /// at once, also while a graceful close waits.
+  /// completes when all are closed. Upgraded WebSockets stay open until
+  /// the app or peer closes them. With [force] every connection closes.
   @override
   Future<void> close({bool force = false}) async {
     final native = _native;
@@ -244,7 +244,10 @@ final class RustHttpServer extends Stream<HttpRequest>
         _scheduler.schedule();
       }
       await draining.future;
+      return;
     }
+    // Flush frames queued by upgrade handlers before forcing a drain.
+    if (_draining != null && !_inBatch && _writer.length > 0) _pump();
     _release();
   }
 
@@ -269,7 +272,10 @@ final class RustHttpServer extends Stream<HttpRequest>
 
   void _drained() {
     final draining = _draining;
-    if (draining != null && !draining.isCompleted) draining.complete();
+    if (draining == null || draining.isCompleted) return;
+    unawaited(_requests.close());
+    draining.complete();
+    if (_sockets.isEmpty) _release();
   }
 
   // ---- engine pump ------------------------------------------------------
@@ -431,7 +437,10 @@ final class RustHttpServer extends Stream<HttpRequest>
       _sockets[id] = socket;
 
   @override
-  void unregisterWebSocket(int id) => _sockets.remove(id);
+  void unregisterWebSocket(int id) {
+    _sockets.remove(id);
+    if (_sockets.isEmpty && _draining?.isCompleted == true) _release();
+  }
 
   @override
   void sendWebSocketRecord(

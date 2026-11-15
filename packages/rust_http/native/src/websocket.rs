@@ -57,13 +57,6 @@ impl WebSocketState {
             paused: false,
         }
     }
-
-    /// Queues a close with `code`, unless a close is under way.
-    pub fn close(&mut self, code: CloseCode) {
-        if self.closing_since.is_none() && !self.told_dart {
-            self.queue.push_back(Message::Close(close_frame(code)));
-        }
-    }
 }
 
 /// Reads from the socket and writes to the connection's write buffer, so
@@ -138,14 +131,5 @@ mod tests {
     fn the_queue_cap_is_at_least_the_minimum() {
         assert_eq!(WebSocketState::new(1, 8).queue_cap, WS_MIN_QUEUE);
         assert_eq!(WebSocketState::new(1, 1 << 20).queue_cap, 4 << 20);
-    }
-
-    #[test]
-    fn close_is_queued_once() {
-        let mut ws = WebSocketState::new(1, 8);
-        ws.close(CloseCode::Away);
-        ws.told_dart = true;
-        ws.close(CloseCode::Away);
-        assert_eq!(ws.queue.len(), 1);
     }
 }

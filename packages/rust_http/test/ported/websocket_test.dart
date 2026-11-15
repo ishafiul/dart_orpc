@@ -123,16 +123,18 @@ void main() {
     client.close(force: true);
   });
 
-  test('a graceful close sends 1001 to open sockets', () async {
+  // The app owns upgraded sockets and closes them after its grace period.
+  test('a graceful close leaves open sockets to the app', () async {
     WebSocket ws = await WebSocket.connect(url('/ws'));
     StreamIterator<dynamic> got = StreamIterator<dynamic>(ws);
     ws.add('ping');
     expect(await got.moveNext(), isTrue);
-    Future<void> closing = server.close();
+    await server.close();
+    ws.add('still open');
+    expect(await got.moveNext(), isTrue);
+    await accepted.single.close(WebSocketStatus.goingAway);
     expect(await got.moveNext(), isFalse);
-    await closing;
     expect(ws.closeCode, WebSocketStatus.goingAway);
-    expect(accepted.single.closeCode, WebSocketStatus.goingAway);
   });
 
   test('a client that does not read closes with 1008', () async {

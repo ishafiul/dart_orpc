@@ -401,6 +401,57 @@ void runHttpServerContract({
     });
 
     group('WebSocket', () {
+      test('a reply sent later and a close during shutdown arrive', () async {
+        handler = (request) async {
+          final socket = await upgradeWebSocket(request);
+          await for (final message in socket) {
+            await Future<void>.delayed(const Duration(milliseconds: 20));
+            socket.add('later: $message');
+            await Future<void>.delayed(const Duration(milliseconds: 20));
+            await socket.close(WebSocketStatus.goingAway, 'shutdown');
+          }
+        };
+
+        // The server closes this socket.
+        // ignore: close_sinks
+        final socket = await WebSocket.connect(
+          'ws://127.0.0.1:${server.port}/ws',
+        );
+        final replies = <Object?>[];
+        final done = socket.forEach(replies.add);
+        socket.add('hi');
+        await done.timeout(const Duration(seconds: 3));
+
+        expect(replies, ['later: hi']);
+        expect(socket.closeCode, WebSocketStatus.goingAway);
+      });
+
+      test('a graceful close leaves open WebSockets to the app', () async {
+        final accepted = Completer<WebSocket>();
+        handler = (request) async {
+          final socket = await upgradeWebSocket(request);
+          accepted.complete(socket);
+          await for (final message in socket) {
+            socket.add('echo: $message');
+          }
+        };
+
+        final client = await WebSocket.connect(
+          'ws://127.0.0.1:${server.port}/ws',
+        );
+        addTearDown(client.close);
+        final replies = StreamIterator<Object?>(client);
+        final serverSide = await accepted.future;
+        await server.close().timeout(const Duration(seconds: 3));
+        client.add('after close');
+
+        expect(await replies.moveNext(), isTrue);
+        expect(replies.current, 'echo: after close');
+        await serverSide.close(WebSocketStatus.normalClosure);
+        expect(await replies.moveNext(), isFalse);
+        expect(client.closeCode, WebSocketStatus.normalClosure);
+      });
+
       test('the protocol selector picks the subprotocol', () async {
         final offered = Completer<List<String>>();
         handler = (request) async {

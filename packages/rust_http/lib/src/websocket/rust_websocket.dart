@@ -165,6 +165,7 @@ final class RustWebSocket extends Stream<dynamic>
     }
   }
 
+  /// Starts the close handshake with [code] and [reason].
   @override
   Future<void> close([int? code, String? reason]) {
     if (_isReserved(code)) {
@@ -183,7 +184,9 @@ final class RustWebSocket extends Stream<dynamic>
         text,
       );
     }
-    return done;
+    // Like dart:io, the future completes once our close frame is on its
+    // way, not when the peer answers it: [done] reports the end.
+    return Future<void>.value();
   }
 
   @override
