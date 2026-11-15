@@ -27,4 +27,4 @@ For DTOs that rely on builder options, the effective mode must agree across the 
 
 See [DTOs and Validation](/dart-orpc/guides/procedures-and-dtos) for a strict input DTO with a non-empty title.
 
-Validation issues are formatted into `error.message` as `path: message` entries joined by semicolons. The bridge leaves `error.details` unset. OpenAPI components come from build-time DTO metadata.
+Validation issues are formatted into `error.message` as `path: message` entries joined by semicolons. Input failures also list every issue, in order, in `error.details.issues`: each has a `path` of string keys and list indexes (`[]` for the whole value), luthor's `IssueCode` name as `code` (such as `tooShort` or `unrecognizedKey`), and the `message`. Read them with `parseRpcValidationIssues`. Input that isn't a JSON object, and output failures, carry no issues. OpenAPI components come from build-time DTO metadata.
