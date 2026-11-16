@@ -19,26 +19,30 @@ String _decodeInputExpression(_ResolvedProcedure procedure) {
   return '(rawInput) => ${procedure.inputTypeCode!}.fromJson(Map<String, dynamic>.from(expectJsonObject(rawInput, context: \'RPC method "${procedure.rpcMethod}" input\')))';
 }
 
+/// The encoder every transport uses for this procedure's output: RPC, REST,
+/// streams and WebSocket all share it, so their JSON cannot differ.
 String _encodeOutputExpression(_ResolvedProcedure procedure) {
   if (procedure.outputCodecKind == _OutputCodecKind.voidValue) {
     return '(_) => null';
   }
-  if (procedure.outputCodecKind == _OutputCodecKind.jsonValue) {
-    return '(output) => output';
-  }
-  if (procedure.outputUsesLuthor) {
-    return '(output) => encodeRpcOutputJsonWithLuthor<${procedure.outputTypeCode}>(output: output, method: \'${procedure.rpcMethod}\', toJson: (output) => output.toJson(), validateJson: \$${procedure.outputTypeName}Schema.validate)';
-  }
-  return '(output) => output.toJson()';
+  return '(output) => ${_encodedOutput(procedure, 'output')}';
 }
 
-String _encodeRestOutputExpression(_ResolvedProcedure procedure) {
-  if (procedure.outputCodecKind != _OutputCodecKind.dto ||
-      procedure.outputUsesLuthor) {
-    return _encodeOutputExpression(procedure);
+/// The expression that encodes [variable], decided at generation time.
+String _encodedOutput(_ResolvedProcedure procedure, String variable) {
+  if (procedure.outputCodecKind == _OutputCodecKind.voidValue) {
+    return 'null';
   }
-
-  return '(output) => output is RpcJsonBytes ? output : output.toJson()';
+  if (procedure.outputCodecKind == _OutputCodecKind.jsonValue) {
+    return variable;
+  }
+  if (procedure.outputUsesLuthor) {
+    return 'encodeRpcOutputJsonWithLuthor<${procedure.outputTypeCode}>(output: $variable, method: \'${procedure.rpcMethod}\', toJson: (output) => output.toJson(), validateJson: \$${procedure.outputTypeName}Schema.validate)';
+  }
+  if (procedure.outputIsJsonBytes) {
+    return variable;
+  }
+  return '$variable.toJson()';
 }
 
 String _serverHandlerExpression(

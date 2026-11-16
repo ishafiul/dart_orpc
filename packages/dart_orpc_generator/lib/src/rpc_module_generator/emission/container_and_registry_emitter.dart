@@ -98,22 +98,12 @@ void _writeLocalProcedureRegistry(
   final names = context.generatedNames;
   buffer
     ..writeln()
-    ..writeln('// ignore: unused_element')
-    ..writeln(
-      'RpcProcedureRegistry ${names.createLocalRegistryName}(${_dependencyParameterDeclaration(context)}) {',
-    )
-    ..writeln(
-      '  final container = ${names.createContainerName}(${_dependencyArgumentList(context)});',
-    )
-    ..writeln('  return ${names.createRegistryFromContainerName}(container);')
-    ..writeln('}')
-    ..writeln()
     ..writeln(
       'RpcProcedureRegistry ${names.createRegistryFromContainerName}(${names.containerClassName} container) {',
     )
     ..writeln(
       _hasLocalRpcProcedures(context)
-          ? '  final metadataRegistry = ${names.createLocalMetadataRegistryName}();'
+          ? '  final metadataRegistry = ${names.metadataRegistryName};'
           : '',
     )
     ..writeln('  return RpcProcedureRegistry([');
@@ -154,15 +144,11 @@ void _writeProcedureRegistry(
   buffer
     ..writeln()
     ..writeln(
-      'RpcProcedureRegistry ${names.createRegistryName}(${_dependencyParameterDeclaration(context)}) {',
+      'RpcProcedureRegistry ${names.createRegistryName}(${_dependencyParameterDeclaration(context)}) =>',
     )
-    ..writeln('  return RpcProcedureRegistry([');
-  buffer
     ..writeln(
-      '    ...${names.createLocalRegistryName}(${_dependencyArgumentList(context)}).procedures,',
+      '    ${names.createRegistryFromContainerName}(${names.createContainerName}(${_dependencyArgumentList(context)}));',
     )
-    ..writeln('  ]);')
-    ..writeln('}')
     ..writeln()
     ..writeln(
       'RpcProcedureRegistry ${names.composeProcedureRegistryName}(${_dependencyParameterDeclaration(context)}) => ${names.createRegistryName}(${_dependencyArgumentList(context)});',
@@ -184,22 +170,13 @@ void _writeModuleRuntime(StringBuffer buffer, _ModuleGenerationPlan context) {
     ..writeln(
       '  final container = ${names.createContainerName}(${_dependencyArgumentList(context)});',
     )
-    ..writeln('  final localProcedures =')
-    ..writeln('      ${names.createRegistryFromContainerName}(container);')
-    ..writeln('  final localRestRoutes =')
-    ..writeln(
-      '      ${names.createRestRouteRegistryFromContainerName}(container);',
-    )
-    ..writeln()
     ..writeln('  return (')
-    ..writeln('    procedures: RpcProcedureRegistry([');
-  buffer
-    ..writeln('      ...localProcedures.procedures,')
-    ..writeln('    ]),')
-    ..writeln('    restRoutes: RestRouteRegistry([');
-  buffer
-    ..writeln('      ...localRestRoutes.routes,')
-    ..writeln('    ]),')
+    ..writeln(
+      '    procedures: ${names.createRegistryFromContainerName}(container),',
+    )
+    ..writeln(
+      '    restRoutes: ${names.createRestRouteRegistryFromContainerName}(container),',
+    )
     ..writeln('  );')
     ..writeln('}')
     ..writeln()

@@ -16,13 +16,11 @@ final class _GeneratedModuleNames {
   const _GeneratedModuleNames({
     required this.rootClientName,
     required this.createRegistryName,
-    required this.createLocalRegistryName,
     required this.composeProcedureRegistryName,
     required this.createRestRouteRegistryName,
-    required this.createLocalRestRouteRegistryName,
     required this.composeRestRouteRegistryName,
     required this.createMetadataRegistryName,
-    required this.createLocalMetadataRegistryName,
+    required this.metadataRegistryName,
     required this.composeMetadataRegistryName,
     required this.createDtoSchemaRegistryName,
     required this.createLocalDtoSchemaRegistryName,
@@ -49,20 +47,17 @@ final class _GeneratedModuleNames {
         reservedNames: reservedRootClientNames,
       ),
       createRegistryName: '_\$create${moduleName}ProcedureRegistry',
-      createLocalRegistryName: '_\$create${moduleName}LocalProcedureRegistry',
       composeProcedureRegistryName: _publicProcedureRegistryFactoryNameFor(
         moduleName,
       ),
       createRestRouteRegistryName: '_\$create${moduleName}RestRouteRegistry',
-      createLocalRestRouteRegistryName:
-          '_\$create${moduleName}LocalRestRouteRegistry',
       composeRestRouteRegistryName: _publicRestRouteRegistryFactoryNameFor(
         moduleName,
       ),
       createMetadataRegistryName:
           '_\$create${moduleName}ProcedureMetadataRegistry',
-      createLocalMetadataRegistryName:
-          '_\$create${moduleName}LocalProcedureMetadataRegistry',
+      metadataRegistryName:
+          '_\$${moduleName[0].toLowerCase()}${moduleName.substring(1)}ProcedureMetadata',
       composeMetadataRegistryName:
           _publicProcedureMetadataRegistryFactoryNameFor(moduleName),
       createDtoSchemaRegistryName: '_\$create${moduleName}DtoSchemaRegistry',
@@ -90,13 +85,14 @@ final class _GeneratedModuleNames {
 
   final String rootClientName;
   final String createRegistryName;
-  final String createLocalRegistryName;
   final String composeProcedureRegistryName;
   final String createRestRouteRegistryName;
-  final String createLocalRestRouteRegistryName;
   final String composeRestRouteRegistryName;
   final String createMetadataRegistryName;
-  final String createLocalMetadataRegistryName;
+
+  /// The module's one procedure metadata registry, built on first use and
+  /// shared by the RPC registry, the REST routes and OpenAPI.
+  final String metadataRegistryName;
   final String composeMetadataRegistryName;
   final String createDtoSchemaRegistryName;
   final String createLocalDtoSchemaRegistryName;

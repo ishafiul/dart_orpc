@@ -32,6 +32,10 @@ const _rpcContextChecker = TypeChecker.typeNamed(
   RpcContext,
   inPackage: 'dart_orpc_core',
 );
+const _rpcJsonBytesChecker = TypeChecker.typeNamed(
+  RpcJsonBytes,
+  inPackage: 'dart_orpc_core',
+);
 const _rpcGuardChecker = TypeChecker.typeNamed(
   RpcGuard,
   inPackage: 'dart_orpc_core',

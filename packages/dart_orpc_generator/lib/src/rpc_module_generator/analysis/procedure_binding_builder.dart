@@ -204,6 +204,9 @@ _ResolvedProcedure _buildMethodBinding(
     outputTypeElement: outputType.element,
     outputUsesLuthor: _usesLuthorValidation(outputType),
     outputCodecKind: outputCodecKind,
+    outputIsJsonBytes:
+        outputCodecKind == _OutputCodecKind.dto &&
+        _rpcJsonBytesChecker.isAssignableFromType(outputType),
     returnsFuture: _isFutureType(declaredReturnType),
     isStream: isStream,
     supportsRpcGeneration: invocationDetails.supportsRpcGeneration,
