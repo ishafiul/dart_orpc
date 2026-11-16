@@ -20,15 +20,18 @@ Future<void> main(List<String> arguments) async {
     final context = NativeBuildContext(
       packageRoot: input.packageRoot,
       libraryFileName: os.dylibFileName('rust_http'),
+      targetName: '${os.name}-${architecture.name}',
       isHostTarget: os == OS.current && architecture == Architecture.current,
       sharedOutputDirectory: input.outputDirectoryShared,
       userLibraryPath: input.userDefines['lib_path'] as String?,
+      usePrebuilt: input.userDefines['prebuilt'] != false,
     );
     final library = await NativeLibraryResolver.standard().resolve(context);
     if (library == null) {
       stderr.writeln(
         'rust_http: no native library for ${os.name}-${architecture.name}. '
-        'Install Rust (cargo) to build it from source.',
+        'No prebuilt library matched and cargo is not available; install '
+        'Rust (https://rustup.rs) to build it from source.',
       );
       return;
     }

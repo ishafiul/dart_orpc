@@ -59,18 +59,30 @@ Alpine/musl, Windows on ARM, and FreeBSD.
 
 ## The native library
 
-The build hook (`hook/build.dart`) takes the first library it finds:
+Apps don't need Rust on the supported platforms above. The build hook
+(`hook/build.dart`) takes the first library it finds:
 
 1. `lib_path` from your app's `pubspec.yaml`:
    `hooks: user_defines: rust_http: lib_path: /path/to/librust_http.so`
 2. A release build in `native/target/release` (same OS and CPU).
-3. A fresh `cargo build --release` when Rust is installed.
+3. A prebuilt library downloaded from the GitHub release
+   `rust_http-native-<fingerprint>`. It is checked against the SHA-256 in
+   `lib/src/native_build/prebuilt_manifest.dart` and cached, so only the
+   first build needs network access. It is skipped if you have changed the
+   Rust sources. Set `hooks: user_defines: rust_http: prebuilt: false` to
+   turn the download off.
+4. A fresh `cargo build --release`, which needs Rust
+   (<https://rustup.rs>), for other platforms, offline first builds and
+   changed sources.
 
-Prebuilt release downloads are not published yet, so Rust
-(<https://rustup.rs>) is required for now. Use `dart run`, `dart test` or
-`dart build cli`; `dart compile exe` does not run build hooks. When the
-library is missing, `RustHttpServer.bind` throws an `UnsupportedError` that
-says why.
+Use `dart run`, `dart test` or `dart build cli`; `dart compile exe` does not
+run build hooks. `dart build cli` bundles the library next to the
+executable, so servers that run the bundle need neither Rust nor network
+access. When the library is missing, `RustHttpServer.bind` throws an
+`UnsupportedError` that says why.
+
+Linux libraries need glibc 2.17 or newer. Windows libraries link the C
+runtime statically.
 
 ## HTTP behavior
 
@@ -104,6 +116,15 @@ cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test
 cd packages/rust_http
 dart analyze --fatal-infos && dart test
 ```
+
+### Releasing prebuilt libraries
+
+After the Rust sources change, and before publishing the package:
+
+1. Run the `rust_http prebuilt` workflow on `main`. It builds every
+   supported platform and publishes the release `rust_http-native-<fingerprint>`.
+2. In `packages/rust_http`, run `dart run tool/prebuilt.dart update` and
+   commit `lib/src/native_build/prebuilt_manifest.dart`.
 
 Fuzzing needs nightly Rust and `cargo install cargo-fuzz`:
 
