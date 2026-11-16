@@ -11,6 +11,7 @@ export 'src/rpc_error_encoding.dart';
 export 'src/rpc_exception.dart';
 export 'src/rpc_guard.dart';
 export 'src/rpc_json_bytes.dart';
+export 'src/rpc_json_writer.dart';
 export 'src/rpc_output_validation.dart';
 export 'src/rpc_procedure.dart';
 export 'src/rpc_procedure_registry.dart';
