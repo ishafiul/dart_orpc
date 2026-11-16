@@ -174,7 +174,14 @@ final class RustHttpServer extends Stream<HttpRequest>
 
   /// How long a pump may wait for requests, when none is open and the last
   /// pump found nothing; else Dart may have other work and must not wait.
-  static const Duration _idleBudget = Duration(microseconds: 1000);
+  ///
+  /// None on Windows: its waits round up to the system timer tick (about
+  /// 15.6 ms), and each such wait blocks the isolate. A WebSocket-heavy app,
+  /// which has no open HTTP request, pumped empty often enough to run about
+  /// 20 times slower.
+  static final Duration _idleBudget = Platform.isWindows
+      ? Duration.zero
+      : const Duration(microseconds: 1000);
 
   @override
   late final int port = _native!.port;
