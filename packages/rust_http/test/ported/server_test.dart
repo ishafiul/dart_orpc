@@ -334,11 +334,17 @@ void main() {
   test('a handler that awaits a timer answers on time', () async {
     // warm up the connection, then time a request with no other one open
     await get('/');
+    // The median of five, so one scheduling hiccup of a shared CI machine
+    // does not fail the test. An answer that waits for the idle helper's
+    // probe (100 ms) is late every time, so it still fails.
+    List<int> times = <int>[];
     for (int i = 0; i < 5; i++) {
       Stopwatch clock = Stopwatch()..start();
       expect(await get('/timer'), (200, 'timer done'));
-      expect(clock.elapsedMilliseconds, lessThan(100));
+      times.add(clock.elapsedMilliseconds);
     }
+    times.sort();
+    expect(times[2], lessThan(100), reason: 'times: $times ms');
   });
 
   test('a timer on the server isolate runs on time under load', () async {
