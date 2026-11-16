@@ -3,8 +3,7 @@
 A native HTTP/1.1 server for Dart. Rust owns the sockets and parses HTTP.
 Your handlers stay in Dart and use the `dart:io` `HttpServer` API.
 
-> Status: experimental. Set `DART_ORPC_HTTP_BACKEND=rust` to opt in for
-> `dart_orpc_http`. The default backend is `dart:io`.
+> `dart_orpc_http` serves every dart_orpc app with this server.
 
 ## Usage
 

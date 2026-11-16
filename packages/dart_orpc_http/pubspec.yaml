@@ -1,5 +1,5 @@
 name: dart_orpc_http
-description: Pure-Dart HTTP transport adapter for dart_orpc.
+description: HTTP transport adapter for dart_orpc, served by the Rust-backed rust_http server.
 version: 0.1.0-dev.7
 repository: https://github.com/ishafiul/dart_orpc/tree/main/packages/dart_orpc_http
 issue_tracker: https://github.com/ishafiul/dart_orpc/issues
