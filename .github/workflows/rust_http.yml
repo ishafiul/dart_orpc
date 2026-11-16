@@ -77,6 +77,11 @@ jobs:
         env:
           DART_ORPC_HTTP_BACKEND: rust
         run: dart test
+      # Baseline: a failure here is in the app on this platform, not in
+      # rust_http.
+      - name: Basic app tests with dart:io
+        working-directory: apps/basic_app
+        run: dart test
       - name: Basic app tests with Rust HTTP
         working-directory: apps/basic_app
         env:
