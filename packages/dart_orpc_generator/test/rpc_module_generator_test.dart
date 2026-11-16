@@ -39,7 +39,7 @@ void main() {
       expect(
         generatedOutput,
         contains(
-          'RpcProcedureRegistry _\$createAppModuleProcedureRegistry() {',
+          'RpcProcedureRegistry _\$createAppModuleProcedureRegistry() =>',
         ),
       );
       expect(generatedOutput, contains('class _\$AppModuleContainer {'));
@@ -56,7 +56,7 @@ void main() {
       expect(
         generatedOutput,
         contains(
-          'ProcedureMetadataRegistry _\$createAppModuleProcedureMetadataRegistry() {',
+          'ProcedureMetadataRegistry _\$createAppModuleProcedureMetadataRegistry() =>',
         ),
       );
       expect(
@@ -71,7 +71,7 @@ void main() {
       );
       expect(
         generatedOutput,
-        contains('RestRouteRegistry _\$createAppModuleRestRouteRegistry() {'),
+        contains('RestRouteRegistry _\$createAppModuleRestRouteRegistry() =>'),
       );
       expect(
         generatedOutput,
@@ -198,6 +198,93 @@ void main() {
       );
     });
 
+    test('When a DTO output implements RpcJsonBytes then RPC and REST both pass it through, decided at generation time', () async {
+      final run = await runModuleBuilder(_jsonBytesOutputModuleSource);
+
+      expect(run.succeeded, isTrue);
+      final output = run.generatedOutput;
+      expect(
+        output,
+        contains(
+          'RpcUnaryProcedure<Null, FastDto>(\n'
+          "      method: 'items.fast',\n"
+          '      decodeInput: (rawInput) =>\n'
+          "          expectNoRpcInput(rawInput, context: 'RPC method \"items.fast\"'),\n"
+          '      encodeOutput: (output) => output,',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          'RpcUnaryProcedure<Null, PlainDto>(\n'
+          "      method: 'items.plain',\n"
+          '      decodeInput: (rawInput) =>\n'
+          "          expectNoRpcInput(rawInput, context: 'RPC method \"items.plain\"'),\n"
+          '      encodeOutput: (output) => output.toJson(),',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          'final output = container.itemsController.fast();\n'
+          '        return output;',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          'final output = await container.itemsController.plain();\n'
+          '        return output.toJson();',
+        ),
+      );
+      expect(output, isNot(contains('is RpcJsonBytes')));
+    });
+
+    test('When a module is generated then registries are built once, without unused wrappers', () async {
+      final run = await runModuleBuilder(_jsonBytesOutputModuleSource);
+
+      expect(run.succeeded, isTrue);
+      final output = run.generatedOutput;
+      expect(output, isNot(contains('unused_element')));
+      expect(output, isNot(contains('LocalProcedureRegistry')));
+      expect(output, isNot(contains('LocalRestRouteRegistry')));
+      expect(output, isNot(contains('LocalProcedureMetadataRegistry')));
+      expect(
+        countMatches(
+          output,
+          'final ProcedureMetadataRegistry _\$appModuleProcedureMetadata =',
+        ),
+        1,
+      );
+      expect(countMatches(output, 'ProcedureMetadataRegistry(['), 1);
+      expect(output, isNot(contains('...localProcedures')));
+      expect(output, isNot(contains('...localRestRoutes')));
+    });
+
+    test('When a module is generated then every buildRpcApp entry point declares the same parameters', () async {
+      final run = await runModuleBuilder(_jsonBytesOutputModuleSource);
+
+      expect(run.succeeded, isTrue);
+      final output = run.generatedOutput;
+      final private = _parameterList(
+        output,
+        r'RpcHttpApp _$buildAppModuleRpcApp({',
+      );
+      final public = _parameterList(
+        output,
+        'RpcHttpApp dartOrpcBuildAppModuleRpcApp({',
+      );
+      final extension = _parameterList(output, 'RpcHttpApp buildRpcApp({');
+
+      expect(private, anyElement(startsWith('RpcContextBindings bindings')));
+      expect(
+        private,
+        anyElement(startsWith('RpcHttpServerOptions serverOptions')),
+      );
+      expect(public, private);
+      expect(extension, private);
+    });
+
     test('When unary methods return scalars or void then generated codecs preserve their public contracts', () async {
       final run = await runModuleBuilder(_scalarAndVoidOutputModuleSource);
 
@@ -268,7 +355,7 @@ void main() {
       expect(
         generatedOutput,
         contains(
-          'ProcedureMetadataRegistry _\$createAppModuleProcedureMetadataRegistry() {',
+          'ProcedureMetadataRegistry _\$createAppModuleProcedureMetadataRegistry() =>',
         ),
       );
       expect(
@@ -283,7 +370,7 @@ void main() {
       );
       expect(
         generatedOutput,
-        contains('RestRouteRegistry _\$createAppModuleRestRouteRegistry() {'),
+        contains('RestRouteRegistry _\$createAppModuleRestRouteRegistry() =>'),
       );
       expect(generatedOutput, contains("rpcMethod: 'user.getById',"));
       expect(generatedOutput, contains("rpcMethod: 'user.findBySlug',"));
@@ -1103,6 +1190,56 @@ final class AppModule {
 final class EventsController {
   @RpcMethod(path: RestMapping.sse('/events'))
   Future<void> watch() async {}
+}
+''';
+
+const _jsonBytesOutputModuleSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+import 'package:dart_orpc_core/dart_orpc_core.dart';
+
+part 'example.g.dart';
+
+final class FastDto implements RpcJsonBytes {
+  const FastDto(this.id);
+
+  final int id;
+
+  factory FastDto.fromJson(Map<String, dynamic> json) =>
+      FastDto(json['id'] as int);
+
+  Map<String, Object?> toJson() => {'id': id};
+
+  @override
+  List<int> toJsonBytes() =>
+      (RpcJsonWriter()..writeRaw('{"id":')..writeInt(id)..writeRaw('}'))
+          .takeBytes();
+}
+
+final class PlainDto {
+  const PlainDto(this.id);
+
+  final int id;
+
+  factory PlainDto.fromJson(Map<String, dynamic> json) =>
+      PlainDto(json['id'] as int);
+
+  Map<String, Object?> toJson() => {'id': id};
+}
+
+@Module(controllers: [ItemsController])
+final class AppModule {
+  const AppModule();
+}
+
+@Controller('items')
+final class ItemsController {
+  @RpcMethod(path: RestMapping.get('/fast'))
+  FastDto fast() => const FastDto(1);
+
+  @RpcMethod(path: RestMapping.get('/plain'))
+  Future<PlainDto> plain() async => const PlainDto(2);
 }
 ''';
 
@@ -2641,4 +2778,19 @@ String _withRenamedJsonKey(String source, String annotation) {
         "${import}import 'package:json_annotation/json_annotation.dart';\n",
       )
       .replaceFirst(marker, "  @JsonKey(name: 'renamed_key')\n$marker");
+}
+
+/// The parameters between `{` and `})` after [signature], one per entry,
+/// whitespace-normalized.
+List<String> _parameterList(String output, String signature) {
+  final start = output.indexOf(signature);
+  expect(start, isNot(-1), reason: 'missing $signature');
+  final from = start + signature.length;
+  final end = output.indexOf('})', from);
+  return output
+      .substring(from, end)
+      .split(RegExp(r',\s*(?![^<(]*[>)])'))
+      .map((parameter) => parameter.replaceAll(RegExp(r'\s+'), ' ').trim())
+      .where((parameter) => parameter.isNotEmpty)
+      .toList();
 }

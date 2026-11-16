@@ -55,17 +55,10 @@ _$TodoAnalysisModuleContainer _$createTodoAnalysisModuleContainer() {
   );
 }
 
-// ignore: unused_element
-RpcProcedureRegistry _$createTodoAnalysisModuleLocalProcedureRegistry() {
-  final container = _$createTodoAnalysisModuleContainer();
-  return _$createTodoAnalysisModuleProcedureRegistryFromContainer(container);
-}
-
 RpcProcedureRegistry _$createTodoAnalysisModuleProcedureRegistryFromContainer(
   _$TodoAnalysisModuleContainer container,
 ) {
-  final metadataRegistry =
-      _$createTodoAnalysisModuleLocalProcedureMetadataRegistry();
+  final metadataRegistry = _$todoAnalysisModuleProcedureMetadata;
   return RpcProcedureRegistry([
     RpcUnaryProcedure<Null, TodoAnalysisSummaryDto>(
       method: 'todoAnalysis.summary',
@@ -88,11 +81,10 @@ RpcProcedureRegistry _$createTodoAnalysisModuleProcedureRegistryFromContainer(
   ]);
 }
 
-RpcProcedureRegistry _$createTodoAnalysisModuleProcedureRegistry() {
-  return RpcProcedureRegistry([
-    ..._$createTodoAnalysisModuleLocalProcedureRegistry().procedures,
-  ]);
-}
+RpcProcedureRegistry _$createTodoAnalysisModuleProcedureRegistry() =>
+    _$createTodoAnalysisModuleProcedureRegistryFromContainer(
+      _$createTodoAnalysisModuleContainer(),
+    );
 
 RpcProcedureRegistry dartOrpcCreateTodoAnalysisModuleProcedureRegistry() =>
     _$createTodoAnalysisModuleProcedureRegistry();
@@ -100,14 +92,13 @@ RpcProcedureRegistry dartOrpcCreateTodoAnalysisModuleProcedureRegistry() =>
 ({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
 _$createTodoAnalysisModuleRuntime() {
   final container = _$createTodoAnalysisModuleContainer();
-  final localProcedures =
-      _$createTodoAnalysisModuleProcedureRegistryFromContainer(container);
-  final localRestRoutes =
-      _$createTodoAnalysisModuleRestRouteRegistryFromContainer(container);
-
   return (
-    procedures: RpcProcedureRegistry([...localProcedures.procedures]),
-    restRoutes: RestRouteRegistry([...localRestRoutes.routes]),
+    procedures: _$createTodoAnalysisModuleProcedureRegistryFromContainer(
+      container,
+    ),
+    restRoutes: _$createTodoAnalysisModuleRestRouteRegistryFromContainer(
+      container,
+    ),
   );
 }
 
@@ -115,70 +106,55 @@ _$createTodoAnalysisModuleRuntime() {
 dartOrpcCreateTodoAnalysisModuleRuntime() =>
     _$createTodoAnalysisModuleRuntime();
 
-// ignore: unused_element
-RestRouteRegistry _$createTodoAnalysisModuleLocalRestRouteRegistry() {
-  final container = _$createTodoAnalysisModuleContainer();
-  return _$createTodoAnalysisModuleRestRouteRegistryFromContainer(container);
-}
-
 RestRouteRegistry _$createTodoAnalysisModuleRestRouteRegistryFromContainer(
   _$TodoAnalysisModuleContainer container,
 ) {
-  final metadataRegistry =
-      _$createTodoAnalysisModuleLocalProcedureMetadataRegistry();
+  final metadataRegistry = _$todoAnalysisModuleProcedureMetadata;
   return RestRouteRegistry([
     RestUnaryRoute(
       method: 'GET',
       path: '/todos/analysis/summary',
       handler: (context, request, pathParameters) async {
         final output = await container.todoAnalysisController.summary(context);
-        return ((output) =>
-            encodeRpcOutputJsonWithLuthor<TodoAnalysisSummaryDto>(
-              output: output,
-              method: 'todoAnalysis.summary',
-              toJson: (output) => output.toJson(),
-              validateJson: $TodoAnalysisSummaryDtoSchema.validate,
-            ))(output);
+        return encodeRpcOutputJsonWithLuthor<TodoAnalysisSummaryDto>(
+          output: output,
+          method: 'todoAnalysis.summary',
+          toJson: (output) => output.toJson(),
+          validateJson: $TodoAnalysisSummaryDtoSchema.validate,
+        );
       },
       metadata: metadataRegistry['todoAnalysis.summary']!,
     ),
   ]);
 }
 
-RestRouteRegistry _$createTodoAnalysisModuleRestRouteRegistry() {
-  return RestRouteRegistry([
-    ..._$createTodoAnalysisModuleLocalRestRouteRegistry().routes,
-  ]);
-}
+RestRouteRegistry _$createTodoAnalysisModuleRestRouteRegistry() =>
+    _$createTodoAnalysisModuleRestRouteRegistryFromContainer(
+      _$createTodoAnalysisModuleContainer(),
+    );
 
 RestRouteRegistry dartOrpcCreateTodoAnalysisModuleRestRouteRegistry() =>
     _$createTodoAnalysisModuleRestRouteRegistry();
 
-// ignore: unused_element
-ProcedureMetadataRegistry
-_$createTodoAnalysisModuleLocalProcedureMetadataRegistry() {
-  return ProcedureMetadataRegistry([
-    const ProcedureMetadata(
-      rpcMethod: 'todoAnalysis.summary',
-      controllerNamespace: 'todoAnalysis',
-      methodName: 'summary',
-      path: RestProcedureMetadata(
-        method: 'GET',
-        path: '/todos/analysis/summary',
+final ProcedureMetadataRegistry _$todoAnalysisModuleProcedureMetadata =
+    ProcedureMetadataRegistry([
+      const ProcedureMetadata(
+        rpcMethod: 'todoAnalysis.summary',
+        controllerNamespace: 'todoAnalysis',
+        methodName: 'summary',
+        path: RestProcedureMetadata(
+          method: 'GET',
+          path: '/todos/analysis/summary',
+        ),
+        outputTypeCode: 'TodoAnalysisSummaryDto',
+        description: 'Aggregate todo counts and completion rate.',
+        tags: ['analysis'],
       ),
-      outputTypeCode: 'TodoAnalysisSummaryDto',
-      description: 'Aggregate todo counts and completion rate.',
-      tags: ['analysis'],
-    ),
-  ]);
-}
+    ]);
 
 ProcedureMetadataRegistry
-_$createTodoAnalysisModuleProcedureMetadataRegistry() {
-  return ProcedureMetadataRegistry([
-    ..._$createTodoAnalysisModuleLocalProcedureMetadataRegistry().procedures,
-  ]);
-}
+_$createTodoAnalysisModuleProcedureMetadataRegistry() =>
+    _$todoAnalysisModuleProcedureMetadata;
 
 ProcedureMetadataRegistry
 dartOrpcCreateTodoAnalysisModuleProcedureMetadataRegistry() =>
@@ -257,11 +233,11 @@ RpcHttpApp _$buildTodoAnalysisModuleRpcApp({
     maxConcurrentRequests: maxConcurrentRequests,
     requestBodyIdleTimeout: requestBodyIdleTimeout,
     serverOptions: serverOptions,
+    middleware: middleware,
     upgradeHandlers: [
       if (webSocket != null)
         RpcWebSocketUpgradeHandler(procedures: procedures, options: webSocket),
     ],
-    middleware: middleware,
   );
 }
 
@@ -272,8 +248,8 @@ RpcHttpApp dartOrpcBuildTodoAnalysisModuleRpcApp({
   RpcHttpHealthOptions? health,
   RpcHttpMetricsOptions? metrics,
   RpcWebSocketServerOptions? webSocket,
-  RpcContextFactory? contextFactory,
   RpcContextBindings bindings = const RpcContextBindings.empty(),
+  RpcContextFactory? contextFactory,
   Duration sseHeartbeatInterval = const Duration(seconds: 15),
   bool sseFlushEachChunk = true,
   bool encodeJsonToBytes = false,

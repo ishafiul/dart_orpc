@@ -24,16 +24,10 @@ _$StripModuleContainer _$createStripModuleContainer() {
   return _$StripModuleContainer(stripController: stripController);
 }
 
-// ignore: unused_element
-RpcProcedureRegistry _$createStripModuleLocalProcedureRegistry() {
-  final container = _$createStripModuleContainer();
-  return _$createStripModuleProcedureRegistryFromContainer(container);
-}
-
 RpcProcedureRegistry _$createStripModuleProcedureRegistryFromContainer(
   _$StripModuleContainer container,
 ) {
-  final metadataRegistry = _$createStripModuleLocalProcedureMetadataRegistry();
+  final metadataRegistry = _$stripModuleProcedureMetadata;
   return RpcProcedureRegistry([
     RpcUnaryProcedure<StripDto, StripDto>(
       method: 'strip.echo',
@@ -55,11 +49,10 @@ RpcProcedureRegistry _$createStripModuleProcedureRegistryFromContainer(
   ]);
 }
 
-RpcProcedureRegistry _$createStripModuleProcedureRegistry() {
-  return RpcProcedureRegistry([
-    ..._$createStripModuleLocalProcedureRegistry().procedures,
-  ]);
-}
+RpcProcedureRegistry _$createStripModuleProcedureRegistry() =>
+    _$createStripModuleProcedureRegistryFromContainer(
+      _$createStripModuleContainer(),
+    );
 
 RpcProcedureRegistry dartOrpcCreateStripModuleProcedureRegistry() =>
     _$createStripModuleProcedureRegistry();
@@ -67,32 +60,19 @@ RpcProcedureRegistry dartOrpcCreateStripModuleProcedureRegistry() =>
 ({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
 _$createStripModuleRuntime() {
   final container = _$createStripModuleContainer();
-  final localProcedures = _$createStripModuleProcedureRegistryFromContainer(
-    container,
-  );
-  final localRestRoutes = _$createStripModuleRestRouteRegistryFromContainer(
-    container,
-  );
-
   return (
-    procedures: RpcProcedureRegistry([...localProcedures.procedures]),
-    restRoutes: RestRouteRegistry([...localRestRoutes.routes]),
+    procedures: _$createStripModuleProcedureRegistryFromContainer(container),
+    restRoutes: _$createStripModuleRestRouteRegistryFromContainer(container),
   );
 }
 
 ({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
 dartOrpcCreateStripModuleRuntime() => _$createStripModuleRuntime();
 
-// ignore: unused_element
-RestRouteRegistry _$createStripModuleLocalRestRouteRegistry() {
-  final container = _$createStripModuleContainer();
-  return _$createStripModuleRestRouteRegistryFromContainer(container);
-}
-
 RestRouteRegistry _$createStripModuleRestRouteRegistryFromContainer(
   _$StripModuleContainer container,
 ) {
-  final metadataRegistry = _$createStripModuleLocalProcedureMetadataRegistry();
+  final metadataRegistry = _$stripModuleProcedureMetadata;
   return RestRouteRegistry([
     RestUnaryRoute(
       method: 'POST',
@@ -115,54 +95,48 @@ RestRouteRegistry _$createStripModuleRestRouteRegistryFromContainer(
           validate: $StripDtoValidate,
         ))(rawInput);
         final output = container.stripController.echo(input);
-        return ((output) => encodeRpcOutputJsonWithLuthor<StripDto>(
+        return encodeRpcOutputJsonWithLuthor<StripDto>(
           output: output,
           method: 'strip.echo',
           toJson: (output) => output.toJson(),
           validateJson: $StripDtoSchema.validate,
-        ))(output);
+        );
       },
       metadata: metadataRegistry['strip.echo']!,
     ),
   ]);
 }
 
-RestRouteRegistry _$createStripModuleRestRouteRegistry() {
-  return RestRouteRegistry([
-    ..._$createStripModuleLocalRestRouteRegistry().routes,
-  ]);
-}
+RestRouteRegistry _$createStripModuleRestRouteRegistry() =>
+    _$createStripModuleRestRouteRegistryFromContainer(
+      _$createStripModuleContainer(),
+    );
 
 RestRouteRegistry dartOrpcCreateStripModuleRestRouteRegistry() =>
     _$createStripModuleRestRouteRegistry();
 
-// ignore: unused_element
-ProcedureMetadataRegistry _$createStripModuleLocalProcedureMetadataRegistry() {
-  return ProcedureMetadataRegistry([
-    const ProcedureMetadata(
-      rpcMethod: 'strip.echo',
-      controllerNamespace: 'strip',
-      methodName: 'echo',
-      path: RestProcedureMetadata(method: 'POST', path: '/strip'),
-      inputTypeCode: 'StripDto',
-      outputTypeCode: 'StripDto',
-      parameters: [
-        ProcedureParameterMetadata(
-          parameterName: 'input',
-          wireName: 'input',
-          source: ProcedureParameterSourceKind.body,
-          typeCode: 'StripDto',
-        ),
-      ],
-    ),
-  ]);
-}
+final ProcedureMetadataRegistry _$stripModuleProcedureMetadata =
+    ProcedureMetadataRegistry([
+      const ProcedureMetadata(
+        rpcMethod: 'strip.echo',
+        controllerNamespace: 'strip',
+        methodName: 'echo',
+        path: RestProcedureMetadata(method: 'POST', path: '/strip'),
+        inputTypeCode: 'StripDto',
+        outputTypeCode: 'StripDto',
+        parameters: [
+          ProcedureParameterMetadata(
+            parameterName: 'input',
+            wireName: 'input',
+            source: ProcedureParameterSourceKind.body,
+            typeCode: 'StripDto',
+          ),
+        ],
+      ),
+    ]);
 
-ProcedureMetadataRegistry _$createStripModuleProcedureMetadataRegistry() {
-  return ProcedureMetadataRegistry([
-    ..._$createStripModuleLocalProcedureMetadataRegistry().procedures,
-  ]);
-}
+ProcedureMetadataRegistry _$createStripModuleProcedureMetadataRegistry() =>
+    _$stripModuleProcedureMetadata;
 
 ProcedureMetadataRegistry
 dartOrpcCreateStripModuleProcedureMetadataRegistry() =>
@@ -241,11 +215,11 @@ RpcHttpApp _$buildStripModuleRpcApp({
     maxConcurrentRequests: maxConcurrentRequests,
     requestBodyIdleTimeout: requestBodyIdleTimeout,
     serverOptions: serverOptions,
+    middleware: middleware,
     upgradeHandlers: [
       if (webSocket != null)
         RpcWebSocketUpgradeHandler(procedures: procedures, options: webSocket),
     ],
-    middleware: middleware,
   );
 }
 
@@ -256,8 +230,8 @@ RpcHttpApp dartOrpcBuildStripModuleRpcApp({
   RpcHttpHealthOptions? health,
   RpcHttpMetricsOptions? metrics,
   RpcWebSocketServerOptions? webSocket,
-  RpcContextFactory? contextFactory,
   RpcContextBindings bindings = const RpcContextBindings.empty(),
+  RpcContextFactory? contextFactory,
   Duration sseHeartbeatInterval = const Duration(seconds: 15),
   bool sseFlushEachChunk = true,
   bool encodeJsonToBytes = false,

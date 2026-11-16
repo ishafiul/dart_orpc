@@ -257,8 +257,6 @@ void _writeGeneratedExtension(
   _ModuleGenerationPlan context,
 ) {
   final names = context.generatedNames;
-  final dependencyFields = _dependencyParameterFields(context);
-  final dependencyArguments = _dependencyArgumentList(context);
   buffer
     ..writeln()
     ..writeln(
@@ -280,7 +278,7 @@ void _writeGeneratedExtension(
       '  JsonObject openApiDocument({OpenApiDocumentOptions? options}) => ${names.composeOpenApiDocumentName}(options: options);',
     )
     ..writeln(
-      '  RpcHttpApp buildRpcApp({$dependencyFields${dependencyFields.isEmpty ? '' : ', '}OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, RpcHttpStaticOptions? staticAssets, RpcHttpHealthOptions? health, RpcHttpMetricsOptions? metrics, RpcWebSocketServerOptions? webSocket, RpcContextBindings bindings = const RpcContextBindings.empty(), RpcContextFactory? contextFactory, Duration sseHeartbeatInterval = const Duration(seconds: 15), bool sseFlushEachChunk = true, bool encodeJsonToBytes = false, int? maxConcurrentRequests, Duration? requestBodyIdleTimeout, RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(), Iterable<RpcHttpMiddleware> middleware = const []}) => ${names.composeBuildAppName}(${dependencyArguments.isEmpty ? '' : '$dependencyArguments, '}openApi: openApi, docs: docs, staticAssets: staticAssets, health: health, metrics: metrics, webSocket: webSocket, bindings: bindings, contextFactory: contextFactory, sseHeartbeatInterval: sseHeartbeatInterval, sseFlushEachChunk: sseFlushEachChunk, encodeJsonToBytes: encodeJsonToBytes, maxConcurrentRequests: maxConcurrentRequests, requestBodyIdleTimeout: requestBodyIdleTimeout, serverOptions: serverOptions, middleware: middleware);',
+      '  RpcHttpApp buildRpcApp(${_buildAppParameterBlock(context)}) => ${names.composeBuildAppName}(${_buildAppForwardedArguments(context)});',
     )
     ..writeln(
       '  ${names.rootClientName} createClient({required RpcClientTransports transports}) => ${names.rootClientName}(transports: transports);',

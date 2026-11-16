@@ -15,24 +15,12 @@ void _writeRestRouteRegistries(
   final names = context.generatedNames;
   buffer
     ..writeln()
-    ..writeln('// ignore: unused_element')
-    ..writeln(
-      'RestRouteRegistry ${names.createLocalRestRouteRegistryName}(${_dependencyParameterDeclaration(context)}) {',
-    )
-    ..writeln(
-      '  final container = ${names.createContainerName}(${_dependencyArgumentList(context)});',
-    )
-    ..writeln(
-      '  return ${names.createRestRouteRegistryFromContainerName}(container);',
-    )
-    ..writeln('}')
-    ..writeln()
     ..writeln(
       'RestRouteRegistry ${names.createRestRouteRegistryFromContainerName}(${names.containerClassName} container) {',
     )
     ..writeln(
       _hasLocalRestRoutes(context)
-          ? '  final metadataRegistry = ${names.createLocalMetadataRegistryName}();'
+          ? '  final metadataRegistry = ${names.metadataRegistryName};'
           : '',
     )
     ..writeln('  return RestRouteRegistry([');
@@ -94,9 +82,7 @@ void _writeRestRouteRegistries(
             ..writeln(
               '        final output = ${awaitPrefix}container.${controller.instanceName}.${procedure.methodName}($invocationArguments);',
             )
-            ..writeln(
-              '        return (${_encodeRestOutputExpression(procedure)})(output);',
-            );
+            ..writeln('        return ${_encodedOutput(procedure, 'output')};');
         }
       }
       buffer
@@ -111,15 +97,11 @@ void _writeRestRouteRegistries(
     ..writeln('}')
     ..writeln()
     ..writeln(
-      'RestRouteRegistry ${names.createRestRouteRegistryName}(${_dependencyParameterDeclaration(context)}) {',
+      'RestRouteRegistry ${names.createRestRouteRegistryName}(${_dependencyParameterDeclaration(context)}) =>',
     )
-    ..writeln('  return RestRouteRegistry([');
-  buffer
     ..writeln(
-      '    ...${names.createLocalRestRouteRegistryName}(${_dependencyArgumentList(context)}).routes,',
+      '    ${names.createRestRouteRegistryFromContainerName}(${names.createContainerName}(${_dependencyArgumentList(context)}));',
     )
-    ..writeln('  ]);')
-    ..writeln('}')
     ..writeln()
     ..writeln(
       'RestRouteRegistry ${names.composeRestRouteRegistryName}(${_dependencyParameterDeclaration(context)}) => ${names.createRestRouteRegistryName}(${_dependencyArgumentList(context)});',
@@ -133,28 +115,20 @@ void _writeMetadataRegistries(
   final names = context.generatedNames;
   buffer
     ..writeln()
-    ..writeln('// ignore: unused_element')
     ..writeln(
-      'ProcedureMetadataRegistry ${names.createLocalMetadataRegistryName}() {',
-    )
-    ..writeln('  return ProcedureMetadataRegistry([');
+      'final ProcedureMetadataRegistry ${names.metadataRegistryName} = ProcedureMetadataRegistry([',
+    );
   for (final controller in context.rootModule.allControllers) {
     for (final procedure in controller.procedures) {
       _writeProcedureMetadata(buffer, procedure);
     }
   }
   buffer
-    ..writeln('  ]);')
-    ..writeln('}')
+    ..writeln(']);')
     ..writeln()
     ..writeln(
-      'ProcedureMetadataRegistry ${names.createMetadataRegistryName}() {',
+      'ProcedureMetadataRegistry ${names.createMetadataRegistryName}() => ${names.metadataRegistryName};',
     )
-    ..writeln('  return ProcedureMetadataRegistry([');
-  buffer
-    ..writeln('    ...${names.createLocalMetadataRegistryName}().procedures,')
-    ..writeln('  ]);')
-    ..writeln('}')
     ..writeln()
     ..writeln(
       'ProcedureMetadataRegistry ${names.composeMetadataRegistryName}() => ${names.createMetadataRegistryName}();',

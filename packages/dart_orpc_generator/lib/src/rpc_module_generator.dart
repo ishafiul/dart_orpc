@@ -58,6 +58,7 @@ part 'rpc_module_generator/pipeline/library_generation.dart';
 part 'rpc_module_generator/pipeline/module_generation.dart';
 
 // Shared deterministic naming, imports, and source-expression helpers.
+part 'rpc_module_generator/support/build_app_parameters.dart';
 part 'rpc_module_generator/support/import_directives.dart';
 part 'rpc_module_generator/support/naming_helpers.dart';
 part 'rpc_module_generator/support/rest_generation_helpers.dart';

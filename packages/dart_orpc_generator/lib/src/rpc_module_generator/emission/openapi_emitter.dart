@@ -27,7 +27,7 @@ void _writeOpenApiSections(StringBuffer buffer, _ModuleGenerationPlan context) {
     )
     ..writeln()
     ..writeln(
-      'RpcHttpApp ${names.buildAppName}({${_dependencyParameterFields(context)}${_dependencyParameterFields(context).isEmpty ? '' : ', '}OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, RpcHttpStaticOptions? staticAssets, RpcHttpHealthOptions? health, RpcHttpMetricsOptions? metrics, RpcWebSocketServerOptions? webSocket, RpcContextBindings bindings = const RpcContextBindings.empty(), RpcContextFactory? contextFactory, Duration sseHeartbeatInterval = const Duration(seconds: 15), bool sseFlushEachChunk = true, bool encodeJsonToBytes = false, int? maxConcurrentRequests, Duration? requestBodyIdleTimeout, RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(), Iterable<RpcHttpMiddleware> middleware = const []}) {',
+      'RpcHttpApp ${names.buildAppName}(${_buildAppParameterBlock(context)}) {',
     )
     ..writeln(
       '  final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();',
@@ -59,25 +59,18 @@ void _writeOpenApiSections(StringBuffer buffer, _ModuleGenerationPlan context) {
     )
     ..writeln('    docsPath: effectiveDocs.docsPath,')
     ..writeln('    docsBasicAuth: effectiveDocs.basicAuth,')
-    ..writeln('    staticAssets: staticAssets,')
-    ..writeln('    health: health,')
-    ..writeln('    metrics: metrics,')
-    ..writeln('    bindings: bindings,')
-    ..writeln('    contextFactory: contextFactory,')
-    ..writeln('    sseHeartbeatInterval: sseHeartbeatInterval,')
-    ..writeln('    sseFlushEachChunk: sseFlushEachChunk,')
-    ..writeln('    encodeJsonToBytes: encodeJsonToBytes,')
-    ..writeln('    maxConcurrentRequests: maxConcurrentRequests,')
-    ..writeln('    requestBodyIdleTimeout: requestBodyIdleTimeout,')
-    ..writeln('    serverOptions: serverOptions,')
+    ..writeAll([
+      for (final parameter in _buildAppParameters)
+        if (parameter.passedToApp)
+          '    ${parameter.name}: ${parameter.name},\n',
+    ])
     ..writeln(
       '    upgradeHandlers: [if (webSocket != null) RpcWebSocketUpgradeHandler(procedures: procedures, options: webSocket)],',
     )
-    ..writeln('    middleware: middleware,')
     ..writeln('  );')
     ..writeln('}')
     ..writeln()
     ..writeln(
-      'RpcHttpApp ${names.composeBuildAppName}({${_dependencyParameterFields(context)}${_dependencyParameterFields(context).isEmpty ? '' : ', '}OpenApiDocumentOptions? openApi, RpcHttpDocsOptions? docs, RpcHttpStaticOptions? staticAssets, RpcHttpHealthOptions? health, RpcHttpMetricsOptions? metrics, RpcWebSocketServerOptions? webSocket, RpcContextFactory? contextFactory, RpcContextBindings bindings = const RpcContextBindings.empty(), Duration sseHeartbeatInterval = const Duration(seconds: 15), bool sseFlushEachChunk = true, bool encodeJsonToBytes = false, int? maxConcurrentRequests, Duration? requestBodyIdleTimeout, RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(), Iterable<RpcHttpMiddleware> middleware = const []}) => ${names.buildAppName}(${_dependencyArgumentList(context)}${_dependencyArgumentList(context).isEmpty ? '' : ', '}openApi: openApi, docs: docs, staticAssets: staticAssets, health: health, metrics: metrics, webSocket: webSocket, bindings: bindings, contextFactory: contextFactory, sseHeartbeatInterval: sseHeartbeatInterval, sseFlushEachChunk: sseFlushEachChunk, encodeJsonToBytes: encodeJsonToBytes, maxConcurrentRequests: maxConcurrentRequests, requestBodyIdleTimeout: requestBodyIdleTimeout, serverOptions: serverOptions, middleware: middleware);',
+      'RpcHttpApp ${names.composeBuildAppName}(${_buildAppParameterBlock(context)}) => ${names.buildAppName}(${_buildAppForwardedArguments(context)});',
     );
 }

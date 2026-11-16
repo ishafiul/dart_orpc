@@ -87,6 +87,7 @@ final class _ResolvedProcedure {
     required this.outputTypeElement,
     required this.outputUsesLuthor,
     required this.outputCodecKind,
+    required this.outputIsJsonBytes,
     required this.returnsFuture,
     required this.isStream,
     required this.supportsRpcGeneration,
@@ -116,6 +117,10 @@ final class _ResolvedProcedure {
   final Element? outputTypeElement;
   final bool outputUsesLuthor;
   final _OutputCodecKind outputCodecKind;
+
+  /// Whether the DTO output implements `RpcJsonBytes`, so it is passed
+  /// through as is and the transport writes its bytes.
+  final bool outputIsJsonBytes;
   final bool returnsFuture;
   final bool isStream;
   final bool supportsRpcGeneration;
