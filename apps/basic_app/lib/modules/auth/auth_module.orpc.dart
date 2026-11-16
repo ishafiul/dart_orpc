@@ -45,16 +45,10 @@ _$AuthModuleContainer _$createAuthModuleContainer() {
   );
 }
 
-// ignore: unused_element
-RpcProcedureRegistry _$createAuthModuleLocalProcedureRegistry() {
-  final container = _$createAuthModuleContainer();
-  return _$createAuthModuleProcedureRegistryFromContainer(container);
-}
-
 RpcProcedureRegistry _$createAuthModuleProcedureRegistryFromContainer(
   _$AuthModuleContainer container,
 ) {
-  final metadataRegistry = _$createAuthModuleLocalProcedureMetadataRegistry();
+  final metadataRegistry = _$authModuleProcedureMetadata;
   return RpcProcedureRegistry([
     RpcUnaryProcedure<SignUpDto, AuthResponseDto>(
       method: 'auth.signUp',
@@ -104,11 +98,10 @@ RpcProcedureRegistry _$createAuthModuleProcedureRegistryFromContainer(
   ]);
 }
 
-RpcProcedureRegistry _$createAuthModuleProcedureRegistry() {
-  return RpcProcedureRegistry([
-    ..._$createAuthModuleLocalProcedureRegistry().procedures,
-  ]);
-}
+RpcProcedureRegistry _$createAuthModuleProcedureRegistry() =>
+    _$createAuthModuleProcedureRegistryFromContainer(
+      _$createAuthModuleContainer(),
+    );
 
 RpcProcedureRegistry dartOrpcCreateAuthModuleProcedureRegistry() =>
     _$createAuthModuleProcedureRegistry();
@@ -116,32 +109,19 @@ RpcProcedureRegistry dartOrpcCreateAuthModuleProcedureRegistry() =>
 ({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
 _$createAuthModuleRuntime() {
   final container = _$createAuthModuleContainer();
-  final localProcedures = _$createAuthModuleProcedureRegistryFromContainer(
-    container,
-  );
-  final localRestRoutes = _$createAuthModuleRestRouteRegistryFromContainer(
-    container,
-  );
-
   return (
-    procedures: RpcProcedureRegistry([...localProcedures.procedures]),
-    restRoutes: RestRouteRegistry([...localRestRoutes.routes]),
+    procedures: _$createAuthModuleProcedureRegistryFromContainer(container),
+    restRoutes: _$createAuthModuleRestRouteRegistryFromContainer(container),
   );
 }
 
 ({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
 dartOrpcCreateAuthModuleRuntime() => _$createAuthModuleRuntime();
 
-// ignore: unused_element
-RestRouteRegistry _$createAuthModuleLocalRestRouteRegistry() {
-  final container = _$createAuthModuleContainer();
-  return _$createAuthModuleRestRouteRegistryFromContainer(container);
-}
-
 RestRouteRegistry _$createAuthModuleRestRouteRegistryFromContainer(
   _$AuthModuleContainer container,
 ) {
-  final metadataRegistry = _$createAuthModuleLocalProcedureMetadataRegistry();
+  final metadataRegistry = _$authModuleProcedureMetadata;
   return RestRouteRegistry([
     RestUnaryRoute(
       method: 'POST',
@@ -166,12 +146,12 @@ RestRouteRegistry _$createAuthModuleRestRouteRegistryFromContainer(
           validate: $SignUpDtoValidate,
         ))(rawInput);
         final output = await container.authController.signUp(context, input);
-        return ((output) => encodeRpcOutputJsonWithLuthor<AuthResponseDto>(
+        return encodeRpcOutputJsonWithLuthor<AuthResponseDto>(
           output: output,
           method: 'auth.signUp',
           toJson: (output) => output.toJson(),
           validateJson: $AuthResponseDtoSchema.validate,
-        ))(output);
+        );
       },
       metadata: metadataRegistry['auth.signUp']!,
     ),
@@ -198,12 +178,12 @@ RestRouteRegistry _$createAuthModuleRestRouteRegistryFromContainer(
           validate: $LoginDtoValidate,
         ))(rawInput);
         final output = await container.authController.login(context, input);
-        return ((output) => encodeRpcOutputJsonWithLuthor<AuthResponseDto>(
+        return encodeRpcOutputJsonWithLuthor<AuthResponseDto>(
           output: output,
           method: 'auth.login',
           toJson: (output) => output.toJson(),
           validateJson: $AuthResponseDtoSchema.validate,
-        ))(output);
+        );
       },
       metadata: metadataRegistry['auth.login']!,
     ),
@@ -212,78 +192,72 @@ RestRouteRegistry _$createAuthModuleRestRouteRegistryFromContainer(
       path: '/auth/test',
       handler: (context, request, pathParameters) async {
         final output = await container.authController.test(context);
-        return ((output) => output)(output);
+        return output;
       },
       metadata: metadataRegistry['auth.test']!,
     ),
   ]);
 }
 
-RestRouteRegistry _$createAuthModuleRestRouteRegistry() {
-  return RestRouteRegistry([
-    ..._$createAuthModuleLocalRestRouteRegistry().routes,
-  ]);
-}
+RestRouteRegistry _$createAuthModuleRestRouteRegistry() =>
+    _$createAuthModuleRestRouteRegistryFromContainer(
+      _$createAuthModuleContainer(),
+    );
 
 RestRouteRegistry dartOrpcCreateAuthModuleRestRouteRegistry() =>
     _$createAuthModuleRestRouteRegistry();
 
-// ignore: unused_element
-ProcedureMetadataRegistry _$createAuthModuleLocalProcedureMetadataRegistry() {
-  return ProcedureMetadataRegistry([
-    const ProcedureMetadata(
-      rpcMethod: 'auth.signUp',
-      controllerNamespace: 'auth',
-      methodName: 'signUp',
-      path: RestProcedureMetadata(method: 'POST', path: '/auth/signup'),
-      inputTypeCode: 'SignUpDto',
-      outputTypeCode: 'AuthResponseDto',
-      description: 'Create an account and return a JWT access token.',
-      tags: ['auth'],
-      parameters: [
-        ProcedureParameterMetadata(
-          parameterName: 'input',
-          wireName: 'input',
-          source: ProcedureParameterSourceKind.body,
-          typeCode: 'SignUpDto',
-        ),
-      ],
-    ),
-    const ProcedureMetadata(
-      rpcMethod: 'auth.login',
-      controllerNamespace: 'auth',
-      methodName: 'login',
-      path: RestProcedureMetadata(method: 'POST', path: '/auth/login'),
-      inputTypeCode: 'LoginDto',
-      outputTypeCode: 'AuthResponseDto',
-      description: 'Authenticate with email and password.',
-      tags: ['auth'],
-      parameters: [
-        ProcedureParameterMetadata(
-          parameterName: 'input',
-          wireName: 'input',
-          source: ProcedureParameterSourceKind.body,
-          typeCode: 'LoginDto',
-        ),
-      ],
-    ),
-    const ProcedureMetadata(
-      rpcMethod: 'auth.test',
-      controllerNamespace: 'auth',
-      methodName: 'test',
-      path: RestProcedureMetadata(method: 'POST', path: '/auth/test'),
-      outputTypeCode: 'int',
-      description: 'Authenticate with email and password.',
-      tags: ['auth'],
-    ),
-  ]);
-}
+final ProcedureMetadataRegistry _$authModuleProcedureMetadata =
+    ProcedureMetadataRegistry([
+      const ProcedureMetadata(
+        rpcMethod: 'auth.signUp',
+        controllerNamespace: 'auth',
+        methodName: 'signUp',
+        path: RestProcedureMetadata(method: 'POST', path: '/auth/signup'),
+        inputTypeCode: 'SignUpDto',
+        outputTypeCode: 'AuthResponseDto',
+        description: 'Create an account and return a JWT access token.',
+        tags: ['auth'],
+        parameters: [
+          ProcedureParameterMetadata(
+            parameterName: 'input',
+            wireName: 'input',
+            source: ProcedureParameterSourceKind.body,
+            typeCode: 'SignUpDto',
+          ),
+        ],
+      ),
+      const ProcedureMetadata(
+        rpcMethod: 'auth.login',
+        controllerNamespace: 'auth',
+        methodName: 'login',
+        path: RestProcedureMetadata(method: 'POST', path: '/auth/login'),
+        inputTypeCode: 'LoginDto',
+        outputTypeCode: 'AuthResponseDto',
+        description: 'Authenticate with email and password.',
+        tags: ['auth'],
+        parameters: [
+          ProcedureParameterMetadata(
+            parameterName: 'input',
+            wireName: 'input',
+            source: ProcedureParameterSourceKind.body,
+            typeCode: 'LoginDto',
+          ),
+        ],
+      ),
+      const ProcedureMetadata(
+        rpcMethod: 'auth.test',
+        controllerNamespace: 'auth',
+        methodName: 'test',
+        path: RestProcedureMetadata(method: 'POST', path: '/auth/test'),
+        outputTypeCode: 'int',
+        description: 'Authenticate with email and password.',
+        tags: ['auth'],
+      ),
+    ]);
 
-ProcedureMetadataRegistry _$createAuthModuleProcedureMetadataRegistry() {
-  return ProcedureMetadataRegistry([
-    ..._$createAuthModuleLocalProcedureMetadataRegistry().procedures,
-  ]);
-}
+ProcedureMetadataRegistry _$createAuthModuleProcedureMetadataRegistry() =>
+    _$authModuleProcedureMetadata;
 
 ProcedureMetadataRegistry dartOrpcCreateAuthModuleProcedureMetadataRegistry() =>
     _$createAuthModuleProcedureMetadataRegistry();
@@ -361,11 +335,11 @@ RpcHttpApp _$buildAuthModuleRpcApp({
     maxConcurrentRequests: maxConcurrentRequests,
     requestBodyIdleTimeout: requestBodyIdleTimeout,
     serverOptions: serverOptions,
+    middleware: middleware,
     upgradeHandlers: [
       if (webSocket != null)
         RpcWebSocketUpgradeHandler(procedures: procedures, options: webSocket),
     ],
-    middleware: middleware,
   );
 }
 
@@ -376,8 +350,8 @@ RpcHttpApp dartOrpcBuildAuthModuleRpcApp({
   RpcHttpHealthOptions? health,
   RpcHttpMetricsOptions? metrics,
   RpcWebSocketServerOptions? webSocket,
-  RpcContextFactory? contextFactory,
   RpcContextBindings bindings = const RpcContextBindings.empty(),
+  RpcContextFactory? contextFactory,
   Duration sseHeartbeatInterval = const Duration(seconds: 15),
   bool sseFlushEachChunk = true,
   bool encodeJsonToBytes = false,

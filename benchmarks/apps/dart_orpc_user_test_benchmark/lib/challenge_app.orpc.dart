@@ -68,17 +68,10 @@ _$ChallengeModuleContainer _$createChallengeModuleContainer() {
   );
 }
 
-// ignore: unused_element
-RpcProcedureRegistry _$createChallengeModuleLocalProcedureRegistry() {
-  final container = _$createChallengeModuleContainer();
-  return _$createChallengeModuleProcedureRegistryFromContainer(container);
-}
-
 RpcProcedureRegistry _$createChallengeModuleProcedureRegistryFromContainer(
   _$ChallengeModuleContainer container,
 ) {
-  final metadataRegistry =
-      _$createChallengeModuleLocalProcedureMetadataRegistry();
+  final metadataRegistry = _$challengeModuleProcedureMetadata;
   return RpcProcedureRegistry([
     RpcUnaryProcedure<Null, HealthResponseDto>(
       method: 'health.health',
@@ -93,7 +86,7 @@ RpcProcedureRegistry _$createChallengeModuleProcedureRegistryFromContainer(
       method: 'posts.feed',
       decodeInput: (rawInput) =>
           expectNoRpcInput(rawInput, context: 'RPC method "posts.feed"'),
-      encodeOutput: (output) => output.toJson(),
+      encodeOutput: (output) => output,
       metadata: metadataRegistry['posts.feed']!,
 
       handler: (context, input) => container.postReadController.feed(),
@@ -101,11 +94,10 @@ RpcProcedureRegistry _$createChallengeModuleProcedureRegistryFromContainer(
   ]);
 }
 
-RpcProcedureRegistry _$createChallengeModuleProcedureRegistry() {
-  return RpcProcedureRegistry([
-    ..._$createChallengeModuleLocalProcedureRegistry().procedures,
-  ]);
-}
+RpcProcedureRegistry _$createChallengeModuleProcedureRegistry() =>
+    _$createChallengeModuleProcedureRegistryFromContainer(
+      _$createChallengeModuleContainer(),
+    );
 
 RpcProcedureRegistry dartOrpcCreateChallengeModuleProcedureRegistry() =>
     _$createChallengeModuleProcedureRegistry();
@@ -113,41 +105,30 @@ RpcProcedureRegistry dartOrpcCreateChallengeModuleProcedureRegistry() =>
 ({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
 _$createChallengeModuleRuntime() {
   final container = _$createChallengeModuleContainer();
-  final localProcedures = _$createChallengeModuleProcedureRegistryFromContainer(
-    container,
-  );
-  final localRestRoutes = _$createChallengeModuleRestRouteRegistryFromContainer(
-    container,
-  );
-
   return (
-    procedures: RpcProcedureRegistry([...localProcedures.procedures]),
-    restRoutes: RestRouteRegistry([...localRestRoutes.routes]),
+    procedures: _$createChallengeModuleProcedureRegistryFromContainer(
+      container,
+    ),
+    restRoutes: _$createChallengeModuleRestRouteRegistryFromContainer(
+      container,
+    ),
   );
 }
 
 ({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
 dartOrpcCreateChallengeModuleRuntime() => _$createChallengeModuleRuntime();
 
-// ignore: unused_element
-RestRouteRegistry _$createChallengeModuleLocalRestRouteRegistry() {
-  final container = _$createChallengeModuleContainer();
-  return _$createChallengeModuleRestRouteRegistryFromContainer(container);
-}
-
 RestRouteRegistry _$createChallengeModuleRestRouteRegistryFromContainer(
   _$ChallengeModuleContainer container,
 ) {
-  final metadataRegistry =
-      _$createChallengeModuleLocalProcedureMetadataRegistry();
+  final metadataRegistry = _$challengeModuleProcedureMetadata;
   return RestRouteRegistry([
     RestUnaryRoute(
       method: 'GET',
       path: '/health',
       handler: (context, request, pathParameters) {
         final output = container.healthController.health();
-        return ((output) =>
-            output is RpcJsonBytes ? output : output.toJson())(output);
+        return output.toJson();
       },
       metadata: metadataRegistry['health.health']!,
     ),
@@ -156,8 +137,7 @@ RestRouteRegistry _$createChallengeModuleRestRouteRegistryFromContainer(
       path: '/feed',
       handler: (context, request, pathParameters) {
         final output = container.postReadController.feed();
-        return ((output) =>
-            output is RpcJsonBytes ? output : output.toJson())(output);
+        return output;
       },
       metadata: metadataRegistry['posts.feed']!,
     ),
@@ -172,8 +152,7 @@ RestRouteRegistry _$createChallengeModuleRestRouteRegistryFromContainer(
           route: 'GET /posts/:id',
         );
         final output = container.postReadController.getById(id);
-        return ((output) =>
-            output is RpcJsonBytes ? output : output.toJson())(output);
+        return output;
       },
       metadata: metadataRegistry['posts.getById']!,
     ),
@@ -189,8 +168,7 @@ RestRouteRegistry _$createChallengeModuleRestRouteRegistryFromContainer(
               expectJsonObject(rawBody, context: 'POST /posts body'),
         );
         final output = container.postWriteController.create(context, body);
-        return ((output) =>
-            output is RpcJsonBytes ? output : output.toJson())(output);
+        return output;
       },
       metadata: metadataRegistry['posts.create']!,
       guards: [container.challengeBearerGuard],
@@ -206,8 +184,7 @@ RestRouteRegistry _$createChallengeModuleRestRouteRegistryFromContainer(
           route: 'POST /posts/:id/like',
         );
         final output = container.postWriteController.like(context, id);
-        return ((output) =>
-            output is RpcJsonBytes ? output : output.toJson())(output);
+        return output.toJson();
       },
       metadata: metadataRegistry['posts.like']!,
       guards: [container.challengeBearerGuard],
@@ -215,90 +192,83 @@ RestRouteRegistry _$createChallengeModuleRestRouteRegistryFromContainer(
   ]);
 }
 
-RestRouteRegistry _$createChallengeModuleRestRouteRegistry() {
-  return RestRouteRegistry([
-    ..._$createChallengeModuleLocalRestRouteRegistry().routes,
-  ]);
-}
+RestRouteRegistry _$createChallengeModuleRestRouteRegistry() =>
+    _$createChallengeModuleRestRouteRegistryFromContainer(
+      _$createChallengeModuleContainer(),
+    );
 
 RestRouteRegistry dartOrpcCreateChallengeModuleRestRouteRegistry() =>
     _$createChallengeModuleRestRouteRegistry();
 
-// ignore: unused_element
-ProcedureMetadataRegistry
-_$createChallengeModuleLocalProcedureMetadataRegistry() {
-  return ProcedureMetadataRegistry([
-    const ProcedureMetadata(
-      rpcMethod: 'health.health',
-      controllerNamespace: 'health',
-      methodName: 'health',
-      path: RestProcedureMetadata(method: 'GET', path: '/health'),
-      outputTypeCode: 'HealthResponseDto',
-    ),
-    const ProcedureMetadata(
-      rpcMethod: 'posts.feed',
-      controllerNamespace: 'posts',
-      methodName: 'feed',
-      path: RestProcedureMetadata(method: 'GET', path: '/feed'),
-      outputTypeCode: 'FeedResponseDto',
-    ),
-    const ProcedureMetadata(
-      rpcMethod: 'posts.getById',
-      controllerNamespace: 'posts',
-      methodName: 'getById',
-      path: RestProcedureMetadata(method: 'GET', path: '/posts/:id'),
-      outputTypeCode: 'PostResponseDto',
-      parameters: [
-        ProcedureParameterMetadata(
-          parameterName: 'id',
-          wireName: 'id',
-          source: ProcedureParameterSourceKind.path,
-          typeCode: 'String',
-        ),
-      ],
-    ),
-    const ProcedureMetadata(
-      rpcMethod: 'posts.create',
-      controllerNamespace: 'posts',
-      methodName: 'create',
-      path: RestProcedureMetadata(method: 'POST', path: '/posts'),
-      outputTypeCode: 'CreatePostResponseDto',
-      guardTypes: ['ChallengeBearerGuard'],
-      securityRequirements: [ProcedureSecurityRequirement('bearerAuth')],
-      parameters: [
-        ProcedureParameterMetadata(
-          parameterName: 'body',
-          wireName: 'body',
-          source: ProcedureParameterSourceKind.body,
-          typeCode: 'Map<String, Object?>',
-        ),
-      ],
-    ),
-    const ProcedureMetadata(
-      rpcMethod: 'posts.like',
-      controllerNamespace: 'posts',
-      methodName: 'like',
-      path: RestProcedureMetadata(method: 'POST', path: '/posts/:id/like'),
-      outputTypeCode: 'LikeResponseDto',
-      guardTypes: ['ChallengeBearerGuard'],
-      securityRequirements: [ProcedureSecurityRequirement('bearerAuth')],
-      parameters: [
-        ProcedureParameterMetadata(
-          parameterName: 'id',
-          wireName: 'id',
-          source: ProcedureParameterSourceKind.path,
-          typeCode: 'String',
-        ),
-      ],
-    ),
-  ]);
-}
+final ProcedureMetadataRegistry _$challengeModuleProcedureMetadata =
+    ProcedureMetadataRegistry([
+      const ProcedureMetadata(
+        rpcMethod: 'health.health',
+        controllerNamespace: 'health',
+        methodName: 'health',
+        path: RestProcedureMetadata(method: 'GET', path: '/health'),
+        outputTypeCode: 'HealthResponseDto',
+      ),
+      const ProcedureMetadata(
+        rpcMethod: 'posts.feed',
+        controllerNamespace: 'posts',
+        methodName: 'feed',
+        path: RestProcedureMetadata(method: 'GET', path: '/feed'),
+        outputTypeCode: 'FeedResponseDto',
+      ),
+      const ProcedureMetadata(
+        rpcMethod: 'posts.getById',
+        controllerNamespace: 'posts',
+        methodName: 'getById',
+        path: RestProcedureMetadata(method: 'GET', path: '/posts/:id'),
+        outputTypeCode: 'PostResponseDto',
+        parameters: [
+          ProcedureParameterMetadata(
+            parameterName: 'id',
+            wireName: 'id',
+            source: ProcedureParameterSourceKind.path,
+            typeCode: 'String',
+          ),
+        ],
+      ),
+      const ProcedureMetadata(
+        rpcMethod: 'posts.create',
+        controllerNamespace: 'posts',
+        methodName: 'create',
+        path: RestProcedureMetadata(method: 'POST', path: '/posts'),
+        outputTypeCode: 'CreatePostResponseDto',
+        guardTypes: ['ChallengeBearerGuard'],
+        securityRequirements: [ProcedureSecurityRequirement('bearerAuth')],
+        parameters: [
+          ProcedureParameterMetadata(
+            parameterName: 'body',
+            wireName: 'body',
+            source: ProcedureParameterSourceKind.body,
+            typeCode: 'Map<String, Object?>',
+          ),
+        ],
+      ),
+      const ProcedureMetadata(
+        rpcMethod: 'posts.like',
+        controllerNamespace: 'posts',
+        methodName: 'like',
+        path: RestProcedureMetadata(method: 'POST', path: '/posts/:id/like'),
+        outputTypeCode: 'LikeResponseDto',
+        guardTypes: ['ChallengeBearerGuard'],
+        securityRequirements: [ProcedureSecurityRequirement('bearerAuth')],
+        parameters: [
+          ProcedureParameterMetadata(
+            parameterName: 'id',
+            wireName: 'id',
+            source: ProcedureParameterSourceKind.path,
+            typeCode: 'String',
+          ),
+        ],
+      ),
+    ]);
 
-ProcedureMetadataRegistry _$createChallengeModuleProcedureMetadataRegistry() {
-  return ProcedureMetadataRegistry([
-    ..._$createChallengeModuleLocalProcedureMetadataRegistry().procedures,
-  ]);
-}
+ProcedureMetadataRegistry _$createChallengeModuleProcedureMetadataRegistry() =>
+    _$challengeModuleProcedureMetadata;
 
 ProcedureMetadataRegistry
 dartOrpcCreateChallengeModuleProcedureMetadataRegistry() =>
@@ -377,11 +347,11 @@ RpcHttpApp _$buildChallengeModuleRpcApp({
     maxConcurrentRequests: maxConcurrentRequests,
     requestBodyIdleTimeout: requestBodyIdleTimeout,
     serverOptions: serverOptions,
+    middleware: middleware,
     upgradeHandlers: [
       if (webSocket != null)
         RpcWebSocketUpgradeHandler(procedures: procedures, options: webSocket),
     ],
-    middleware: middleware,
   );
 }
 
@@ -392,8 +362,8 @@ RpcHttpApp dartOrpcBuildChallengeModuleRpcApp({
   RpcHttpHealthOptions? health,
   RpcHttpMetricsOptions? metrics,
   RpcWebSocketServerOptions? webSocket,
-  RpcContextFactory? contextFactory,
   RpcContextBindings bindings = const RpcContextBindings.empty(),
+  RpcContextFactory? contextFactory,
   Duration sseHeartbeatInterval = const Duration(seconds: 15),
   bool sseFlushEachChunk = true,
   bool encodeJsonToBytes = false,

@@ -35,17 +35,10 @@ _$BenchmarkModuleContainer _$createBenchmarkModuleContainer() {
   );
 }
 
-// ignore: unused_element
-RpcProcedureRegistry _$createBenchmarkModuleLocalProcedureRegistry() {
-  final container = _$createBenchmarkModuleContainer();
-  return _$createBenchmarkModuleProcedureRegistryFromContainer(container);
-}
-
 RpcProcedureRegistry _$createBenchmarkModuleProcedureRegistryFromContainer(
   _$BenchmarkModuleContainer container,
 ) {
-  final metadataRegistry =
-      _$createBenchmarkModuleLocalProcedureMetadataRegistry();
+  final metadataRegistry = _$benchmarkModuleProcedureMetadata;
   return RpcProcedureRegistry([
     RpcUnaryProcedure<CatalogQueryDto, CatalogResponseDto>(
       method: 'benchmark.catalog',
@@ -87,11 +80,10 @@ RpcProcedureRegistry _$createBenchmarkModuleProcedureRegistryFromContainer(
   ]);
 }
 
-RpcProcedureRegistry _$createBenchmarkModuleProcedureRegistry() {
-  return RpcProcedureRegistry([
-    ..._$createBenchmarkModuleLocalProcedureRegistry().procedures,
-  ]);
-}
+RpcProcedureRegistry _$createBenchmarkModuleProcedureRegistry() =>
+    _$createBenchmarkModuleProcedureRegistryFromContainer(
+      _$createBenchmarkModuleContainer(),
+    );
 
 RpcProcedureRegistry dartOrpcCreateBenchmarkModuleProcedureRegistry() =>
     _$createBenchmarkModuleProcedureRegistry();
@@ -99,33 +91,23 @@ RpcProcedureRegistry dartOrpcCreateBenchmarkModuleProcedureRegistry() =>
 ({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
 _$createBenchmarkModuleRuntime() {
   final container = _$createBenchmarkModuleContainer();
-  final localProcedures = _$createBenchmarkModuleProcedureRegistryFromContainer(
-    container,
-  );
-  final localRestRoutes = _$createBenchmarkModuleRestRouteRegistryFromContainer(
-    container,
-  );
-
   return (
-    procedures: RpcProcedureRegistry([...localProcedures.procedures]),
-    restRoutes: RestRouteRegistry([...localRestRoutes.routes]),
+    procedures: _$createBenchmarkModuleProcedureRegistryFromContainer(
+      container,
+    ),
+    restRoutes: _$createBenchmarkModuleRestRouteRegistryFromContainer(
+      container,
+    ),
   );
 }
 
 ({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
 dartOrpcCreateBenchmarkModuleRuntime() => _$createBenchmarkModuleRuntime();
 
-// ignore: unused_element
-RestRouteRegistry _$createBenchmarkModuleLocalRestRouteRegistry() {
-  final container = _$createBenchmarkModuleContainer();
-  return _$createBenchmarkModuleRestRouteRegistryFromContainer(container);
-}
-
 RestRouteRegistry _$createBenchmarkModuleRestRouteRegistryFromContainer(
   _$BenchmarkModuleContainer container,
 ) {
-  final metadataRegistry =
-      _$createBenchmarkModuleLocalProcedureMetadataRegistry();
+  final metadataRegistry = _$benchmarkModuleProcedureMetadata;
   return RestRouteRegistry([
     RestUnaryRoute(
       method: 'GET',
@@ -156,8 +138,7 @@ RestRouteRegistry _$createBenchmarkModuleRestRouteRegistryFromContainer(
           validate: $CatalogQueryDtoValidate,
         ))(rawInput);
         final output = container.benchmarkController.catalog(input);
-        return ((output) =>
-            output is RpcJsonBytes ? output : output.toJson())(output);
+        return output.toJson();
       },
       metadata: metadataRegistry['benchmark.catalog']!,
     ),
@@ -182,98 +163,90 @@ RestRouteRegistry _$createBenchmarkModuleRestRouteRegistryFromContainer(
           validate: $CheckoutInputDtoValidate,
         ))(rawInput);
         final output = container.benchmarkController.checkout(input);
-        return ((output) =>
-            output is RpcJsonBytes ? output : output.toJson())(output);
+        return output.toJson();
       },
       metadata: metadataRegistry['benchmark.checkout']!,
     ),
   ]);
 }
 
-RestRouteRegistry _$createBenchmarkModuleRestRouteRegistry() {
-  return RestRouteRegistry([
-    ..._$createBenchmarkModuleLocalRestRouteRegistry().routes,
-  ]);
-}
+RestRouteRegistry _$createBenchmarkModuleRestRouteRegistry() =>
+    _$createBenchmarkModuleRestRouteRegistryFromContainer(
+      _$createBenchmarkModuleContainer(),
+    );
 
 RestRouteRegistry dartOrpcCreateBenchmarkModuleRestRouteRegistry() =>
     _$createBenchmarkModuleRestRouteRegistry();
 
-// ignore: unused_element
-ProcedureMetadataRegistry
-_$createBenchmarkModuleLocalProcedureMetadataRegistry() {
-  return ProcedureMetadataRegistry([
-    const ProcedureMetadata(
-      rpcMethod: 'benchmark.catalog',
-      controllerNamespace: 'benchmark',
-      methodName: 'catalog',
-      path: RestProcedureMetadata(method: 'GET', path: '/catalog'),
-      inputTypeCode: 'CatalogQueryDto',
-      outputTypeCode: 'CatalogResponseDto',
-      description: 'Return a filtered page of catalog items.',
-      tags: ['benchmark'],
-      parameters: [
-        ProcedureParameterMetadata(
-          parameterName: 'category',
-          wireName: 'category',
-          source: ProcedureParameterSourceKind.query,
-          typeCode: 'String',
-        ),
-        ProcedureParameterMetadata(
-          parameterName: 'page',
-          wireName: 'page',
-          source: ProcedureParameterSourceKind.query,
-          typeCode: 'int',
-        ),
-        ProcedureParameterMetadata(
-          parameterName: 'limit',
-          wireName: 'limit',
-          source: ProcedureParameterSourceKind.query,
-          typeCode: 'int',
-        ),
-      ],
-    ),
-    const ProcedureMetadata(
-      rpcMethod: 'benchmark.checkout',
-      controllerNamespace: 'benchmark',
-      methodName: 'checkout',
-      path: RestProcedureMetadata(method: 'POST', path: '/checkout'),
-      inputTypeCode: 'CheckoutInputDto',
-      outputTypeCode: 'CheckoutResponseDto',
-      description: 'Validate and calculate a checkout.',
-      tags: ['benchmark'],
-      parameters: [
-        ProcedureParameterMetadata(
-          parameterName: 'input',
-          wireName: 'input',
-          source: ProcedureParameterSourceKind.body,
-          typeCode: 'CheckoutInputDto',
-        ),
-      ],
-    ),
-    const ProcedureMetadata(
-      rpcMethod: 'benchmark.echo',
-      controllerNamespace: 'benchmark',
-      methodName: 'echo',
-      inputTypeCode: 'EchoInputDto',
-      outputTypeCode: 'EchoResponseDto',
-      parameters: [
-        ProcedureParameterMetadata(
-          parameterName: 'input',
-          wireName: 'input',
-          source: ProcedureParameterSourceKind.rpcInput,
-          typeCode: 'EchoInputDto',
-        ),
-      ],
-    ),
-  ]);
-}
+final ProcedureMetadataRegistry _$benchmarkModuleProcedureMetadata =
+    ProcedureMetadataRegistry([
+      const ProcedureMetadata(
+        rpcMethod: 'benchmark.catalog',
+        controllerNamespace: 'benchmark',
+        methodName: 'catalog',
+        path: RestProcedureMetadata(method: 'GET', path: '/catalog'),
+        inputTypeCode: 'CatalogQueryDto',
+        outputTypeCode: 'CatalogResponseDto',
+        description: 'Return a filtered page of catalog items.',
+        tags: ['benchmark'],
+        parameters: [
+          ProcedureParameterMetadata(
+            parameterName: 'category',
+            wireName: 'category',
+            source: ProcedureParameterSourceKind.query,
+            typeCode: 'String',
+          ),
+          ProcedureParameterMetadata(
+            parameterName: 'page',
+            wireName: 'page',
+            source: ProcedureParameterSourceKind.query,
+            typeCode: 'int',
+          ),
+          ProcedureParameterMetadata(
+            parameterName: 'limit',
+            wireName: 'limit',
+            source: ProcedureParameterSourceKind.query,
+            typeCode: 'int',
+          ),
+        ],
+      ),
+      const ProcedureMetadata(
+        rpcMethod: 'benchmark.checkout',
+        controllerNamespace: 'benchmark',
+        methodName: 'checkout',
+        path: RestProcedureMetadata(method: 'POST', path: '/checkout'),
+        inputTypeCode: 'CheckoutInputDto',
+        outputTypeCode: 'CheckoutResponseDto',
+        description: 'Validate and calculate a checkout.',
+        tags: ['benchmark'],
+        parameters: [
+          ProcedureParameterMetadata(
+            parameterName: 'input',
+            wireName: 'input',
+            source: ProcedureParameterSourceKind.body,
+            typeCode: 'CheckoutInputDto',
+          ),
+        ],
+      ),
+      const ProcedureMetadata(
+        rpcMethod: 'benchmark.echo',
+        controllerNamespace: 'benchmark',
+        methodName: 'echo',
+        inputTypeCode: 'EchoInputDto',
+        outputTypeCode: 'EchoResponseDto',
+        parameters: [
+          ProcedureParameterMetadata(
+            parameterName: 'input',
+            wireName: 'input',
+            source: ProcedureParameterSourceKind.rpcInput,
+            typeCode: 'EchoInputDto',
+          ),
+        ],
+      ),
+    ]);
 
-ProcedureMetadataRegistry _$createBenchmarkModuleProcedureMetadataRegistry() {
-  return ProcedureMetadataRegistry([
-    ..._$createBenchmarkModuleLocalProcedureMetadataRegistry().procedures,
-  ]);
-}
+ProcedureMetadataRegistry _$createBenchmarkModuleProcedureMetadataRegistry() =>
+    _$benchmarkModuleProcedureMetadata;
 
 ProcedureMetadataRegistry
 dartOrpcCreateBenchmarkModuleProcedureMetadataRegistry() =>
@@ -352,11 +325,11 @@ RpcHttpApp _$buildBenchmarkModuleRpcApp({
     maxConcurrentRequests: maxConcurrentRequests,
     requestBodyIdleTimeout: requestBodyIdleTimeout,
     serverOptions: serverOptions,
+    middleware: middleware,
     upgradeHandlers: [
       if (webSocket != null)
         RpcWebSocketUpgradeHandler(procedures: procedures, options: webSocket),
     ],
-    middleware: middleware,
   );
 }
 
@@ -367,8 +340,8 @@ RpcHttpApp dartOrpcBuildBenchmarkModuleRpcApp({
   RpcHttpHealthOptions? health,
   RpcHttpMetricsOptions? metrics,
   RpcWebSocketServerOptions? webSocket,
-  RpcContextFactory? contextFactory,
   RpcContextBindings bindings = const RpcContextBindings.empty(),
+  RpcContextFactory? contextFactory,
   Duration sseHeartbeatInterval = const Duration(seconds: 15),
   bool sseFlushEachChunk = true,
   bool encodeJsonToBytes = false,
