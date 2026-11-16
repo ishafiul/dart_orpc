@@ -1,3 +1,8 @@
+## 0.1.0-dev.4
+
+ - **FEAT**(rust_http): Use the prebuilt native libraries from rust_http-native-89fb6c123572dc7b (#119).
+ - **FEAT**(dart_orpc_http): Faster byte JSON bodies, connection options, and accept bursts (#118).
+
 ## 0.1.0-dev.3
 
  - **FEAT**(rust_http): Use the prebuilt native libraries from rust_http-native-ed34a924f031458a (#117).

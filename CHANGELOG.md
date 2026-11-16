@@ -3,6 +3,55 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-11-17
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`dart_orpc_core` - `v0.1.0-dev.8`](#dart_orpc_core---v010-dev8)
+ - [`dart_orpc_http` - `v0.1.0-dev.10`](#dart_orpc_http---v010-dev10)
+ - [`rust_http` - `v0.1.0-dev.4`](#rust_http---v010-dev4)
+ - [`dart_orpc` - `v0.1.0-dev.10`](#dart_orpc---v010-dev10)
+ - [`dart_orpc_client` - `v0.1.0-dev.8`](#dart_orpc_client---v010-dev8)
+ - [`dart_orpc_generator` - `v0.1.0-dev.9`](#dart_orpc_generator---v010-dev9)
+ - [`dart_orpc_luthor` - `v0.1.0-dev.8`](#dart_orpc_luthor---v010-dev8)
+ - [`dart_orpc_openapi` - `v0.1.0-dev.9`](#dart_orpc_openapi---v010-dev9)
+ - [`dart_orpc_websocket` - `v0.1.0-dev.10`](#dart_orpc_websocket---v010-dev10)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `dart_orpc` - `v0.1.0-dev.10`
+ - `dart_orpc_client` - `v0.1.0-dev.8`
+ - `dart_orpc_generator` - `v0.1.0-dev.9`
+ - `dart_orpc_luthor` - `v0.1.0-dev.8`
+ - `dart_orpc_openapi` - `v0.1.0-dev.9`
+ - `dart_orpc_websocket` - `v0.1.0-dev.10`
+
+---
+
+#### `dart_orpc_core` - `v0.1.0-dev.8`
+
+ - **FEAT**(dart_orpc_http): Faster byte JSON bodies, connection options, and accept bursts (#118).
+
+#### `dart_orpc_http` - `v0.1.0-dev.10`
+
+ - **FEAT**(dart_orpc_http): Faster byte JSON bodies, connection options, and accept bursts (#118).
+
+#### `rust_http` - `v0.1.0-dev.4`
+
+ - **FEAT**(rust_http): Use the prebuilt native libraries from rust_http-native-89fb6c123572dc7b (#119).
+ - **FEAT**(dart_orpc_http): Faster byte JSON bodies, connection options, and accept bursts (#118).
+
+
 ## 2026-11-16
 
 ### Changes

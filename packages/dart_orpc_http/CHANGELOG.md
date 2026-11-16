@@ -1,3 +1,7 @@
+## 0.1.0-dev.10
+
+ - **FEAT**(dart_orpc_http): Faster byte JSON bodies, connection options, and accept bursts (#118).
+
 ## 0.1.0-dev.9
 
  - Update a dependency to the latest release.
