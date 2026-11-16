@@ -46,7 +46,7 @@ use crate::http::render::{
 use crate::limits::{
     ACCEPT_RETRY, LINGER_MAX, Limits, READ_ROOM, WS_HOLD, WS_OUT_MAX, WS_READ, WS_UNACKED,
 };
-use crate::listener::{self, ListenAddress, peer_bytes};
+use crate::listener::{self, ListenAddress, ListenerSource, peer_bytes};
 use crate::protocol::kinds::{InboundKind, OutboundKind};
 use crate::protocol::outbox::Outbox;
 use crate::protocol::response_record::{ResponseRecord, ResponseRecords};
@@ -61,7 +61,7 @@ const WAKER: Token = Token(usize::MAX);
 pub struct EventLoop {
     poll: Poll,
     events: Events,
-    listener: Option<TcpListener>,
+    listener: Option<Acceptor>,
     address: ListenAddress,
     released: bool,
     connections: Slab<Connection>,
@@ -101,27 +101,22 @@ pub struct EventLoop {
 impl EventLoop {
     /// A loop over a bound listener.
     ///
+    /// An owned socket is watched by this loop's poller. A socket shared
+    /// with other loops ([`ListenerSource::Shared`], Windows) is not: the
+    /// loop tries a non-blocking accept on every turn instead, and the idle
+    /// helper does the same every [`SHARED_ACCEPT_POLL`].
+    ///
     /// # Errors
     /// When the poller or its waker cannot be created.
-    ///
-    /// With `poll_accepts` the listener is not registered with the poller:
-    /// the loop tries a non-blocking accept on every turn instead, and the
-    /// idle helper does the same every [`SHARED_ACCEPT_POLL`]. Windows needs
-    /// this for a port shared between isolates, because its poller cannot
-    /// watch duplicates of one socket from several pollers.
     pub fn new(
-        listener: std::net::TcpListener,
+        source: ListenerSource,
         address: ListenAddress,
         limits: Limits,
-        poll_accepts: bool,
     ) -> std::io::Result<Self> {
         let poll = Poll::new()?;
         let waker = Arc::new(Waker::new(poll.registry(), WAKER)?);
-        let mut listener = TcpListener::from_std(listener);
-        if !poll_accepts {
-            poll.registry()
-                .register(&mut listener, LISTENER, Interest::READABLE)?;
-        }
+        let listener = Acceptor::new(source, &poll)?;
+        let poll_accepts = listener.is_polled();
         Ok(Self {
             poll,
             events: Events::with_capacity(1024),
@@ -338,7 +333,7 @@ impl EventLoop {
     // ---- connections ----------------------------------------------------
 
     fn close_listener(&mut self) {
-        if let Some(mut listener) = self.listener.take() {
+        if let Some(Acceptor::Watched(mut listener)) = self.listener.take() {
             let _ = self.poll.registry().deregister(&mut listener);
         }
         self.accept_pending = false;
@@ -1259,6 +1254,51 @@ impl EventLoop {
             self.touch(answer.connection);
         }
         self.flush_touched();
+    }
+}
+
+/// Where a loop accepts connections from.
+enum Acceptor {
+    /// A socket watched by the loop's poller.
+    Watched(TcpListener),
+    /// A socket shared with other loops, accepted from directly.
+    #[cfg(windows)]
+    Polled(Arc<std::net::TcpListener>),
+}
+
+impl Acceptor {
+    fn new(source: ListenerSource, poll: &Poll) -> std::io::Result<Self> {
+        match source {
+            ListenerSource::Owned(listener) => {
+                let mut listener = TcpListener::from_std(listener);
+                poll.registry()
+                    .register(&mut listener, LISTENER, Interest::READABLE)?;
+                Ok(Self::Watched(listener))
+            }
+            #[cfg(windows)]
+            ListenerSource::Shared(listener) => Ok(Self::Polled(listener)),
+        }
+    }
+
+    /// Whether accepts must be polled, as no event announces them.
+    fn is_polled(&self) -> bool {
+        match self {
+            Self::Watched(_) => false,
+            #[cfg(windows)]
+            Self::Polled(_) => true,
+        }
+    }
+
+    fn accept(&self) -> std::io::Result<(mio::net::TcpStream, std::net::SocketAddr)> {
+        match self {
+            Self::Watched(listener) => listener.accept(),
+            #[cfg(windows)]
+            Self::Polled(listener) => {
+                let (stream, address) = listener.accept()?;
+                stream.set_nonblocking(true)?;
+                Ok((mio::net::TcpStream::from_std(stream), address))
+            }
+        }
     }
 }
 

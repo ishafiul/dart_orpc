@@ -2,11 +2,16 @@
 //!
 //! - Linux spreads connections over `SO_REUSEPORT` sockets, so each
 //!   isolate binds its own.
-//! - macOS and Windows give all connections to one such socket, so there
-//!   every isolate gets a duplicate of one shared socket and they accept
-//!   from the same queue.
+//! - macOS gives all connections to one such socket, so there every
+//!   isolate gets a duplicate of one shared socket and they accept from the
+//!   same queue.
+//! - Windows breaks duplicated sockets in this use, so there isolates share
+//!   the very same socket ([`ListenerSource::Shared`]) and each accepts from
+//!   it directly.
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, TcpListener};
+#[cfg(windows)]
+use std::sync::Arc;
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
 use std::sync::Mutex;
 
@@ -86,11 +91,37 @@ fn bind_new(address: ListenAddress, shared: bool) -> std::io::Result<TcpListener
     Ok(socket.into())
 }
 
+/// How a server gets its connections.
+#[derive(Debug)]
+pub enum ListenerSource {
+    /// A socket of its own (or a duplicate), watched by the server's
+    /// poller.
+    Owned(TcpListener),
+    /// One socket shared by several servers of this process; each accepts
+    /// from it directly, with no poller watching it (Windows).
+    #[cfg(windows)]
+    Shared(Arc<TcpListener>),
+}
+
+impl ListenerSource {
+    /// The local address of the socket.
+    ///
+    /// # Errors
+    /// The OS error, if any.
+    pub fn local_addr(&self) -> std::io::Result<SocketAddr> {
+        match self {
+            Self::Owned(listener) => listener.local_addr(),
+            #[cfg(windows)]
+            Self::Shared(listener) => listener.local_addr(),
+        }
+    }
+}
+
 /// A bound listening socket. Dropping it does not release a shared
 /// socket; call [`release`].
 pub struct BoundListener {
     /// The socket.
-    pub listener: TcpListener,
+    pub listener: ListenerSource,
     /// The address with the real port.
     pub address: ListenAddress,
 }
@@ -106,7 +137,7 @@ pub fn bind(address: ListenAddress, shared: bool) -> std::io::Result<BoundListen
     let listener = bind_new(address, shared)?;
     let port = listener.local_addr()?.port();
     Ok(BoundListener {
-        listener,
+        listener: ListenerSource::Owned(listener),
         address: address.with_port(port),
     })
 }
@@ -119,19 +150,47 @@ pub fn release(_address: ListenAddress) {}
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
 struct Registered {
     address: ListenAddress,
-    listener: TcpListener,
-    shared: bool,
+    /// The socket of a shared bind; none for an unshared one.
+    socket: Option<SharedSocket>,
     users: usize,
 }
+
+/// The socket other shared binds of an address get.
+#[cfg(all(not(any(target_os = "linux", target_os = "android")), not(windows)))]
+type SharedSocket = TcpListener;
+#[cfg(windows)]
+type SharedSocket = Arc<TcpListener>;
 
 /// Listening sockets of this process.
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
 static REGISTERED: Mutex<Vec<Registered>> = Mutex::new(Vec::new());
 
+/// What one more user of a shared socket gets.
+#[cfg(all(not(any(target_os = "linux", target_os = "android")), not(windows)))]
+fn share(socket: &SharedSocket) -> std::io::Result<ListenerSource> {
+    Ok(ListenerSource::Owned(socket.try_clone()?))
+}
+
+#[cfg(windows)]
+#[allow(clippy::unnecessary_wraps)]
+fn share(socket: &SharedSocket) -> std::io::Result<ListenerSource> {
+    Ok(ListenerSource::Shared(socket.clone()))
+}
+
+/// Keeps a freshly bound shared socket for later users.
+#[cfg(all(not(any(target_os = "linux", target_os = "android")), not(windows)))]
+fn keep(listener: TcpListener) -> SharedSocket {
+    listener
+}
+
+#[cfg(windows)]
+fn keep(listener: TcpListener) -> SharedSocket {
+    Arc::new(listener)
+}
+
 /// Binds `address`. With `shared`, other `shared` binds of the same
-/// address in this process get a duplicate of one socket, like dart:io;
-/// a bind that is not `shared`, or one onto an unshared socket, fails with
-/// `AddrInUse`.
+/// address in this process share one socket, like dart:io; a bind that is
+/// not `shared`, or one onto an unshared socket, fails with `AddrInUse`.
 ///
 /// # Errors
 /// The OS error of the bind.
@@ -143,19 +202,25 @@ pub fn bind(address: ListenAddress, shared: bool) -> std::io::Result<BoundListen
     if address.port != 0
         && let Some(entry) = registered.iter_mut().find(|entry| entry.address == address)
     {
-        if !(shared && entry.shared) {
+        let Some(socket) = entry.socket.as_ref().filter(|_| shared) else {
             return Err(std::io::ErrorKind::AddrInUse.into());
-        }
-        let listener = entry.listener.try_clone()?;
+        };
+        let listener = share(socket)?;
         entry.users += 1;
         return Ok(BoundListener { listener, address });
     }
     let listener = bind_new(address, shared)?;
     let real = address.with_port(listener.local_addr()?.port());
+    let (socket, listener) = if shared {
+        let socket = keep(listener);
+        let listener = share(&socket)?;
+        (Some(socket), listener)
+    } else {
+        (None, ListenerSource::Owned(listener))
+    };
     registered.push(Registered {
         address: real,
-        listener: listener.try_clone()?,
-        shared,
+        socket,
         users: 1,
     });
     Ok(BoundListener {

@@ -82,9 +82,7 @@ impl Server {
     ) -> Result<Arc<Self>, BindError> {
         let bound = listener::bind(address, shared).map_err(BindError::Os)?;
         let real = bound.address;
-        // Windows cannot watch one shared socket from several pollers.
-        let poll_accepts = cfg!(windows) && shared;
-        let Ok(event_loop) = EventLoop::new(bound.listener, real, limits, poll_accepts) else {
+        let Ok(event_loop) = EventLoop::new(bound.listener, real, limits) else {
             listener::release(real);
             return Err(BindError::Resources);
         };

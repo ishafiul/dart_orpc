@@ -64,7 +64,7 @@ fn new_core(lim: Limits) -> (EventLoop, u16) {
     .unwrap();
     let port = bound.address.port;
     (
-        EventLoop::new(bound.listener, bound.address, lim, false).unwrap(),
+        EventLoop::new(bound.listener, bound.address, lim).unwrap(),
         port,
     )
 }
@@ -807,33 +807,52 @@ fn a_finished_gzip_job_counts_as_work() {
     assert!(core.has_work());
 }
 
-/// A loop that polls accepts, as a shared Windows server does, accepts
-/// and answers without the listener being registered with the poller.
+/// Windows: two loops share one socket, accept from it directly, and both
+/// serve the requests they take.
+#[cfg(windows)]
 #[test]
-fn polled_accepts_serve_without_a_registered_listener() {
-    let bound = listener::bind(
+fn loops_sharing_one_socket_both_serve() {
+    let first = listener::bind(
         ListenAddress {
             ip: Some(Ipv4Addr::LOCALHOST.into()),
             port: 0,
         },
-        false,
+        true,
     )
     .unwrap();
-    let port = bound.address.port;
-    let mut core = EventLoop::new(bound.listener, bound.address, limits(), true).unwrap();
+    let port = first.address.port;
+    let second = listener::bind(first.address, true).unwrap();
+    let mut loops = [
+        EventLoop::new(first.listener, first.address, limits()).unwrap(),
+        EventLoop::new(second.listener, second.address, limits()).unwrap(),
+    ];
+    let clients: Vec<StdStream> = (0..8)
+        .map(|_| {
+            let mut client = connect(port);
+            client
+                .write_all(b"GET /shared HTTP/1.1\r\nConnection: close\r\n\r\n")
+                .unwrap();
+            client
+        })
+        .collect();
     let mut inb = vec![0u8; 1 << 16];
-    let mut s = connect(port);
-    s.write_all(b"GET /polled HTTP/1.1\r\nConnection: close\r\n\r\n")
-        .unwrap();
+    let mut served = [0usize; 2];
     let end = Instant::now() + Duration::from_secs(5);
-    let mut seen = Vec::new();
-    while seen.is_empty() && Instant::now() < end {
-        // Like the idle helper: no listener event will come.
-        core.accept_polled();
-        let n = core.run_us(&[], &mut inb, 1000).unwrap();
-        seen = records(&inb[..n]);
+    while served.iter().sum::<usize>() < clients.len() && Instant::now() < end {
+        for (index, core) in loops.iter_mut().enumerate() {
+            core.accept_polled();
+            let n = core.run_us(&[], &mut inb, 1000).unwrap();
+            served[index] += records(&inb[..n]).len();
+        }
     }
-    assert_eq!(seen.first().map(|r| r.target.as_str()), Some("/polled"));
+    assert_eq!(
+        served.iter().sum::<usize>(),
+        clients.len(),
+        "served: {served:?}"
+    );
+    for core in &mut loops {
+        core.stop();
+    }
 }
 
 #[test]
