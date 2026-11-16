@@ -636,7 +636,7 @@ RpcHttpHandler createRpcHttpHandler({
       ? _normalizePath(metrics.path)
       : null;
   final Object Function(Object?) encodeJson = encodeJsonToBytes
-      ? JsonUtf8Encoder().convert
+      ? _encodeJsonBytes
       : jsonEncode;
   // The generated document is a startup snapshot, shared by all requests.
   final encodedDocument = openApiDocument == null
@@ -1923,6 +1923,9 @@ RpcHttpResponse rpcHttpErrorResponse(
   }
   return _jsonResponse(error.statusCode, encoding.json, extraHeaders: headers);
 }
+
+Uint8List _encodeJsonBytes(Object? value) =>
+    (RpcJsonWriter()..writeValue(value)).takeBytes();
 
 RpcHttpResponse _jsonResponse(
   int statusCode,

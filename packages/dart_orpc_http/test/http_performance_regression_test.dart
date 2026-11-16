@@ -214,6 +214,39 @@ void main() {
       );
     }
 
+    test(
+      'byte encoding embeds RpcJsonBytes RPC output without calling toJson',
+      () async {
+        final handler = createRpcHttpHandler(
+          procedures: RpcProcedureRegistry([
+            RpcUnaryProcedure<Null, Object>(
+              method: 'test.bytes',
+              metadata: const ProcedureMetadata(
+                rpcMethod: 'test.bytes',
+                controllerNamespace: 'test',
+                methodName: 'bytes',
+                outputTypeCode: 'Object',
+              ),
+              decodeInput: (_) => null,
+              encodeOutput: (value) => value,
+              handler: (_, _) => const _BytesOnly('{"id":1,"name":"é"}'),
+            ),
+          ]),
+          encodeJsonToBytes: true,
+        );
+
+        final response = await handler(
+          const RpcHttpRequest(
+            method: 'POST',
+            path: '/rpc',
+            body: '{"method":"test.bytes"}',
+          ),
+        );
+
+        expect(_bodyText(response), '{"data":{"id":1,"name":"é"}}');
+      },
+    );
+
     test('OpenAPI serializes once and serves startup snapshot', () async {
       final counted = _CountedJson();
       final document = <String, Object?>{'info': counted};
@@ -397,4 +430,12 @@ final class _CountedJson {
     encodings++;
     return {'title': 'API'};
   }
+}
+
+final class _BytesOnly implements RpcJsonBytes {
+  const _BytesOnly(this.json);
+  final String json;
+  @override
+  List<int> toJsonBytes() => utf8.encode(json);
+  Object toJson() => throw StateError('toJson must not be called');
 }

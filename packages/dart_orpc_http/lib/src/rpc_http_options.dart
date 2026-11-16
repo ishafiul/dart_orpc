@@ -16,6 +16,8 @@ final class RpcHttpServerOptions {
     this.handlerTimeout,
     this.compress = false,
     this.rateLimit,
+    this.idleTimeout,
+    this.maxConnections,
   });
 
   /// Applies to all responses, including failures before request middleware.
@@ -29,6 +31,20 @@ final class RpcHttpServerOptions {
   final Duration? handlerTimeout;
   final bool compress;
   final RpcHttpRateLimitOptions? rateLimit;
+
+  /// How long a keep-alive connection may stay idle before the server closes
+  /// it; a request head must also arrive within this time. Null keeps the
+  /// server default of 30 seconds.
+  ///
+  /// Behind a proxy or load balancer, set it above the proxy's own idle
+  /// timeout (e.g. 65 seconds for Nginx or AWS ALB), so the server never
+  /// closes a connection the proxy is about to reuse.
+  final Duration? idleTimeout;
+
+  /// The most connections the server keeps open. At the limit it stops
+  /// accepting until one closes, and new clients wait in the OS listen queue.
+  /// Null means no limit.
+  final int? maxConnections;
 }
 
 /// The transport that produced an [RpcHttpErrorEvent].

@@ -17,6 +17,7 @@ use std::sync::Mutex;
 
 use socket2::{Domain, Protocol, Socket, Type};
 
+use crate::limits::LISTEN_BACKLOG;
 use crate::protocol::request_record::Peer;
 
 /// Where to listen.
@@ -86,7 +87,7 @@ fn bind_new(address: ListenAddress, shared: bool) -> std::io::Result<TcpListener
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     let _ = shared;
     socket.bind(&bind_to.into())?;
-    socket.listen(1024)?;
+    socket.listen(LISTEN_BACKLOG)?;
     socket.set_nonblocking(true)?;
     Ok(socket.into())
 }

@@ -32,6 +32,13 @@ pub const KEEP_WRITE_BUFFER: usize = 64 * 1024;
 pub const LINGER: Duration = Duration::from_secs(1);
 /// Most bytes dropped during a lingering close.
 pub const LINGER_MAX: usize = 1 << 20;
+/// Backlog asked for each listening socket. The OS caps it at its own
+/// maximum (`net.core.somaxconn` on Linux, `kern.ipc.somaxconn` on macOS),
+/// so a burst of new clients waits in the queue instead of being refused.
+pub const LISTEN_BACKLOG: i32 = 65_535;
+/// Most connections accepted in one turn. The rest wait for the next turn,
+/// so a burst of new clients cannot hold up the requests of open ones.
+pub const MAX_ACCEPTS_PER_TURN: usize = 512;
 /// Wait before accepting again after an accept error or at the limit.
 pub const ACCEPT_RETRY: Duration = Duration::from_millis(10);
 /// How long a write may make no progress before the peer counts as gone.

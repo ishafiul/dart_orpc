@@ -26,8 +26,25 @@ final app = AppModule().buildRpcApp(
 
 `encodeJsonToBytes` defaults to `false` for middleware compatibility. Enable it
 to encode successful RPC/REST JSON directly to UTF-8 bytes; middleware must
-accept both `String` and `List<int>` buffered bodies. `RpcJsonBytes` REST outputs
-keep their existing byte fast path regardless of this option.
+accept both `String` and `List<int>` buffered bodies. Byte bodies are written
+by `RpcJsonWriter`, which gives the same bytes as `utf8.encode(jsonEncode(...))`
+without the intermediate string, and embeds `RpcJsonBytes` values in RPC
+envelopes as they are. `RpcJsonBytes` REST outputs keep their byte fast path
+regardless of this option.
+
+To skip the `toJson()` map for a hot output, implement `RpcJsonBytes` with
+`RpcJsonWriter`'s typed writes:
+
+```dart
+@override
+List<int> toJsonBytes() => (RpcJsonWriter()
+      ..writeRaw('{"id":')
+      ..writeInt(id)
+      ..writeRaw(',"name":')
+      ..writeString(name)
+      ..writeRaw('}'))
+    .takeBytes();
+```
 
 `maxConcurrentRequests` defaults to unlimited. It counts requests from body
 reading through response completion, including SSE streams and upgrades.
