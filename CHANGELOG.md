@@ -11,6 +11,39 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 Packages with breaking changes:
 
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`rust_http` - `v0.1.0-dev.3`](#rust_http---v010-dev3)
+ - [`dart_orpc_http` - `v0.1.0-dev.9`](#dart_orpc_http---v010-dev9)
+ - [`dart_orpc_websocket` - `v0.1.0-dev.9`](#dart_orpc_websocket---v010-dev9)
+ - [`dart_orpc` - `v0.1.0-dev.9`](#dart_orpc---v010-dev9)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `dart_orpc_http` - `v0.1.0-dev.9`
+ - `dart_orpc_websocket` - `v0.1.0-dev.9`
+ - `dart_orpc` - `v0.1.0-dev.9`
+
+---
+
+#### `rust_http` - `v0.1.0-dev.3`
+
+ - **FEAT**(rust_http): Use the prebuilt native libraries from rust_http-native-ed34a924f031458a (#117).
+ - **FEAT**(rust_http): Download prebuilt native libraries so apps build without Rust (#116).
+
+
+## 2026-11-16
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
  - [`dart_orpc` - `v0.1.0-dev.8`](#dart_orpc---v010-dev8)
  - [`dart_orpc_annotations` - `v0.1.0-dev.5`](#dart_orpc_annotations---v010-dev5)
  - [`dart_orpc_cli` - `v0.1.0-dev.4`](#dart_orpc_cli---v010-dev4)
