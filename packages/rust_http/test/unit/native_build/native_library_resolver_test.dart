@@ -18,6 +18,7 @@ void main() {
     host = NativeBuildContext(
       packageRoot: root.uri.resolve('./'),
       libraryFileName: 'librust_http.dylib',
+      targetName: 'macos-arm64',
       isHostTarget: true,
       sharedOutputDirectory: root.uri.resolve('out/'),
     );

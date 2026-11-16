@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'native_build_context.dart';
 import 'native_library_source.dart';
+import 'native_source_fingerprint.dart';
 
 /// Runs a process, like [Process.run].
 typedef ProcessRunner = Future<ProcessResult> Function(
@@ -47,7 +48,13 @@ final class CargoBuildSource implements NativeLibrarySource {
       'release/${context.libraryFileName}',
     );
     if (!File.fromUri(library).existsSync()) return null;
-    return LocatedLibrary(library, dependencies: _sources(native));
+    return LocatedLibrary(
+      library,
+      dependencies: [
+        for (final file in NativeSourceFingerprint.sourceFiles(native))
+          file.absolute.uri,
+      ],
+    );
   }
 
   /// `cargo` from `~/.cargo/bin` when there, else from `PATH`.
@@ -60,22 +67,5 @@ final class CargoBuildSource implements NativeLibrarySource {
       if (file.existsSync()) return file.path;
     }
     return 'cargo';
-  }
-
-  static List<Uri> _sources(Uri native) {
-    final sources = <Uri>[];
-    for (final name in ['Cargo.toml', 'Cargo.lock']) {
-      final uri = native.resolve(name);
-      if (File.fromUri(uri).existsSync()) sources.add(uri);
-    }
-    final src = Directory.fromUri(native.resolve('src/'));
-    if (src.existsSync()) {
-      for (final entity in src.listSync(recursive: true)) {
-        if (entity is File && entity.path.endsWith('.rs')) {
-          sources.add(entity.uri);
-        }
-      }
-    }
-    return sources;
   }
 }
