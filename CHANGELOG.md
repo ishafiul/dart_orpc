@@ -15,6 +15,27 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`dart_orpc_generator` - `v0.1.0-dev.10`](#dart_orpc_generator---v010-dev10)
+
+---
+
+#### `dart_orpc_generator` - `v0.1.0-dev.10`
+
+ - **FIX**(dart_orpc_generator): Share one output encoder across RPC and REST and drop dead registry code (#120).
+
+
+## 2026-11-17
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`dart_orpc_core` - `v0.1.0-dev.8`](#dart_orpc_core---v010-dev8)
  - [`dart_orpc_http` - `v0.1.0-dev.10`](#dart_orpc_http---v010-dev10)
  - [`rust_http` - `v0.1.0-dev.4`](#rust_http---v010-dev4)

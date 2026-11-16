@@ -1,3 +1,7 @@
+## 0.1.0-dev.10
+
+ - **FIX**(dart_orpc_generator): Share one output encoder across RPC and REST and drop dead registry code (#120).
+
 ## 0.1.0-dev.9
 
  - Update a dependency to the latest release.
