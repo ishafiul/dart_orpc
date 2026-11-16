@@ -1,8 +1,13 @@
 # dart_orpc_http
 
-Pure-Dart HTTP runtime for `dart_orpc`. It serves HTTP RPC, generated REST
-routes, SSE streams, health endpoints, static assets, and API documentation
-from the shared generated procedure registry.
+HTTP runtime for `dart_orpc`. It serves HTTP RPC, generated REST routes, SSE
+streams, health endpoints, static assets, and API documentation from the
+shared generated procedure registry.
+
+It runs on [`rust_http`](../rust_http), where Rust owns the sockets and parses
+HTTP while every handler stays in Dart. `rust_http`'s build hook supplies the
+native library; until prebuilt libraries are published it builds it with
+`cargo`, so [Rust](https://rustup.rs) must be installed.
 
 Most applications should use the
 [`dart_orpc`](https://pub.dev/packages/dart_orpc) facade package.

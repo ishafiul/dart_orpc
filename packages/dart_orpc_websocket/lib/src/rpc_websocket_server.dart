@@ -58,10 +58,14 @@ final class RpcWebSocketUpgradeHandler implements RpcHttpUpgradeHandler {
 
   int get activeConnections => _connections.length;
 
+  /// Takes WebSocket upgrades on [RpcWebSocketServerOptions.path] that
+  /// `rust_http` serves, which is every request of an `RpcHttpApp`. Other
+  /// requests are not handled.
   @override
   bool canHandle(HttpRequest request) {
-    return _normalizePath(request.uri.path) == _normalizePath(options.path) &&
-        RustWebSocket.isUpgradeRequest(request);
+    return request is RustHttpRequest &&
+        request.isWebSocketUpgrade &&
+        _normalizePath(request.uri.path) == _normalizePath(options.path);
   }
 
   @override
@@ -70,6 +74,13 @@ final class RpcWebSocketUpgradeHandler implements RpcHttpUpgradeHandler {
     RpcContext context,
     RpcUpgradeErrorReporter reportError,
   ) async {
+    if (request is! RustHttpRequest) {
+      throw ArgumentError.value(
+        request,
+        'request',
+        'must be served by rust_http; see canHandle',
+      );
+    }
     if (!_accepting) {
       await _reject(request, HttpStatus.serviceUnavailable, 'Server draining.');
       return;
@@ -107,7 +118,6 @@ final class RpcWebSocketUpgradeHandler implements RpcHttpUpgradeHandler {
 
     final socket = await RustWebSocket.upgrade(
       request,
-      compression: CompressionOptions.compressionDefault,
       protocolSelector: (protocols) =>
           protocols.contains(rpcWebSocketSubprotocol)
           ? rpcWebSocketSubprotocol

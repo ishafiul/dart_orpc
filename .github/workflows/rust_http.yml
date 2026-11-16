@@ -67,25 +67,16 @@ jobs:
       - name: Dart tests (unit, ported, contract against dart:io and rust_http)
         working-directory: packages/rust_http
         run: dart test
-      - name: Framework HTTP tests with Rust HTTP
+      # dart_orpc_http serves on rust_http, so the framework suites check it
+      # on every target too.
+      - name: Framework HTTP tests
         working-directory: packages/dart_orpc_http
-        env:
-          DART_ORPC_HTTP_BACKEND: rust
         run: dart test
-      - name: Framework WebSocket tests with Rust HTTP
+      - name: Framework WebSocket tests
         working-directory: packages/dart_orpc_websocket
-        env:
-          DART_ORPC_HTTP_BACKEND: rust
         run: dart test
-      # Baseline: a failure here is in the app on this platform, not in
-      # rust_http.
-      - name: Basic app tests with dart:io
+      - name: Basic app tests
         working-directory: apps/basic_app
-        run: dart test
-      - name: Basic app tests with Rust HTTP
-        working-directory: apps/basic_app
-        env:
-          DART_ORPC_HTTP_BACKEND: rust
         run: dart test
 
   fuzz:

@@ -17,7 +17,12 @@ Future<void> main() async {
       coverageDirectory.deleteSync(recursive: true);
     }
 
-    await _run(['test', packagePath, '--coverage=${coverageDirectory.path}']);
+    // Run tests from the package itself: from the workspace root, `dart test`
+    // does not bundle the native libraries of packages such as rust_http.
+    await _run([
+      'test',
+      '--coverage=${coverageDirectory.absolute.path}',
+    ], workingDirectory: packagePath);
     await _run([
       'run',
       'coverage:format_coverage',
@@ -37,10 +42,11 @@ Future<void> main() async {
   }
 }
 
-Future<void> _run(List<String> arguments) async {
+Future<void> _run(List<String> arguments, {String? workingDirectory}) async {
   final process = await Process.start(
     Platform.resolvedExecutable,
     arguments,
+    workingDirectory: workingDirectory,
     mode: ProcessStartMode.inheritStdio,
   );
   final result = await process.exitCode;

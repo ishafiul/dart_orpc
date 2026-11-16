@@ -25,7 +25,7 @@ Docs describe the current source checkout. HTTP RPC uses `{method, input}` and `
 - Strongly typed inputs/outputs end-to-end (with Luthor-backed validation where configured).
 - Unary RPC over HTTP or WebSocket and typed server streams over WebSocket or explicit REST/SSE.
 - **Scalar** API reference UI out of the box (`/docs`), wired to live OpenAPI (`/openapi.json`).
-- One `dart:io` server and port for HTTP RPC, REST, SSE, and opt-in WebSocket upgrades.
+- One server and port for HTTP RPC, REST, SSE, and opt-in WebSocket upgrades, served by the Rust-backed `rust_http` (Rust owns the sockets; handlers stay in Dart).
 
 ## What this repo contains
 

@@ -21,13 +21,12 @@ const Duration _defaultGracePeriod = Duration(seconds: 30);
 /// [RpcHttpServerOptions.onError] as a [RpcTransportKind.webSocket] event.
 ///
 /// Unlike HTTP exchanges, a connection may report any number of errors.
-typedef RpcUpgradeErrorReporter =
-    void Function(
-      Object error,
-      StackTrace stackTrace, {
-      String? rpcMethod,
-      String? callId,
-    });
+typedef RpcUpgradeErrorReporter = void Function(
+  Object error,
+  StackTrace stackTrace, {
+  String? rpcMethod,
+  String? callId,
+});
 
 abstract interface class RpcHttpUpgradeHandler {
   bool canHandle(HttpRequest request);
@@ -291,23 +290,21 @@ final class RpcHttpApp {
     final listenAttempt = Completer<void>();
     _listenAttempt = listenAttempt.future;
     try {
-      final server = Platform.environment['DART_ORPC_HTTP_BACKEND'] == 'rust'
-          ? await RustHttpServer.bind(
-              port,
-              address: hostname,
-              shared: shared,
-              streamRequestBodies: true,
-              maxBodySize: maxRequestBodyBytes ?? _unlimitedNativeBodyBytes,
-              // Let the app's timers classify the failure before the native fallback.
-              bodyTimeout:
-                  [
-                    const Duration(seconds: 120),
-                    if (requestBodyIdleTimeout case final timeout?) timeout,
-                    if (serverOptions.bodyTimeout case final timeout?) timeout,
-                  ].reduce((a, b) => a > b ? a : b) +
-                  const Duration(seconds: 1),
-            )
-          : await HttpServer.bind(hostname, port, shared: shared);
+      final server = await RustHttpServer.bind(
+        port,
+        address: hostname,
+        shared: shared,
+        streamRequestBodies: true,
+        maxBodySize: maxRequestBodyBytes ?? _unlimitedNativeBodyBytes,
+        // Let the app's timers classify the failure before the native fallback.
+        bodyTimeout:
+            [
+              const Duration(seconds: 120),
+              if (requestBodyIdleTimeout case final timeout?) timeout,
+              if (serverOptions.bodyTimeout case final timeout?) timeout,
+            ].reduce((a, b) => a > b ? a : b) +
+            const Duration(seconds: 1),
+      );
       if (!_requests.isAccepting) {
         await server.close(force: true);
         throw StateError('This app was closed while it was starting.');

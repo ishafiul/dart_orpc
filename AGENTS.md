@@ -74,7 +74,9 @@ Suggested packages:
 - `packages/dart_orpc_generator`
   `source_gen` / `build_runner` generators that scan annotations and emit metadata registries, route bindings, OpenAPI artifacts, and client code.
 - `packages/dart_orpc_http`
-  Pure-Dart HTTP adapter for request handling, `/rpc`, REST endpoint exposure, error mapping, and docs wiring.
+  HTTP adapter for request handling, `/rpc`, REST endpoint exposure, error mapping, and docs wiring. It serves on `rust_http`.
+- `packages/rust_http`
+  Native HTTP/1.1 server implementing the `dart:io` `HttpServer` API: Rust owns the sockets and parses HTTP, handlers stay in Dart. Keep it free of dart_orpc concepts so it stays a swappable server under the adapter.
 - `packages/dart_orpc_openapi`
   OpenAPI model generation and Swagger UI integration built from shared metadata, not independent controller parsing.
 - `packages/dart_orpc_client`

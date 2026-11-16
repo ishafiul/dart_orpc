@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:dart_orpc_client/dart_orpc_client.dart';
 import 'package:dart_orpc_core/dart_orpc_core.dart';
 import 'package:dart_orpc_websocket/dart_orpc_websocket.dart';
+import 'package:rust_http/rust_http.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -407,10 +408,10 @@ Future<Uri> _serveWebSocket(
   void Function(WebSocket socket) onSocket, {
   bool negotiateProtocol = true,
 }) async {
-  final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+  final server = await RustHttpServer.bind(0, address: '127.0.0.1');
   addTearDown(() => server.close(force: true));
   server.listen((request) async {
-    final socket = await WebSocketTransformer.upgrade(
+    final socket = await RustWebSocket.upgrade(
       request,
       protocolSelector: negotiateProtocol
           ? (protocols) => protocols.contains(rpcWebSocketSubprotocol)
