@@ -69,6 +69,8 @@ pub struct EventLoop {
     ready: VecDeque<usize>,
     /// The listener may have connections to accept.
     accept_pending: bool,
+    /// The listener is not registered: accepts are tried on every turn.
+    poll_accepts: bool,
     /// Accept again at this time (after an error or at the limit).
     accept_retry_at: Option<Instant>,
     sequence: u32,
@@ -101,16 +103,25 @@ impl EventLoop {
     ///
     /// # Errors
     /// When the poller or its waker cannot be created.
+    ///
+    /// With `poll_accepts` the listener is not registered with the poller:
+    /// the loop tries a non-blocking accept on every turn instead, and the
+    /// idle helper does the same every [`SHARED_ACCEPT_POLL`]. Windows needs
+    /// this for a port shared between isolates, because its poller cannot
+    /// watch duplicates of one socket from several pollers.
     pub fn new(
         listener: std::net::TcpListener,
         address: ListenAddress,
         limits: Limits,
+        poll_accepts: bool,
     ) -> std::io::Result<Self> {
         let poll = Poll::new()?;
         let waker = Arc::new(Waker::new(poll.registry(), WAKER)?);
         let mut listener = TcpListener::from_std(listener);
-        poll.registry()
-            .register(&mut listener, LISTENER, Interest::READABLE)?;
+        if !poll_accepts {
+            poll.registry()
+                .register(&mut listener, LISTENER, Interest::READABLE)?;
+        }
         Ok(Self {
             poll,
             events: Events::with_capacity(1024),
@@ -120,6 +131,7 @@ impl EventLoop {
             connections: Slab::with_capacity(1024),
             ready: VecDeque::new(),
             accept_pending: true,
+            poll_accepts,
             accept_retry_at: None,
             sequence: 0,
             limits,
@@ -179,6 +191,9 @@ impl EventLoop {
         budget: Duration,
     ) -> Result<usize, NeedsRoom> {
         self.update_clock();
+        if self.poll_accepts {
+            self.accept_pending = true;
+        }
         self.take_compressed();
         if !answers.is_empty() {
             self.respond(answers);
@@ -201,6 +216,21 @@ impl EventLoop {
             got = self.fill(inbox);
         }
         got
+    }
+
+    /// Whether accepts are polled; see [`EventLoop::new`].
+    #[must_use]
+    pub fn polls_accepts(&self) -> bool {
+        self.poll_accepts
+    }
+
+    /// Accepts waiting connections now when accepts are polled. Returns
+    /// whether Dart has work afterwards.
+    pub fn accept_polled(&mut self) -> bool {
+        if self.poll_accepts && self.listener.is_some() {
+            self.accept_all();
+        }
+        self.has_work()
     }
 
     /// Whether Dart has something to do.

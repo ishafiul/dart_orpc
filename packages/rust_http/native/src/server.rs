@@ -24,6 +24,8 @@ use mio::Waker;
 use crate::connection::NeedsRoom;
 use crate::dart_api;
 use crate::event_loop::EventLoop;
+#[cfg(not(unix))]
+use crate::limits::SHARED_ACCEPT_POLL;
 use crate::limits::{Limits, PROBE};
 use crate::listener::{self, ListenAddress};
 
@@ -80,7 +82,9 @@ impl Server {
     ) -> Result<Arc<Self>, BindError> {
         let bound = listener::bind(address, shared).map_err(BindError::Os)?;
         let real = bound.address;
-        let Ok(event_loop) = EventLoop::new(bound.listener, real, limits) else {
+        // Windows cannot watch one shared socket from several pollers.
+        let poll_accepts = cfg!(windows) && shared;
+        let Ok(event_loop) = EventLoop::new(bound.listener, real, limits, poll_accepts) else {
             listener::release(real);
             return Err(BindError::Resources);
         };
@@ -229,6 +233,10 @@ impl Server {
             return false; // Dart wants the loop
         }
         event_loop.update_clock();
+        if event_loop.polls_accepts() {
+            event_loop.wait(Some(wait.min(SHARED_ACCEPT_POLL)));
+            return event_loop.accept_polled();
+        }
         event_loop.wait(Some(wait));
         event_loop.has_work()
     }

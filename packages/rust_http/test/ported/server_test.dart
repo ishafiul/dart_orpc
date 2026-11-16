@@ -888,6 +888,13 @@ void main() {
     RustHttpServer main = await start(0);
     int shared = main.port;
     List<Isolate> isolates = <Isolate>[];
+    // A failed expectation must not leave workers alive: live isolates
+    // keep the test process from exiting.
+    addTearDown(() {
+      for (Isolate isolate in isolates) {
+        isolate.kill(priority: Isolate.immediate);
+      }
+    });
     for (int i = 0; i < 3; i++) {
       ReceivePort ready = ReceivePort();
       isolates.add(

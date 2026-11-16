@@ -64,7 +64,7 @@ fn new_core(lim: Limits) -> (EventLoop, u16) {
     .unwrap();
     let port = bound.address.port;
     (
-        EventLoop::new(bound.listener, bound.address, lim).unwrap(),
+        EventLoop::new(bound.listener, bound.address, lim, false).unwrap(),
         port,
     )
 }
@@ -805,6 +805,35 @@ fn a_finished_gzip_job_counts_as_work() {
     }
     core.wait(Some(Duration::ZERO)); // takes the wake-up, like the helper
     assert!(core.has_work());
+}
+
+/// A loop that polls accepts, as a shared Windows server does, accepts
+/// and answers without the listener being registered with the poller.
+#[test]
+fn polled_accepts_serve_without_a_registered_listener() {
+    let bound = listener::bind(
+        ListenAddress {
+            ip: Some(Ipv4Addr::LOCALHOST.into()),
+            port: 0,
+        },
+        false,
+    )
+    .unwrap();
+    let port = bound.address.port;
+    let mut core = EventLoop::new(bound.listener, bound.address, limits(), true).unwrap();
+    let mut inb = vec![0u8; 1 << 16];
+    let mut s = connect(port);
+    s.write_all(b"GET /polled HTTP/1.1\r\nConnection: close\r\n\r\n")
+        .unwrap();
+    let end = Instant::now() + Duration::from_secs(5);
+    let mut seen = Vec::new();
+    while seen.is_empty() && Instant::now() < end {
+        // Like the idle helper: no listener event will come.
+        core.accept_polled();
+        let n = core.run_us(&[], &mut inb, 1000).unwrap();
+        seen = records(&inb[..n]);
+    }
+    assert_eq!(seen.first().map(|r| r.target.as_str()), Some("/polled"));
 }
 
 #[test]

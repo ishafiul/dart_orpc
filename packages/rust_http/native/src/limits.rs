@@ -50,6 +50,9 @@ pub const WS_MIN_QUEUE: usize = 1 << 20;
 /// Client message bytes Dart may leave unacknowledged before Rust stops
 /// reading WebSocket frames.
 pub const WS_UNACKED: usize = 8 << 20;
+/// How often an idle Windows server that shares its port checks for new
+/// connections; see `EventLoop::new`.
+pub const SHARED_ACCEPT_POLL: Duration = Duration::from_millis(5);
 /// How often the idle helper checks that the isolate is alive.
 pub const PROBE: Duration = Duration::from_millis(100);
 /// Upper bound for configured timeouts, so `Instant + timeout` never
