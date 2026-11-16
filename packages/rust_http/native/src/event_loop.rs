@@ -44,7 +44,8 @@ use crate::http::render::{
     AnswerFraming, BodyLength, DateLine, LAST_CHUNK, render_answer, render_head, render_part,
 };
 use crate::limits::{
-    ACCEPT_RETRY, LINGER_MAX, Limits, READ_ROOM, WS_HOLD, WS_OUT_MAX, WS_READ, WS_UNACKED,
+    ACCEPT_RETRY, LINGER_MAX, Limits, MAX_ACCEPTS_PER_TURN, READ_ROOM, WS_HOLD, WS_OUT_MAX,
+    WS_READ, WS_UNACKED,
 };
 use crate::listener::{self, ListenAddress, ListenerSource, peer_bytes};
 use crate::protocol::kinds::{InboundKind, OutboundKind};
@@ -71,6 +72,8 @@ pub struct EventLoop {
     accept_pending: bool,
     /// The listener is not registered: accepts are tried on every turn.
     poll_accepts: bool,
+    /// Most connections accepted in one turn; see [`MAX_ACCEPTS_PER_TURN`].
+    max_accepts_per_turn: usize,
     /// Accept again at this time (after an error or at the limit).
     accept_retry_at: Option<Instant>,
     sequence: u32,
@@ -127,6 +130,7 @@ impl EventLoop {
             ready: VecDeque::new(),
             accept_pending: true,
             poll_accepts,
+            max_accepts_per_turn: MAX_ACCEPTS_PER_TURN,
             accept_retry_at: None,
             sequence: 0,
             limits,
@@ -465,10 +469,17 @@ impl EventLoop {
 
     fn accept_all(&mut self) {
         self.accept_pending = false;
+        let mut accepted = 0;
         loop {
             let Some(listener) = &self.listener else {
                 return;
             };
+            if accepted == self.max_accepts_per_turn {
+                // More may wait: accept them on the next turn, after the
+                // requests of this one.
+                self.accept_pending = true;
+                return;
+            }
             if self.limits.max_connections > 0
                 && self.connections.len() >= self.limits.max_connections
             {
@@ -496,6 +507,7 @@ impl EventLoop {
                     // The request is often there already.
                     connection.queued = true;
                     entry.insert(connection);
+                    accepted += 1;
                     self.ready.push_back(index);
                     self.arm_timer(index);
                 }

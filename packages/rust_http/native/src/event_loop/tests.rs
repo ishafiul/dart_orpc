@@ -855,6 +855,34 @@ fn loops_sharing_one_socket_both_serve() {
     }
 }
 
+/// A burst of new connections is accepted over several turns, so one turn
+/// never spends itself accepting while open connections wait.
+#[test]
+fn accepts_are_capped_per_turn() {
+    let (mut core, port) = new_core(limits());
+    // Below macOS's default listen queue of 128, so every connect is queued.
+    core.max_accepts_per_turn = 50;
+    let mut inb = vec![0u8; 1 << 16];
+    let burst = core.max_accepts_per_turn + 30;
+    let clients: Vec<StdStream> = (0..burst).map(|_| connect(port)).collect();
+    std::thread::sleep(Duration::from_millis(200));
+
+    core.run_us(&[], &mut inb, 0).unwrap();
+    assert_eq!(
+        core.connections.len(),
+        core.max_accepts_per_turn,
+        "one turn's accepts"
+    );
+    assert!(core.has_work(), "the rest are accepted on the next turn");
+
+    let end = Instant::now() + Duration::from_secs(5);
+    while core.connections.len() < burst && Instant::now() < end {
+        core.run_us(&[], &mut inb, 0).unwrap();
+    }
+    assert_eq!(core.connections.len(), burst);
+    drop(clients);
+}
+
 #[test]
 fn gzip_runs_on_the_helper_thread() {
     let (port, _) = serve(limits());
