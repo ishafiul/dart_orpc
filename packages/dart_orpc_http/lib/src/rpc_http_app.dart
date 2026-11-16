@@ -15,6 +15,9 @@ import 'middleware/cors_policy.dart';
 
 const int _defaultMaxRequestBodyBytes = 1024 * 1024;
 const int _unlimitedNativeBodyBytes = 0x7fffffffffffffff;
+
+/// The keep-alive idle timeout when [RpcHttpServerOptions.idleTimeout] is null.
+const Duration _defaultIdleTimeout = Duration(seconds: 30);
 const Duration _defaultGracePeriod = Duration(seconds: 30);
 
 /// Reports a failure from an upgraded connection to
@@ -296,6 +299,8 @@ final class RpcHttpApp {
         shared: shared,
         streamRequestBodies: true,
         maxBodySize: maxRequestBodyBytes ?? _unlimitedNativeBodyBytes,
+        maxConnections: serverOptions.maxConnections,
+        idleTimeout: serverOptions.idleTimeout ?? _defaultIdleTimeout,
         // Let the app's timers classify the failure before the native fallback.
         bodyTimeout:
             [
