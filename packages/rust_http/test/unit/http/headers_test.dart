@@ -1,0 +1,144 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:rust_http/src/http/headers/request_headers.dart';
+import 'package:rust_http/src/http/headers/response_headers.dart';
+import 'package:test/test.dart';
+
+void main() {
+  test('request headers: one name is read from the raw bytes', () {
+    final RequestHeaders h = RequestHeaders(
+      _raw(<List<String>>[
+        <String>['x-test-long', 'no'],
+        <String>['x-test', 'a'],
+        <String>['accept', '*/*'],
+        <String>['x-test', 'b'],
+        <String>['content-type', 'application/json; charset=utf-8'],
+      ]),
+      http10: false,
+    );
+    expect(h['x-test'], <String>['a', 'b']);
+    expect(h['X-Test-Long'], <String>['no']);
+    expect(h['x'], isNull);
+    expect(h.value('missing'), isNull);
+    expect(h.contentType?.mimeType, 'application/json');
+    expect(identical(h.contentType, h.contentType), isTrue);
+    expect(h.persistentConnection, isTrue);
+    final List<String> names = <String>[];
+    h.forEach((String name, List<String> values) => names.add(name));
+    expect(names, <String>['x-test-long', 'x-test', 'accept', 'content-type']);
+  });
+
+  test('many lookups and a detach give the same values', () {
+    final Uint8List raw = _raw(<List<String>>[
+      <String>['a', '1'],
+      <String>['b', '2'],
+      <String>['c', '3'],
+      <String>['d', '4'],
+      <String>['e', '5'],
+      <String>['f', '6'],
+    ]);
+    final RequestHeaders h = RequestHeaders(raw, http10: false);
+    // the first lookups scan the raw bytes, later ones use the map
+    expect(h.value('a'), '1');
+    expect(h.value('x'), isNull);
+    expect(h.value('b'), '2');
+    h.detach();
+    // the headers keep their own copy: the batch bytes may change
+    raw.fillRange(0, raw.length, 0);
+    expect(h.value('c'), '3');
+    for (String name in <String>['d', 'e', 'f', 'a']) {
+      expect(h[name]?.single, isNotNull);
+    }
+    expect(h.value('f'), '6');
+    expect(h.value('y'), isNull);
+  });
+
+  test('a line break in a content type is refused', () {
+    final ResponseHeaders h = ResponseHeaders(ResponseHeaders.empty());
+    for (ContentType bad in <ContentType>[
+      ContentType('text', 'html\r\nx-injected: yes'),
+      ContentType(
+        'text',
+        'html',
+        parameters: <String, String?>{'a': 'b\r\nx-injected: yes'},
+      ),
+    ]) {
+      expect(() => h.contentType = bad, throwsFormatException);
+      expect(h.value(HttpHeaders.contentTypeHeader), isNull);
+    }
+    h.contentType = ContentType.json;
+    expect(h.value(HttpHeaders.contentTypeHeader), ContentType.json.toString());
+  });
+
+  test('response content type is kept without a parse', () {
+    final ResponseHeaders h = ResponseHeaders(ResponseHeaders.empty());
+    h.contentType = ContentType.json;
+    expect(h.value(HttpHeaders.contentTypeHeader), ContentType.json.toString());
+    expect(identical(h.contentType, ContentType.json), isTrue);
+    h.set(HttpHeaders.contentTypeHeader, 'text/html');
+    expect(h.contentType?.mimeType, 'text/html');
+  });
+
+  test('defaults plus one content type stay shared until a change', () {
+    final ResponseHeaders defaults = ResponseHeaders.empty()
+      ..set(HttpHeaders.contentTypeHeader, 'text/plain')
+      ..set('x-a', '1');
+    final ResponseHeaders h = ResponseHeaders(defaults);
+    h.contentType = ContentType.json;
+    expect(h.isShared, isFalse);
+    expect(identical(h.sharedType, ContentType.json), isTrue);
+    expect(h.value(HttpHeaders.contentTypeHeader), ContentType.json.toString());
+    h.set('x-b', '2');
+    expect(h.sharedType, isNull);
+    final Map<String, List<String>> all = <String, List<String>>{};
+    h.forEach((String name, List<String> values) => all[name] = values);
+    expect(all, <String, List<String>>{
+      'content-type': <String>[ContentType.json.toString()],
+      'x-a': <String>['1'],
+      'x-b': <String>['2'],
+    });
+    // the defaults did not change
+    expect(defaults.value(HttpHeaders.contentTypeHeader), 'text/plain');
+    expect(defaults['x-b'], isNull);
+  });
+
+  test('response header values with a line break are refused', () {
+    final ResponseHeaders h = ResponseHeaders(ResponseHeaders.empty());
+    for (String value in <String>[
+      'a\nset-cookie: x=1',
+      'a\r\nset-cookie: x=1',
+      'a\u010Aset-cookie: x=1',
+      'a\u0000',
+    ]) {
+      expect(() => h.set('x-id', value), throwsFormatException);
+      expect(() => h.add('x-id', <String>['ok', value]), throwsFormatException);
+    }
+    for (String name in <String>['a b', 'a:b', 'a\nb', 'é']) {
+      expect(() => h.set(name, 'v'), throwsFormatException);
+    }
+    h.set('x-id', 'a\tb ~!');
+    expect(h.value('x-id'), 'a\tb ~!');
+  });
+
+  test('a bad value keeps the old header', () {
+    final ResponseHeaders h = ResponseHeaders(ResponseHeaders.empty());
+    h.set('x-id', 'old');
+    expect(() => h.set('x-id', 'a\nb'), throwsFormatException);
+    expect(() => h.set('x-id', <String>['ok', 'a\nb']), throwsFormatException);
+    expect(() => h.add('x-id', <String>['ok', 'a\nb']), throwsFormatException);
+    expect(h['x-id'], <String>['old']);
+  });
+}
+
+/// the header block like Rust writes it
+Uint8List _raw(List<List<String>> headers) {
+  final BytesBuilder b = BytesBuilder();
+  for (List<String> h in headers) {
+    final List<int> name = latin1.encode(h[0]);
+    final List<int> value = latin1.encode(h[1]);
+    b.add(<int>[name.length, 0, value.length, 0, ...name, ...value]);
+  }
+  return b.takeBytes();
+}

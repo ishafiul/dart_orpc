@@ -1,0 +1,108 @@
+name: rust_http
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - packages/rust_http/**
+      - packages/dart_orpc_http/**
+      - packages/dart_orpc_websocket/**
+      - apps/basic_app/**
+      - .github/workflows/rust_http.yml
+  pull_request:
+    paths:
+      - packages/rust_http/**
+      - packages/dart_orpc_http/**
+      - packages/dart_orpc_websocket/**
+      - apps/basic_app/**
+      - .github/workflows/rust_http.yml
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: packages/rust_http/native
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Clippy (pedantic, warnings are errors)
+        run: cargo clippy --all-targets -- -D warnings
+
+  # Every supported target builds AND runs both test suites. The reference
+  # implementation only ran tests on Linux.
+  test:
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: macos-arm64, os: macos-latest }
+          - { name: macos-x64, os: macos-15-intel }
+          - { name: linux-x64, os: ubuntu-22.04 }
+          - { name: linux-arm64, os: ubuntu-22.04-arm }
+          - { name: windows-x64, os: windows-latest }
+    name: test (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - name: Rust tests
+        working-directory: packages/rust_http/native
+        run: cargo test --release
+      - name: Resolve Dart dependencies
+        run: dart pub get
+      - name: Analyze
+        working-directory: packages/rust_http
+        run: dart analyze --fatal-infos
+      - name: Dart tests (unit, ported, contract against dart:io and rust_http)
+        working-directory: packages/rust_http
+        run: dart test
+      - name: Framework HTTP tests with Rust HTTP
+        working-directory: packages/dart_orpc_http
+        env:
+          DART_ORPC_HTTP_BACKEND: rust
+        run: dart test
+      - name: Framework WebSocket tests with Rust HTTP
+        working-directory: packages/dart_orpc_websocket
+        env:
+          DART_ORPC_HTTP_BACKEND: rust
+        run: dart test
+      # Baseline: a failure here is in the app on this platform, not in
+      # rust_http.
+      - name: Basic app tests with dart:io
+        working-directory: apps/basic_app
+        run: dart test
+      - name: Basic app tests with Rust HTTP
+        working-directory: apps/basic_app
+        env:
+          DART_ORPC_HTTP_BACKEND: rust
+        run: dart test
+
+  fuzz:
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [parse_head, chunked_body]
+    defaults:
+      run:
+        working-directory: packages/rust_http/native
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Fuzz ${{ matrix.target }} for 60 seconds
+        run: cargo +nightly fuzz run ${{ matrix.target }} -- -max_total_time=60 -max_len=32768

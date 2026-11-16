@@ -6,6 +6,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:dart_orpc_core/dart_orpc_core.dart';
+import 'package:rust_http/rust_http.dart';
 
 import 'rpc_http_handler.dart';
 import 'rpc_http_options.dart';
@@ -13,6 +14,7 @@ import 'rpc_http_metrics.dart';
 import 'middleware/cors_policy.dart';
 
 const int _defaultMaxRequestBodyBytes = 1024 * 1024;
+const int _unlimitedNativeBodyBytes = 0x7fffffffffffffff;
 const Duration _defaultGracePeriod = Duration(seconds: 30);
 
 /// Reports a failure from an upgraded connection to
@@ -289,7 +291,23 @@ final class RpcHttpApp {
     final listenAttempt = Completer<void>();
     _listenAttempt = listenAttempt.future;
     try {
-      final server = await HttpServer.bind(hostname, port, shared: shared);
+      final server = Platform.environment['DART_ORPC_HTTP_BACKEND'] == 'rust'
+          ? await RustHttpServer.bind(
+              port,
+              address: hostname,
+              shared: shared,
+              streamRequestBodies: true,
+              maxBodySize: maxRequestBodyBytes ?? _unlimitedNativeBodyBytes,
+              // Let the app's timers classify the failure before the native fallback.
+              bodyTimeout:
+                  [
+                    const Duration(seconds: 120),
+                    if (requestBodyIdleTimeout case final timeout?) timeout,
+                    if (serverOptions.bodyTimeout case final timeout?) timeout,
+                  ].reduce((a, b) => a > b ? a : b) +
+                  const Duration(seconds: 1),
+            )
+          : await HttpServer.bind(hostname, port, shared: shared);
       if (!_requests.isAccepting) {
         await server.close(force: true);
         throw StateError('This app was closed while it was starting.');
@@ -629,16 +647,31 @@ final class RpcHttpApp {
           ? remaining
           : idle;
       final next = chunks.moveNext();
-      final available = await (wait == null
-          ? next
-          : next.timeout(
-              wait,
-              onTimeout: () => throw RpcException.requestTimeout(
-                remaining != null && (idle == null || remaining <= idle)
-                    ? 'Request body deadline exceeded.'
-                    : 'Request body idle timeout exceeded.',
-              ),
-            ));
+      final bool available;
+      try {
+        available = await (wait == null
+            ? next
+            : next.timeout(
+                wait,
+                onTimeout: () => throw RpcException.requestTimeout(
+                  remaining != null && (idle == null || remaining <= idle)
+                      ? 'Request body deadline exceeded.'
+                      : 'Request body idle timeout exceeded.',
+                ),
+              ));
+      } on RustHttpBodyException catch (error) {
+        throw switch (error.statusCode) {
+          HttpStatus.requestTimeout => RpcException.requestTimeout(
+            'Request body idle timeout exceeded.',
+          ),
+          HttpStatus.requestEntityTooLarge => RpcException.payloadTooLarge(
+            limit == null
+                ? 'Request body exceeds the HTTP server size limit.'
+                : 'Request body exceeds the maximum allowed size of $limit bytes.',
+          ),
+          _ => RpcException.badRequest('Invalid request body.'),
+        };
+      }
       if (!available) break;
       final chunk = chunks.current;
       exchange.receivedBytes += chunk.length;

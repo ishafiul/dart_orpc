@@ -290,7 +290,18 @@ void main() {
       ]),
     );
 
-    final liveChanges = duplexClient.todo.watchLive().take(3).toList();
+    // The server subscribes only after an async permission check, and the
+    // change stream drops events nobody listens to yet. Probe until the
+    // subscription delivers, so the real changes below cannot be missed.
+    final liveEvents = <TodoChangeResponseDto>[];
+    final liveSubscription = duplexClient.todo.watchLive().listen(
+      liveEvents.add,
+    );
+    for (var probe = 0; liveEvents.isEmpty; probe++) {
+      if (probe == 100) fail('The live todo stream never delivered an event.');
+      await duplexClient.todo.create(CreateTodoDto(title: 'Live probe $probe'));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
     final liveTodo = await duplexClient.todo.create(
       const CreateTodoDto(title: 'Live change'),
     );
@@ -298,7 +309,21 @@ void main() {
       UpdateTodoDto(id: liveTodo.id, completed: true),
     );
     await duplexClient.todo.delete(GetTodoDto(id: liveTodo.id));
-    final receivedChanges = await liveChanges;
+    List<TodoChangeResponseDto> liveTodoChanges() => [
+      for (final change in liveEvents)
+        if (change.todo.id == liveTodo.id) change,
+    ];
+    for (var wait = 0; liveTodoChanges().length < 3; wait++) {
+      if (wait == 250) {
+        fail('Live changes of todo ${liveTodo.id}: ${liveTodoChanges()}');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    final receivedChanges = liveTodoChanges();
+    // Like take(3): end the stream without waiting for the cancel future.
+    // The WebSocket client transport completes it only when it closes, with
+    // a "transport is closed" error.
+    liveSubscription.cancel().ignore();
     expect(
       receivedChanges.map((change) => change.type),
       orderedEquals(['created', 'updated', 'deleted']),
