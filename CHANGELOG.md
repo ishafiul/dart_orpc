@@ -3,6 +3,103 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-11-16
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`dart_orpc` - `v0.1.0-dev.8`](#dart_orpc---v010-dev8)
+ - [`dart_orpc_annotations` - `v0.1.0-dev.5`](#dart_orpc_annotations---v010-dev5)
+ - [`dart_orpc_cli` - `v0.1.0-dev.4`](#dart_orpc_cli---v010-dev4)
+ - [`dart_orpc_client` - `v0.1.0-dev.7`](#dart_orpc_client---v010-dev7)
+ - [`dart_orpc_core` - `v0.1.0-dev.7`](#dart_orpc_core---v010-dev7)
+ - [`dart_orpc_generator` - `v0.1.0-dev.8`](#dart_orpc_generator---v010-dev8)
+ - [`dart_orpc_http` - `v0.1.0-dev.8`](#dart_orpc_http---v010-dev8)
+ - [`dart_orpc_luthor` - `v0.1.0-dev.7`](#dart_orpc_luthor---v010-dev7)
+ - [`dart_orpc_openapi` - `v0.1.0-dev.8`](#dart_orpc_openapi---v010-dev8)
+ - [`dart_orpc_websocket` - `v0.1.0-dev.8`](#dart_orpc_websocket---v010-dev8)
+ - [`rust_http` - `v0.1.0-dev.2`](#rust_http---v010-dev2)
+
+Packages with other changes:
+
+ - There are no other changes in this release.
+
+---
+
+#### `dart_orpc` - `v0.1.0-dev.8`
+
+ - **BREAKING** **FEAT**(openapi): Render OpenAPI schemas from DTO metadata and drop luthor (#77) (#92).
+ - **BREAKING** **BUILD**(deps): Switch to luthor 1.1 and latest dependencies (#71) (#93).
+
+#### `dart_orpc_annotations` - `v0.1.0-dev.5`
+
+ - **BREAKING** **BUILD**(deps): Switch to luthor 1.1 and latest dependencies (#71) (#93).
+
+#### `dart_orpc_cli` - `v0.1.0-dev.4`
+
+ - **BREAKING** **BUILD**(deps): Switch to luthor 1.1 and latest dependencies (#71) (#93).
+
+#### `dart_orpc_client` - `v0.1.0-dev.7`
+
+ - **FEAT**(core): Expose validation issues to clients and OpenAPI, and prove parity (#101) (#113).
+ - **BREAKING** **BUILD**(deps): Switch to luthor 1.1 and latest dependencies (#71) (#93).
+
+#### `dart_orpc_core` - `v0.1.0-dev.7`
+
+ - **FIX**(luthor): Hide output validation failures and report diagnostics (#105) (#112).
+ - **FEAT**(core): Expose validation issues to clients and OpenAPI, and prove parity (#101) (#113).
+ - **FEAT**(core): Add the structured validation issue model (#102) (#109).
+ - **FEAT**(generator): Support luthor 1.1 unknown-key modes in DTO metadata and OpenAPI (#90) (#94).
+ - **FEAT**(core): Add the DTO schema metadata model (#74) (#85).
+ - **BREAKING** **BUILD**(deps): Switch to luthor 1.1 and latest dependencies (#71) (#93).
+
+#### `dart_orpc_generator` - `v0.1.0-dev.8`
+
+ - **FEAT**(http): Attach structured issues to REST decoding failures (#104) (#111).
+ - **FEAT**(generator): Support luthor 1.1 unknown-key modes in DTO metadata and OpenAPI (#90) (#94).
+ - **FEAT**(generator): Emit DTO schema metadata registries (#76) (#87).
+ - **FEAT**(generator): Extract DTO schema metadata at build time (#75) (#86).
+ - **BREAKING** **FEAT**(openapi): Render OpenAPI schemas from DTO metadata and drop luthor (#77) (#92).
+ - **BREAKING** **BUILD**(deps): Switch to luthor 1.1 and latest dependencies (#71) (#93).
+
+#### `dart_orpc_http` - `v0.1.0-dev.8`
+
+ - **FIX**(luthor): Hide output validation failures and report diagnostics (#105) (#112).
+ - **FEAT**(rust_http): Add a Rust-backed HTTP server with the dart:io API (#114).
+ - **FEAT**(http): Attach structured issues to REST decoding failures (#104) (#111).
+ - **BREAKING** **FEAT**(dart_orpc_http): Serve every app on rust_http (#115).
+ - **BREAKING** **BUILD**(deps): Switch to luthor 1.1 and latest dependencies (#71) (#93).
+
+#### `dart_orpc_luthor` - `v0.1.0-dev.7`
+
+ - **FIX**(luthor): Hide output validation failures and report diagnostics (#105) (#112).
+ - **FEAT**(luthor): Attach structured issues to input validation failures (#103) (#110).
+ - **BREAKING** **BUILD**(deps): Switch to luthor 1.1 and latest dependencies (#71) (#93).
+
+#### `dart_orpc_openapi` - `v0.1.0-dev.8`
+
+ - **FEAT**(core): Expose validation issues to clients and OpenAPI, and prove parity (#101) (#113).
+ - **FEAT**(generator): Support luthor 1.1 unknown-key modes in DTO metadata and OpenAPI (#90) (#94).
+ - **BREAKING** **FEAT**(openapi): Render OpenAPI schemas from DTO metadata and drop luthor (#77) (#92).
+ - **BREAKING** **BUILD**(deps): Switch to luthor 1.1 and latest dependencies (#71) (#93).
+
+#### `dart_orpc_websocket` - `v0.1.0-dev.8`
+
+ - **FIX**(luthor): Hide output validation failures and report diagnostics (#105) (#112).
+ - **FEAT**(rust_http): Add a Rust-backed HTTP server with the dart:io API (#114).
+ - **FEAT**(core): Expose validation issues to clients and OpenAPI, and prove parity (#101) (#113).
+ - **BREAKING** **FEAT**(dart_orpc_http): Serve every app on rust_http (#115).
+ - **BREAKING** **BUILD**(deps): Switch to luthor 1.1 and latest dependencies (#71) (#93).
+
+#### `rust_http` - `v0.1.0-dev.2`
+
+ - **FEAT**(rust_http): Add a Rust-backed HTTP server with the dart:io API (#114).
+ - **BREAKING** **FEAT**(dart_orpc_http): Serve every app on rust_http (#115).
+
+
 ## 2026-11-13
 
 ### Changes

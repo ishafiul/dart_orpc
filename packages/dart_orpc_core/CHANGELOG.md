@@ -1,3 +1,14 @@
+## 0.1.0-dev.7
+
+> Note: This release has breaking changes.
+
+ - **FIX**(luthor): Hide output validation failures and report diagnostics (#105) (#112).
+ - **FEAT**(core): Expose validation issues to clients and OpenAPI, and prove parity (#101) (#113).
+ - **FEAT**(core): Add the structured validation issue model (#102) (#109).
+ - **FEAT**(generator): Support luthor 1.1 unknown-key modes in DTO metadata and OpenAPI (#90) (#94).
+ - **FEAT**(core): Add the DTO schema metadata model (#74) (#85).
+ - **BREAKING** **BUILD**(deps): Switch to luthor 1.1 and latest dependencies (#71) (#93).
+
 ## 0.1.0-dev.6
 
  - **FEAT**(core): Add encodeRpcError with safe details fallback (#28) (#41).

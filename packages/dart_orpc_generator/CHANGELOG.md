@@ -1,3 +1,14 @@
+## 0.1.0-dev.8
+
+> Note: This release has breaking changes.
+
+ - **FEAT**(http): Attach structured issues to REST decoding failures (#104) (#111).
+ - **FEAT**(generator): Support luthor 1.1 unknown-key modes in DTO metadata and OpenAPI (#90) (#94).
+ - **FEAT**(generator): Emit DTO schema metadata registries (#76) (#87).
+ - **FEAT**(generator): Extract DTO schema metadata at build time (#75) (#86).
+ - **BREAKING** **FEAT**(openapi): Render OpenAPI schemas from DTO metadata and drop luthor (#77) (#92).
+ - **BREAKING** **BUILD**(deps): Switch to luthor 1.1 and latest dependencies (#71) (#93).
+
 ## 0.1.0-dev.7
 
  - **REFACTOR**(generator): Extract shared graph and contract primitives.

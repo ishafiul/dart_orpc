@@ -1,3 +1,10 @@
+## 0.1.0-dev.8
+
+> Note: This release has breaking changes.
+
+ - **BREAKING** **FEAT**(openapi): Render OpenAPI schemas from DTO metadata and drop luthor (#77) (#92).
+ - **BREAKING** **BUILD**(deps): Switch to luthor 1.1 and latest dependencies (#71) (#93).
+
 ## 0.1.0-dev.7
 
  - Update a dependency to the latest release.

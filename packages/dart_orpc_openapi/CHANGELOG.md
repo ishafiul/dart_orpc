@@ -1,3 +1,12 @@
+## 0.1.0-dev.8
+
+> Note: This release has breaking changes.
+
+ - **FEAT**(core): Expose validation issues to clients and OpenAPI, and prove parity (#101) (#113).
+ - **FEAT**(generator): Support luthor 1.1 unknown-key modes in DTO metadata and OpenAPI (#90) (#94).
+ - **BREAKING** **FEAT**(openapi): Render OpenAPI schemas from DTO metadata and drop luthor (#77) (#92).
+ - **BREAKING** **BUILD**(deps): Switch to luthor 1.1 and latest dependencies (#71) (#93).
+
 ## 0.1.0-dev.7
 
  - **FEAT**(openapi): Document optional error details in RpcErrorBody (#37) (#50).

@@ -1,3 +1,10 @@
+## 0.1.0-dev.7
+
+> Note: This release has breaking changes.
+
+ - **FEAT**(core): Expose validation issues to clients and OpenAPI, and prove parity (#101) (#113).
+ - **BREAKING** **BUILD**(deps): Switch to luthor 1.1 and latest dependencies (#71) (#93).
+
 ## 0.1.0-dev.6
 
  - **FEAT**(client): Expose error details from HTTP error envelopes (#35) (#48).

@@ -1,3 +1,13 @@
+## 0.1.0-dev.8
+
+> Note: This release has breaking changes.
+
+ - **FIX**(luthor): Hide output validation failures and report diagnostics (#105) (#112).
+ - **FEAT**(rust_http): Add a Rust-backed HTTP server with the dart:io API (#114).
+ - **FEAT**(core): Expose validation issues to clients and OpenAPI, and prove parity (#101) (#113).
+ - **BREAKING** **FEAT**(dart_orpc_http): Serve every app on rust_http (#115).
+ - **BREAKING** **BUILD**(deps): Switch to luthor 1.1 and latest dependencies (#71) (#93).
+
 ## 0.1.0-dev.7
 
 > Note: This release has breaking changes.

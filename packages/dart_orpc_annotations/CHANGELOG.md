@@ -1,3 +1,9 @@
+## 0.1.0-dev.5
+
+> Note: This release has breaking changes.
+
+ - **BREAKING** **BUILD**(deps): Switch to luthor 1.1 and latest dependencies (#71) (#93).
+
 ## 0.1.0-dev.4
 
  - **FEAT**(annotations): Add provider bindings and custom REST status and headers.
