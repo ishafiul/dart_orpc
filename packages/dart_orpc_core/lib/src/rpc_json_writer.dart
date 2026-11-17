@@ -50,6 +50,24 @@ final class RpcJsonWriter {
     return bytes;
   }
 
+  /// Returns an exact-size copy of the bytes written so far.
+  ///
+  /// Unlike [takeBytes], the writer keeps its buffer, so a writer that is
+  /// [clear]ed and reused does not allocate a new buffer per value.
+  Uint8List toBytes() => Uint8List(_length)..setRange(0, _length, _buffer);
+
+  /// Discards the bytes written so far and keeps the buffer for reuse.
+  ///
+  /// A buffer that grew past [maxRetainedCapacity] bytes is released, so one
+  /// large value does not pin its memory.
+  void clear({int maxRetainedCapacity = 64 * 1024}) {
+    _length = 0;
+    _depth = 0;
+    if (_buffer.length > maxRetainedCapacity) {
+      _buffer = _empty;
+    }
+  }
+
   /// Writes [json], which must be ASCII JSON text such as `{"id":` or `]`.
   ///
   /// The text is copied as is: it is not escaped or checked for being valid
