@@ -5,10 +5,13 @@
 // RpcModuleGenerator
 // **************************************************************************
 
+// ignore_for_file: unnecessary_import
+
 export 'package:basic_app/modules/auth/auth_dtos.dart';
 export 'package:basic_app/modules/auth/auth_module.dart';
 
 import 'package:basic_app/database/app_database.dart';
+import 'package:basic_app/database/database_module.orpc.dart';
 import 'package:basic_app/modules/auth/auth_controller.dart';
 import 'package:basic_app/modules/auth/auth_dtos.dart';
 import 'package:basic_app/modules/auth/auth_module.dart';
@@ -34,6 +37,7 @@ class _$AuthModuleContainer {
 
 _$AuthModuleContainer _$createAuthModuleContainer() {
   final appDatabase = AppDatabase();
+
   final authService = AuthService(appDatabase);
 
   final authController = AuthController(authService);
@@ -438,8 +442,12 @@ DtoSchemaRegistry _$createAuthModuleLocalDtoSchemaRegistry() {
   ]);
 }
 
+DtoSchemaRegistry dartOrpcCreateAuthModuleLocalDtoSchemaRegistry() =>
+    _$createAuthModuleLocalDtoSchemaRegistry();
+
 DtoSchemaRegistry _$createAuthModuleDtoSchemaRegistry() {
   return DtoSchemaRegistry([
+    ...dartOrpcCreateDatabaseModuleLocalDtoSchemaRegistry().schemas,
     ..._$createAuthModuleLocalDtoSchemaRegistry().schemas,
   ]);
 }

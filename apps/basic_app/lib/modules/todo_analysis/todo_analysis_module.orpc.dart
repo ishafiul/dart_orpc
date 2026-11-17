@@ -5,10 +5,19 @@
 // RpcModuleGenerator
 // **************************************************************************
 
+// ignore_for_file: unnecessary_import
+
+export 'package:basic_app/modules/todo/todo_module.orpc.dart';
 export 'package:basic_app/modules/todo_analysis/todo_analysis_dtos.dart';
 export 'package:basic_app/modules/todo_analysis/todo_analysis_module.dart';
 
 import 'package:basic_app/database/app_database.dart';
+import 'package:basic_app/database/database_module.orpc.dart';
+import 'package:basic_app/guard/jwt_auth_guard.dart';
+import 'package:basic_app/guard/logger_guard.dart';
+import 'package:basic_app/guard/permission_guard.dart';
+import 'package:basic_app/modules/todo/todo_controller.dart';
+import 'package:basic_app/modules/todo/todo_module.orpc.dart';
 import 'package:basic_app/modules/todo/todo_service.dart';
 import 'package:basic_app/modules/todo_analysis/todo_analysis_controller.dart';
 import 'package:basic_app/modules/todo_analysis/todo_analysis_dtos.dart';
@@ -20,7 +29,11 @@ class _$TodoAnalysisModuleContainer {
   _$TodoAnalysisModuleContainer({
     required this.appDatabase,
     required this.todoService,
+    required this.basicAppJwtAuthGuard,
+    required this.todoRouteLoggerGuard,
+    required this.todoPermissionGuard,
     required this.todoAnalysisService,
+    required this.todoController,
     required this.todoAnalysisController,
   });
 
@@ -28,13 +41,25 @@ class _$TodoAnalysisModuleContainer {
 
   final TodoService todoService;
 
+  final BasicAppJwtAuthGuard basicAppJwtAuthGuard;
+
+  final TodoRouteLoggerGuard todoRouteLoggerGuard;
+
+  final TodoPermissionGuard todoPermissionGuard;
+
   final TodoAnalysisService todoAnalysisService;
+
+  final TodoController todoController;
 
   final TodoAnalysisController todoAnalysisController;
 
   Future<void> dispose() => disposeRpcProviders([
     todoAnalysisController,
+    todoController,
     todoAnalysisService,
+    todoPermissionGuard,
+    todoRouteLoggerGuard,
+    basicAppJwtAuthGuard,
     todoService,
     appDatabase,
   ]);
@@ -43,14 +68,24 @@ class _$TodoAnalysisModuleContainer {
 _$TodoAnalysisModuleContainer _$createTodoAnalysisModuleContainer() {
   final appDatabase = AppDatabase();
   final todoService = TodoService(appDatabase);
+  final basicAppJwtAuthGuard = BasicAppJwtAuthGuard();
+  final todoRouteLoggerGuard = TodoRouteLoggerGuard();
+  final todoPermissionGuard = TodoPermissionGuard();
+
   final todoAnalysisService = TodoAnalysisService(todoService);
+
+  final todoController = TodoController(todoService);
 
   final todoAnalysisController = TodoAnalysisController(todoAnalysisService);
 
   return _$TodoAnalysisModuleContainer(
     appDatabase: appDatabase,
     todoService: todoService,
+    basicAppJwtAuthGuard: basicAppJwtAuthGuard,
+    todoRouteLoggerGuard: todoRouteLoggerGuard,
+    todoPermissionGuard: todoPermissionGuard,
     todoAnalysisService: todoAnalysisService,
+    todoController: todoController,
     todoAnalysisController: todoAnalysisController,
   );
 }
@@ -60,6 +95,181 @@ RpcProcedureRegistry _$createTodoAnalysisModuleProcedureRegistryFromContainer(
 ) {
   final metadataRegistry = _$todoAnalysisModuleProcedureMetadata;
   return RpcProcedureRegistry([
+    RpcUnaryProcedure<Null, TodoListResponseDto>(
+      method: 'todo.list',
+      decodeInput: (rawInput) =>
+          expectNoRpcInput(rawInput, context: 'RPC method "todo.list"'),
+      encodeOutput: (output) =>
+          encodeRpcOutputJsonWithLuthor<TodoListResponseDto>(
+            output: output,
+            method: 'todo.list',
+            toJson: (output) => output.toJson(),
+            validateJson: $TodoListResponseDtoSchema.validate,
+          ),
+      metadata: metadataRegistry['todo.list']!,
+      guards: [
+        container.basicAppJwtAuthGuard,
+        container.todoRouteLoggerGuard,
+        container.todoPermissionGuard,
+      ],
+
+      handler: (context, input) => container.todoController.list(context),
+    ),
+    RpcStreamProcedure<Null, TodoResponseDto>(
+      method: 'todo.watch',
+      decodeInput: (rawInput) =>
+          expectNoRpcInput(rawInput, context: 'RPC method "todo.watch"'),
+      encodeOutput: (output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
+        output: output,
+        method: 'todo.watch',
+        toJson: (output) => output.toJson(),
+        validateJson: $TodoResponseDtoSchema.validate,
+      ),
+      metadata: metadataRegistry['todo.watch']!,
+      guards: [
+        container.basicAppJwtAuthGuard,
+        container.todoRouteLoggerGuard,
+        container.todoPermissionGuard,
+      ],
+
+      handler: (context, input) => container.todoController.watch(context),
+    ),
+    RpcStreamProcedure<Null, TodoChangeResponseDto>(
+      method: 'todo.watchLive',
+      decodeInput: (rawInput) =>
+          expectNoRpcInput(rawInput, context: 'RPC method "todo.watchLive"'),
+      encodeOutput: (output) =>
+          encodeRpcOutputJsonWithLuthor<TodoChangeResponseDto>(
+            output: output,
+            method: 'todo.watchLive',
+            toJson: (output) => output.toJson(),
+            validateJson: $TodoChangeResponseDtoSchema.validate,
+          ),
+      metadata: metadataRegistry['todo.watchLive']!,
+      guards: [
+        container.basicAppJwtAuthGuard,
+        container.todoRouteLoggerGuard,
+        container.todoPermissionGuard,
+      ],
+
+      handler: (context, input) => container.todoController.watchLive(context),
+    ),
+    RpcUnaryProcedure<GetTodoDto, TodoResponseDto>(
+      method: 'todo.getById',
+      decodeInput: (rawInput) => decodeRpcInputWithLuthor<GetTodoDto>(
+        rawInput: rawInput,
+        method: 'todo.getById',
+        validate: $GetTodoDtoValidate,
+      ),
+      encodeOutput: (output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
+        output: output,
+        method: 'todo.getById',
+        toJson: (output) => output.toJson(),
+        validateJson: $TodoResponseDtoSchema.validate,
+      ),
+      metadata: metadataRegistry['todo.getById']!,
+      guards: [
+        container.basicAppJwtAuthGuard,
+        container.todoRouteLoggerGuard,
+        container.todoPermissionGuard,
+      ],
+
+      handler: (context, input) =>
+          container.todoController.getById(context, input),
+    ),
+    RpcStreamProcedure<GetTodoDto, TodoResponseDto>(
+      method: 'todo.watchById',
+      decodeInput: (rawInput) => decodeRpcInputWithLuthor<GetTodoDto>(
+        rawInput: rawInput,
+        method: 'todo.watchById',
+        validate: $GetTodoDtoValidate,
+      ),
+      encodeOutput: (output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
+        output: output,
+        method: 'todo.watchById',
+        toJson: (output) => output.toJson(),
+        validateJson: $TodoResponseDtoSchema.validate,
+      ),
+      metadata: metadataRegistry['todo.watchById']!,
+      guards: [
+        container.basicAppJwtAuthGuard,
+        container.todoRouteLoggerGuard,
+        container.todoPermissionGuard,
+      ],
+
+      handler: (context, input) =>
+          container.todoController.watchById(context, input),
+    ),
+    RpcUnaryProcedure<CreateTodoDto, TodoResponseDto>(
+      method: 'todo.create',
+      decodeInput: (rawInput) => decodeRpcInputWithLuthor<CreateTodoDto>(
+        rawInput: rawInput,
+        method: 'todo.create',
+        validate: $CreateTodoDtoValidate,
+      ),
+      encodeOutput: (output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
+        output: output,
+        method: 'todo.create',
+        toJson: (output) => output.toJson(),
+        validateJson: $TodoResponseDtoSchema.validate,
+      ),
+      metadata: metadataRegistry['todo.create']!,
+      guards: [
+        container.basicAppJwtAuthGuard,
+        container.todoRouteLoggerGuard,
+        container.todoPermissionGuard,
+      ],
+
+      handler: (context, input) =>
+          container.todoController.create(context, input),
+    ),
+    RpcUnaryProcedure<UpdateTodoDto, TodoResponseDto>(
+      method: 'todo.update',
+      decodeInput: (rawInput) => decodeRpcInputWithLuthor<UpdateTodoDto>(
+        rawInput: rawInput,
+        method: 'todo.update',
+        validate: $UpdateTodoDtoValidate,
+      ),
+      encodeOutput: (output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
+        output: output,
+        method: 'todo.update',
+        toJson: (output) => output.toJson(),
+        validateJson: $TodoResponseDtoSchema.validate,
+      ),
+      metadata: metadataRegistry['todo.update']!,
+      guards: [
+        container.basicAppJwtAuthGuard,
+        container.todoRouteLoggerGuard,
+        container.todoPermissionGuard,
+      ],
+
+      handler: (context, input) =>
+          container.todoController.update(context, input),
+    ),
+    RpcUnaryProcedure<GetTodoDto, DeleteTodoResponseDto>(
+      method: 'todo.delete',
+      decodeInput: (rawInput) => decodeRpcInputWithLuthor<GetTodoDto>(
+        rawInput: rawInput,
+        method: 'todo.delete',
+        validate: $GetTodoDtoValidate,
+      ),
+      encodeOutput: (output) =>
+          encodeRpcOutputJsonWithLuthor<DeleteTodoResponseDto>(
+            output: output,
+            method: 'todo.delete',
+            toJson: (output) => output.toJson(),
+            validateJson: $DeleteTodoResponseDtoSchema.validate,
+          ),
+      metadata: metadataRegistry['todo.delete']!,
+      guards: [
+        container.basicAppJwtAuthGuard,
+        container.todoRouteLoggerGuard,
+        container.todoPermissionGuard,
+      ],
+
+      handler: (context, input) =>
+          container.todoController.delete(context, input),
+    ),
     RpcUnaryProcedure<Null, TodoAnalysisSummaryDto>(
       method: 'todoAnalysis.summary',
       decodeInput: (rawInput) => expectNoRpcInput(
@@ -113,6 +323,223 @@ RestRouteRegistry _$createTodoAnalysisModuleRestRouteRegistryFromContainer(
   return RestRouteRegistry([
     RestUnaryRoute(
       method: 'GET',
+      path: '/todos',
+      handler: (context, request, pathParameters) async {
+        final output = await container.todoController.list(context);
+        return encodeRpcOutputJsonWithLuthor<TodoListResponseDto>(
+          output: output,
+          method: 'todo.list',
+          toJson: (output) => output.toJson(),
+          validateJson: $TodoListResponseDtoSchema.validate,
+        );
+      },
+      metadata: metadataRegistry['todo.list']!,
+      guards: [
+        container.basicAppJwtAuthGuard,
+        container.todoRouteLoggerGuard,
+        container.todoPermissionGuard,
+      ],
+    ),
+    RestStreamRoute(
+      path: '/todos/events',
+      handler: (context, request, pathParameters) {
+        final output = container.todoController.watch(context);
+        return output.map(
+          (output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
+            output: output,
+            method: 'todo.watch',
+            toJson: (output) => output.toJson(),
+            validateJson: $TodoResponseDtoSchema.validate,
+          ),
+        );
+      },
+      metadata: metadataRegistry['todo.watch']!,
+      guards: [
+        container.basicAppJwtAuthGuard,
+        container.todoRouteLoggerGuard,
+        container.todoPermissionGuard,
+      ],
+    ),
+    RestStreamRoute(
+      path: '/todos/live-events',
+      handler: (context, request, pathParameters) {
+        final output = container.todoController.watchLive(context);
+        return output.map(
+          (output) => encodeRpcOutputJsonWithLuthor<TodoChangeResponseDto>(
+            output: output,
+            method: 'todo.watchLive',
+            toJson: (output) => output.toJson(),
+            validateJson: $TodoChangeResponseDtoSchema.validate,
+          ),
+        );
+      },
+      metadata: metadataRegistry['todo.watchLive']!,
+      guards: [
+        container.basicAppJwtAuthGuard,
+        container.todoRouteLoggerGuard,
+        container.todoPermissionGuard,
+      ],
+    ),
+    RestUnaryRoute(
+      method: 'GET',
+      path: '/todos/:id',
+      handler: (context, request, pathParameters) async {
+        final rawInput = <String, Object?>{};
+        rawInput['id'] = decodeRestScalarParameter<int>(
+          rawValue: pathParameters['id'],
+          source: 'path parameter',
+          name: 'id',
+          route: 'GET /todos/:id',
+        );
+        final input = ((rawInput) => decodeRpcInputWithLuthor<GetTodoDto>(
+          rawInput: rawInput,
+          method: 'todo.getById',
+          validate: $GetTodoDtoValidate,
+        ))(rawInput);
+        final output = await container.todoController.getById(context, input);
+        return encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
+          output: output,
+          method: 'todo.getById',
+          toJson: (output) => output.toJson(),
+          validateJson: $TodoResponseDtoSchema.validate,
+        );
+      },
+      metadata: metadataRegistry['todo.getById']!,
+      guards: [
+        container.basicAppJwtAuthGuard,
+        container.todoRouteLoggerGuard,
+        container.todoPermissionGuard,
+      ],
+    ),
+    RestStreamRoute(
+      path: '/todos/:id/events',
+      handler: (context, request, pathParameters) {
+        final rawInput = <String, Object?>{};
+        rawInput['id'] = decodeRestScalarParameter<int>(
+          rawValue: pathParameters['id'],
+          source: 'path parameter',
+          name: 'id',
+          route: 'GET /todos/:id/events',
+        );
+        final input = ((rawInput) => decodeRpcInputWithLuthor<GetTodoDto>(
+          rawInput: rawInput,
+          method: 'todo.watchById',
+          validate: $GetTodoDtoValidate,
+        ))(rawInput);
+        final output = container.todoController.watchById(context, input);
+        return output.map(
+          (output) => encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
+            output: output,
+            method: 'todo.watchById',
+            toJson: (output) => output.toJson(),
+            validateJson: $TodoResponseDtoSchema.validate,
+          ),
+        );
+      },
+      metadata: metadataRegistry['todo.watchById']!,
+      guards: [
+        container.basicAppJwtAuthGuard,
+        container.todoRouteLoggerGuard,
+        container.todoPermissionGuard,
+      ],
+    ),
+    RestUnaryRoute(
+      method: 'POST',
+      path: '/todos',
+      handler: (context, request, pathParameters) async {
+        final rawInput = decodeRestRpcInputBody(
+          request,
+          route: 'POST /todos',
+          parameterName: 'input',
+        );
+        final input = ((rawInput) => decodeRpcInputWithLuthor<CreateTodoDto>(
+          rawInput: rawInput,
+          method: 'todo.create',
+          validate: $CreateTodoDtoValidate,
+        ))(rawInput);
+        final output = await container.todoController.create(context, input);
+        return encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
+          output: output,
+          method: 'todo.create',
+          toJson: (output) => output.toJson(),
+          validateJson: $TodoResponseDtoSchema.validate,
+        );
+      },
+      metadata: metadataRegistry['todo.create']!,
+      guards: [
+        container.basicAppJwtAuthGuard,
+        container.todoRouteLoggerGuard,
+        container.todoPermissionGuard,
+      ],
+    ),
+    RestUnaryRoute(
+      method: 'PATCH',
+      path: '/todos/:id',
+      handler: (context, request, pathParameters) async {
+        final rawInput = decodeRestRpcInputBody(
+          request,
+          route: 'PATCH /todos/:id',
+          parameterName: 'input',
+        );
+        rawInput['id'] = decodeRestScalarParameter<int>(
+          rawValue: pathParameters['id'],
+          source: 'path parameter',
+          name: 'id',
+          route: 'PATCH /todos/:id',
+        );
+        final input = ((rawInput) => decodeRpcInputWithLuthor<UpdateTodoDto>(
+          rawInput: rawInput,
+          method: 'todo.update',
+          validate: $UpdateTodoDtoValidate,
+        ))(rawInput);
+        final output = await container.todoController.update(context, input);
+        return encodeRpcOutputJsonWithLuthor<TodoResponseDto>(
+          output: output,
+          method: 'todo.update',
+          toJson: (output) => output.toJson(),
+          validateJson: $TodoResponseDtoSchema.validate,
+        );
+      },
+      metadata: metadataRegistry['todo.update']!,
+      guards: [
+        container.basicAppJwtAuthGuard,
+        container.todoRouteLoggerGuard,
+        container.todoPermissionGuard,
+      ],
+    ),
+    RestUnaryRoute(
+      method: 'DELETE',
+      path: '/todos/:id',
+      handler: (context, request, pathParameters) async {
+        final rawInput = <String, Object?>{};
+        rawInput['id'] = decodeRestScalarParameter<int>(
+          rawValue: pathParameters['id'],
+          source: 'path parameter',
+          name: 'id',
+          route: 'DELETE /todos/:id',
+        );
+        final input = ((rawInput) => decodeRpcInputWithLuthor<GetTodoDto>(
+          rawInput: rawInput,
+          method: 'todo.delete',
+          validate: $GetTodoDtoValidate,
+        ))(rawInput);
+        final output = await container.todoController.delete(context, input);
+        return encodeRpcOutputJsonWithLuthor<DeleteTodoResponseDto>(
+          output: output,
+          method: 'todo.delete',
+          toJson: (output) => output.toJson(),
+          validateJson: $DeleteTodoResponseDtoSchema.validate,
+        );
+      },
+      metadata: metadataRegistry['todo.delete']!,
+      guards: [
+        container.basicAppJwtAuthGuard,
+        container.todoRouteLoggerGuard,
+        container.todoPermissionGuard,
+      ],
+    ),
+    RestUnaryRoute(
+      method: 'GET',
       path: '/todos/analysis/summary',
       handler: (context, request, pathParameters) async {
         final output = await container.todoAnalysisController.summary(context);
@@ -138,6 +565,257 @@ RestRouteRegistry dartOrpcCreateTodoAnalysisModuleRestRouteRegistry() =>
 
 final ProcedureMetadataRegistry _$todoAnalysisModuleProcedureMetadata =
     ProcedureMetadataRegistry([
+      const ProcedureMetadata(
+        rpcMethod: 'todo.list',
+        controllerNamespace: 'todo',
+        methodName: 'list',
+        path: RestProcedureMetadata(method: 'GET', path: '/todos'),
+        outputTypeCode: 'TodoListResponseDto',
+        description: 'List all todos.',
+        tags: ['todo'],
+        guardTypes: [
+          'BasicAppJwtAuthGuard',
+          'TodoRouteLoggerGuard',
+          'TodoPermissionGuard',
+        ],
+        securityRequirements: [ProcedureSecurityRequirement('bearerAuth')],
+        customMetadata: [
+          ProcedureCustomMetadata(
+            key: 'permissions',
+            value: {
+              'anyOf': ['todo.read', 'todo.admin'],
+            },
+          ),
+        ],
+      ),
+      const ProcedureMetadata(
+        rpcMethod: 'todo.watch',
+        controllerNamespace: 'todo',
+        methodName: 'watch',
+        kind: RpcProcedureKind.serverStream,
+        path: RestProcedureMetadata(
+          method: 'GET',
+          path: '/todos/events',
+          responseKind: RestResponseKind.sse,
+        ),
+        outputTypeCode: 'TodoResponseDto',
+        description: 'Stream the current todo snapshot as validated events.',
+        tags: ['todo'],
+        guardTypes: [
+          'BasicAppJwtAuthGuard',
+          'TodoRouteLoggerGuard',
+          'TodoPermissionGuard',
+        ],
+        securityRequirements: [ProcedureSecurityRequirement('bearerAuth')],
+        customMetadata: [
+          ProcedureCustomMetadata(
+            key: 'permissions',
+            value: {
+              'anyOf': ['todo.read', 'todo.admin'],
+            },
+          ),
+        ],
+      ),
+      const ProcedureMetadata(
+        rpcMethod: 'todo.watchLive',
+        controllerNamespace: 'todo',
+        methodName: 'watchLive',
+        kind: RpcProcedureKind.serverStream,
+        path: RestProcedureMetadata(
+          method: 'GET',
+          path: '/todos/live-events',
+          responseKind: RestResponseKind.sse,
+        ),
+        outputTypeCode: 'TodoChangeResponseDto',
+        description:
+            'Stream todo create, update, and delete events as they happen.',
+        tags: ['todo'],
+        guardTypes: [
+          'BasicAppJwtAuthGuard',
+          'TodoRouteLoggerGuard',
+          'TodoPermissionGuard',
+        ],
+        securityRequirements: [ProcedureSecurityRequirement('bearerAuth')],
+        customMetadata: [
+          ProcedureCustomMetadata(
+            key: 'permissions',
+            value: {
+              'anyOf': ['todo.read', 'todo.admin'],
+            },
+          ),
+        ],
+      ),
+      const ProcedureMetadata(
+        rpcMethod: 'todo.getById',
+        controllerNamespace: 'todo',
+        methodName: 'getById',
+        path: RestProcedureMetadata(method: 'GET', path: '/todos/:id'),
+        inputTypeCode: 'GetTodoDto',
+        outputTypeCode: 'TodoResponseDto',
+        description: 'Get a single todo by id.',
+        tags: ['todo'],
+        guardTypes: [
+          'BasicAppJwtAuthGuard',
+          'TodoRouteLoggerGuard',
+          'TodoPermissionGuard',
+        ],
+        securityRequirements: [ProcedureSecurityRequirement('bearerAuth')],
+        customMetadata: [
+          ProcedureCustomMetadata(
+            key: 'permissions',
+            value: {
+              'anyOf': ['todo.read', 'todo.admin'],
+            },
+          ),
+        ],
+        parameters: [
+          ProcedureParameterMetadata(
+            parameterName: 'id',
+            wireName: 'id',
+            source: ProcedureParameterSourceKind.path,
+            typeCode: 'int',
+          ),
+        ],
+      ),
+      const ProcedureMetadata(
+        rpcMethod: 'todo.watchById',
+        controllerNamespace: 'todo',
+        methodName: 'watchById',
+        kind: RpcProcedureKind.serverStream,
+        path: RestProcedureMetadata(
+          method: 'GET',
+          path: '/todos/:id/events',
+          responseKind: RestResponseKind.sse,
+        ),
+        inputTypeCode: 'GetTodoDto',
+        outputTypeCode: 'TodoResponseDto',
+        description: 'Stream the current state of a single todo.',
+        tags: ['todo'],
+        guardTypes: [
+          'BasicAppJwtAuthGuard',
+          'TodoRouteLoggerGuard',
+          'TodoPermissionGuard',
+        ],
+        securityRequirements: [ProcedureSecurityRequirement('bearerAuth')],
+        customMetadata: [
+          ProcedureCustomMetadata(
+            key: 'permissions',
+            value: {
+              'anyOf': ['todo.read', 'todo.admin'],
+            },
+          ),
+        ],
+        parameters: [
+          ProcedureParameterMetadata(
+            parameterName: 'id',
+            wireName: 'id',
+            source: ProcedureParameterSourceKind.path,
+            typeCode: 'int',
+          ),
+        ],
+      ),
+      const ProcedureMetadata(
+        rpcMethod: 'todo.create',
+        controllerNamespace: 'todo',
+        methodName: 'create',
+        path: RestProcedureMetadata(method: 'POST', path: '/todos'),
+        inputTypeCode: 'CreateTodoDto',
+        outputTypeCode: 'TodoResponseDto',
+        description: 'Create a todo.',
+        tags: ['todo'],
+        guardTypes: [
+          'BasicAppJwtAuthGuard',
+          'TodoRouteLoggerGuard',
+          'TodoPermissionGuard',
+        ],
+        securityRequirements: [ProcedureSecurityRequirement('bearerAuth')],
+        customMetadata: [
+          ProcedureCustomMetadata(
+            key: 'permissions',
+            value: {
+              'allOf': ['tenant.active'],
+            },
+          ),
+        ],
+        parameters: [
+          ProcedureParameterMetadata(
+            parameterName: 'input',
+            wireName: 'input',
+            source: ProcedureParameterSourceKind.body,
+            typeCode: 'CreateTodoDto',
+          ),
+        ],
+      ),
+      const ProcedureMetadata(
+        rpcMethod: 'todo.update',
+        controllerNamespace: 'todo',
+        methodName: 'update',
+        path: RestProcedureMetadata(method: 'PATCH', path: '/todos/:id'),
+        inputTypeCode: 'UpdateTodoDto',
+        outputTypeCode: 'TodoResponseDto',
+        description: 'Update a todo.',
+        tags: ['todo'],
+        guardTypes: [
+          'BasicAppJwtAuthGuard',
+          'TodoRouteLoggerGuard',
+          'TodoPermissionGuard',
+        ],
+        securityRequirements: [ProcedureSecurityRequirement('bearerAuth')],
+        customMetadata: [
+          ProcedureCustomMetadata(
+            key: 'permissions',
+            value: {
+              'anyOf': ['todo.write', 'todo.admin'],
+            },
+          ),
+        ],
+        parameters: [
+          ProcedureParameterMetadata(
+            parameterName: 'id',
+            wireName: 'id',
+            source: ProcedureParameterSourceKind.path,
+            typeCode: 'int',
+          ),
+          ProcedureParameterMetadata(
+            parameterName: 'input',
+            wireName: 'input',
+            source: ProcedureParameterSourceKind.body,
+            typeCode: 'UpdateTodoDto',
+          ),
+        ],
+      ),
+      const ProcedureMetadata(
+        rpcMethod: 'todo.delete',
+        controllerNamespace: 'todo',
+        methodName: 'delete',
+        path: RestProcedureMetadata(method: 'DELETE', path: '/todos/:id'),
+        inputTypeCode: 'GetTodoDto',
+        outputTypeCode: 'DeleteTodoResponseDto',
+        description: 'Delete a todo.',
+        tags: ['todo'],
+        guardTypes: [
+          'BasicAppJwtAuthGuard',
+          'TodoRouteLoggerGuard',
+          'TodoPermissionGuard',
+        ],
+        securityRequirements: [ProcedureSecurityRequirement('bearerAuth')],
+        customMetadata: [
+          ProcedureCustomMetadata(
+            key: 'permissions',
+            value: {
+              'allOf': ['tenant.active'],
+            },
+          ),
+        ],
+        parameters: [
+          ProcedureParameterMetadata(
+            parameterName: 'id',
+            wireName: 'id',
+            source: ProcedureParameterSourceKind.path,
+            typeCode: 'int',
+          ),
+        ],
+      ),
       const ProcedureMetadata(
         rpcMethod: 'todoAnalysis.summary',
         controllerNamespace: 'todoAnalysis',
@@ -289,8 +967,13 @@ DtoSchemaRegistry _$createTodoAnalysisModuleLocalDtoSchemaRegistry() {
   ]);
 }
 
+DtoSchemaRegistry dartOrpcCreateTodoAnalysisModuleLocalDtoSchemaRegistry() =>
+    _$createTodoAnalysisModuleLocalDtoSchemaRegistry();
+
 DtoSchemaRegistry _$createTodoAnalysisModuleDtoSchemaRegistry() {
   return DtoSchemaRegistry([
+    ...dartOrpcCreateDatabaseModuleLocalDtoSchemaRegistry().schemas,
+    ...dartOrpcCreateTodoModuleLocalDtoSchemaRegistry().schemas,
     ..._$createTodoAnalysisModuleLocalDtoSchemaRegistry().schemas,
   ]);
 }
@@ -304,6 +987,10 @@ class TodoAnalysisClientRoot {
 
   final RpcClientTransports _transports;
 
+  late final TodoClientRoot _todoModuleClient = TodoClientRoot(
+    transports: _transports,
+  );
+  late final todo = _todoModuleClient.todo;
   late final todoAnalysis = TodoAnalysisClient(_transports);
 }
 

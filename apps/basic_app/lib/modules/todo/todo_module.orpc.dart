@@ -5,10 +5,13 @@
 // RpcModuleGenerator
 // **************************************************************************
 
+// ignore_for_file: unnecessary_import
+
 export 'package:basic_app/modules/todo/todo_dtos.dart';
 export 'package:basic_app/modules/todo/todo_module.dart';
 
 import 'package:basic_app/database/app_database.dart';
+import 'package:basic_app/database/database_module.orpc.dart';
 import 'package:basic_app/guard/jwt_auth_guard.dart';
 import 'package:basic_app/guard/logger_guard.dart';
 import 'package:basic_app/guard/permission_guard.dart';
@@ -52,6 +55,7 @@ class _$TodoModuleContainer {
 
 _$TodoModuleContainer _$createTodoModuleContainer() {
   final appDatabase = AppDatabase();
+
   final todoService = TodoService(appDatabase);
   final basicAppJwtAuthGuard = BasicAppJwtAuthGuard();
   final todoRouteLoggerGuard = TodoRouteLoggerGuard();
@@ -980,8 +984,12 @@ DtoSchemaRegistry _$createTodoModuleLocalDtoSchemaRegistry() {
   ]);
 }
 
+DtoSchemaRegistry dartOrpcCreateTodoModuleLocalDtoSchemaRegistry() =>
+    _$createTodoModuleLocalDtoSchemaRegistry();
+
 DtoSchemaRegistry _$createTodoModuleDtoSchemaRegistry() {
   return DtoSchemaRegistry([
+    ...dartOrpcCreateDatabaseModuleLocalDtoSchemaRegistry().schemas,
     ..._$createTodoModuleLocalDtoSchemaRegistry().schemas,
   ]);
 }
