@@ -67,7 +67,7 @@ Configure these before calling listen. Start with the few you need, then add pol
 | `requestBodyIdleTimeout` | Disabled | Limit gaps between body chunks |
 | `sseHeartbeatInterval` | 15 seconds | SSE heartbeat/disconnect detection |
 | `sseFlushEachChunk` | true | Flush SSE items immediately |
-| `encodeJsonToBytes` | false | Emit successful JSON as UTF-8 bytes when middleware supports it |
+| `encodeJsonToBytes` | true | Send JSON responses as UTF-8 bytes; pass `false` if middleware reads `body` as a `String` |
 
 The low-level HTTP body limit defaults to 1 MiB. The generated helper currently does not expose maxRequestBodyBytes. See the HTTP reference if you need custom low-level adapter composition.
 
@@ -85,6 +85,8 @@ The low-level HTTP body limit defaults to 1 MiB. The generated helper currently 
 | `trustRequestId` | false | Accept bounded safe incoming IDs |
 | `onError` | null | Observe original exception/stack |
 | `onComplete` | null | Observe full completion/abort, including streams |
+| `idleTimeout` | 30 seconds | Close idle keep-alive connections; set it above a proxy's own idle timeout |
+| `maxConnections` | null (no limit) | Stop accepting at this many open connections; new clients wait in the OS queue |
 
 A practical replacement for the minimal app construction:
 

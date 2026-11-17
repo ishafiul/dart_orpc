@@ -5,7 +5,11 @@ description: Set up the Dart SDK, runtime facade, generator, DTO tools, and deve
 
 ## Requirements
 
-This source tree requires **Dart SDK `^3.11.0`**. Server runtime and bundled WebSocket transport use `dart:io`. Use a Dart VM or compatible Flutter native target for those APIs; browser clients need separate adapters and a browser-safe contract distribution strategy.
+This source tree requires **Dart SDK `^3.11.0`**. Servers run on [`rust_http`](/dart-orpc/packages/rust-http), a native HTTP/1.1 server that implements the `dart:io` `HttpServer` API: Rust owns the sockets and parses HTTP, and your handlers stay in Dart. You don't need Rust installed on macOS (arm64, x64), Linux glibc (x64, arm64) or Windows x64: the first build downloads a prebuilt, checksum-verified library. Other platforms build it from source with `cargo`.
+
+Run servers with `dart run`, test with `dart test`, and ship with `dart build cli`, which bundles the native library next to the executable. `dart compile exe` does not run build hooks, so it produces a server without the library.
+
+The bundled WebSocket client transport uses `dart:io`. Use a Dart VM or compatible Flutter native target for those APIs; browser clients need separate adapters and a browser-safe contract distribution strategy.
 
 These docs describe the checked-out implementation. Packages are prereleases and have independent versions. Keep runtime and generator releases compatible; do not copy one version number onto every companion package.
 
