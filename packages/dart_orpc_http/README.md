@@ -18,15 +18,14 @@ Generated `buildRpcApp()` helpers and `RpcHttpApp` accept:
 
 ```dart
 final app = AppModule().buildRpcApp(
-  encodeJsonToBytes: true,
   maxConcurrentRequests: 256,
   requestBodyIdleTimeout: const Duration(seconds: 10),
 );
 ```
 
-`encodeJsonToBytes` defaults to `false` for middleware compatibility. Enable it
-to encode successful RPC/REST JSON directly to UTF-8 bytes; middleware must
-accept both `String` and `List<int>` buffered bodies. Byte bodies are written
+`encodeJsonToBytes` defaults to `true`: successful RPC/REST JSON is encoded
+directly to UTF-8 bytes, so middleware that reads buffered bodies must accept
+`List<int>`. Pass `encodeJsonToBytes: false` to keep `String` bodies. Byte bodies are written
 by `RpcJsonWriter`, which gives the same bytes as `utf8.encode(jsonEncode(...))`
 without the intermediate string, and embeds `RpcJsonBytes` values in RPC
 envelopes as they are. `RpcJsonBytes` REST outputs keep their byte fast path

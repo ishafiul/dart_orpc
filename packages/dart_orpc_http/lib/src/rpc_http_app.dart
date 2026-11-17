@@ -146,7 +146,7 @@ final class RpcHttpApp {
     this.contextFactory,
     this.sseHeartbeatInterval = const Duration(seconds: 15),
     this.sseFlushEachChunk = true,
-    this.encodeJsonToBytes = false,
+    this.encodeJsonToBytes = true,
     this.maxRequestBodyBytes = _defaultMaxRequestBodyBytes,
     this.maxConcurrentRequests,
     this.requestBodyIdleTimeout,
@@ -217,7 +217,8 @@ final class RpcHttpApp {
   final Duration sseHeartbeatInterval;
   final bool sseFlushEachChunk;
 
-  /// Successful JSON bodies become UTF-8 bytes when enabled.
+  /// Successful JSON bodies are UTF-8 bytes by default. Disable it when
+  /// middleware still expects `String` bodies.
   final bool encodeJsonToBytes;
   final int? maxRequestBodyBytes;
   final int? maxConcurrentRequests;
@@ -231,7 +232,18 @@ final class RpcHttpApp {
   late final RpcHttpMetricsCollector? _metrics;
   late final CompiledCorsPolicy? _cors;
   final _requests = _RpcRequestTracker();
-  final _random = Random.secure();
+
+  /// Request IDs are this random per-app prefix plus a counter: unique within
+  /// the app and cheap to make, unlike four secure random draws per request.
+  late final String _requestIdPrefix = () {
+    final random = Random.secure();
+    return [
+      for (var i = 0; i < 2; i++)
+        random.nextInt(0x100000000).toRadixString(16).padLeft(8, '0'),
+    ].join();
+  }();
+  var _requestIdCounter = 0;
+  static final _validRequestId = RegExp(r'^[A-Za-z0-9._-]{1,128}$');
   Future<void>? _providersClosing;
   Future<void>? _closing;
   Future<void>? _listenAttempt;
@@ -343,7 +355,8 @@ final class RpcHttpApp {
   Future<void> _handle(HttpRequest request) async {
     final admitted = _requests.begin(maxConcurrentRequests);
     final cancellation = admitted ?? RpcCancellationSource();
-    final exchange = _HttpExchange(cancellation);
+    final observed = _metrics != null || serverOptions.onComplete != null;
+    final exchange = _HttpExchange(cancellation, timed: observed);
     exchange.request = RpcHttpRequest(
       method: request.method,
       path: '/',
@@ -397,7 +410,7 @@ final class RpcHttpApp {
         requestId: _requestId(request),
         onError: report,
       );
-      if (_metrics != null || serverOptions.onComplete != null) {
+      if (observed) {
         exchange.request = restRoutes.prepareRequest(exchange.request);
         exchange.route = _routeLabel(exchange.request);
       }
@@ -464,32 +477,38 @@ final class RpcHttpApp {
           return;
         }
       }
-      requestChunks = StreamIterator(
-        _cancellableChunks(request, cancellation.signal),
-      );
-      final bytes = await _readRequestBody(request, requestChunks, exchange);
-      exchange.bodyRead = true;
-      exchange.request = exchange.request.copyWith(bodyBytes: bytes);
+      // HTTP/1.1: no Content-Length and no chunked encoding means no body, so
+      // most GETs skip the body stream entirely.
+      if (request.contentLength == 0 ||
+          (request.contentLength < 0 &&
+              !request.headers.chunkedTransferEncoding)) {
+        cancellation.signal.throwIfCancelled();
+        exchange.bodyRead = true;
+      } else {
+        requestChunks = StreamIterator(
+          _cancellableChunks(request, cancellation.signal),
+        );
+        final bytes = await _readRequestBody(request, requestChunks, exchange);
+        exchange.bodyRead = true;
+        exchange.request = exchange.request.copyWith(bodyBytes: bytes);
+      }
       final deadline = serverOptions.handlerTimeout;
       final responseFuture = Future<RpcHttpResponse>.sync(
         () => handler(exchange.request),
       );
-      final response = await Future.any<RpcHttpResponse>([
-        if (deadline == null)
-          responseFuture
-        else
-          responseFuture.timeout(
-            deadline,
-            onTimeout: () {
-              throw RpcException.deadlineExceeded(
-                'HTTP handler deadline exceeded.',
-              );
-            },
-          ),
-        cancellation.signal.cancelled.then(
-          (_) => throw RpcException.cancelled(),
-        ),
-      ]);
+      final response = await _untilCancelled(
+        deadline == null
+            ? responseFuture
+            : responseFuture.timeout(
+                deadline,
+                onTimeout: () {
+                  throw RpcException.deadlineExceeded(
+                    'HTTP handler deadline exceeded.',
+                  );
+                },
+              ),
+        cancellation.signal,
+      );
       await _writeResponse(request, response, exchange);
     } catch (error, stack) {
       if (exchange.startedWriting &&
@@ -530,22 +549,24 @@ final class RpcHttpApp {
       } on Object {
         /* Connection may already be gone. */
       }
-      final completed = RpcHttpCompletion(
-        request: exchange.request,
-        route: exchange.route,
-        statusCode: exchange.statusCode,
-        elapsed: exchange.watch.elapsed,
-        receivedBytes: exchange.receivedBytes,
-        sentBytes: exchange.sentBytes,
-        streaming: exchange.streaming,
-        disconnected: exchange.disconnected,
-        failed: exchange.errorReported,
-      );
-      _metrics?.complete(completed);
-      try {
-        serverOptions.onComplete?.call(completed);
-      } catch (_) {
-        _metrics?.hookErrors++;
+      if (observed) {
+        final completed = RpcHttpCompletion(
+          request: exchange.request,
+          route: exchange.route,
+          statusCode: exchange.statusCode,
+          elapsed: exchange.watch!.elapsed,
+          receivedBytes: exchange.receivedBytes,
+          sentBytes: exchange.sentBytes,
+          streaming: exchange.streaming,
+          disconnected: exchange.disconnected,
+          failed: exchange.errorReported,
+        );
+        _metrics?.complete(completed);
+        try {
+          serverOptions.onComplete?.call(completed);
+        } catch (_) {
+          _metrics?.hookErrors++;
+        }
       }
     }
   }
@@ -571,7 +592,12 @@ final class RpcHttpApp {
     }
     if (exchange.request.requestId case final id?)
       output.headers.set('x-request-id', id);
-    final isSse = output.headers.contentType?.mimeType == 'text/event-stream';
+    // Only parse the content type when it can be SSE.
+    final contentType = output.headers.value(HttpHeaders.contentTypeHeader);
+    final isSse =
+        contentType != null &&
+        contentType.toLowerCase().contains('text/event-stream') &&
+        output.headers.contentType?.mimeType == 'text/event-stream';
     if (isSse || response.statusCode == 206)
       output.headers.set('content-encoding', 'identity');
     if (native.method == 'HEAD' ||
@@ -690,7 +716,6 @@ final class RpcHttpApp {
 
   RpcHttpRequest _toRpcRequest(
     HttpRequest request, {
-    List<int>? bodyBytes,
     required RpcCancellationSignal cancellation,
     String? requestId,
     void Function(Object, StackTrace)? onError,
@@ -698,21 +723,28 @@ final class RpcHttpApp {
     final headers = <String, String>{};
     request.headers.forEach((key, values) {
       if (values.isNotEmpty)
-        headers[key] = values.length == 1 ? values.single : values.join(',');
+        // Transports send lowercase names; toLowerCase returns the same
+        // string then, and keeps the lowercaseNames promise if one doesn't.
+        headers[key.toLowerCase()] = values.length == 1
+            ? values.single
+            : values.join(',');
     });
-    return RpcHttpRequest(
+    final uri = request.uri;
+    return nativeRpcHttpRequest(
       method: request.method,
-      path: request.uri.path.isEmpty ? '/' : request.uri.path,
-      uri: request.uri,
-      remoteAddress: request.connectionInfo?.remoteAddress.address,
-      headers: UnmodifiableMapView(headers),
-      queryParameters: request.uri.queryParameters,
-      queryParametersAll: Map.unmodifiable(
-        request.uri.queryParametersAll.map(
-          (key, values) => MapEntry(key, List<String>.unmodifiable(values)),
-        ),
-      ),
-      bodyBytes: bodyBytes,
+      path: uri.path.isEmpty ? '/' : uri.path,
+      uri: uri,
+      remoteAddress: () => request.connectionInfo?.remoteAddress.address,
+      headers: adoptRpcHeaders(headers, lowercaseNames: true),
+      queryParameters: uri.queryParameters,
+      queryParametersAll: uri.hasQuery
+          ? Map.unmodifiable(
+              uri.queryParametersAll.map(
+                (key, values) =>
+                    MapEntry(key, List<String>.unmodifiable(values)),
+              ),
+            )
+          : const {},
       cancellation: cancellation,
       requestId: requestId,
       onError: onError,
@@ -742,17 +774,14 @@ final class RpcHttpApp {
     final incoming = serverOptions.trustRequestId
         ? request.headers['x-request-id']?.singleOrNull
         : null;
-    if (serverOptions.trustRequestId &&
-        incoming != null &&
-        RegExp(r'^[A-Za-z0-9._-]{1,128}$').hasMatch(incoming))
-      return incoming;
-    final created =
-        serverOptions.requestIdFactory?.call() ??
-        List.generate(
-          4,
-          (_) => _random.nextInt(0x100000000).toRadixString(16).padLeft(8, '0'),
-        ).join();
-    if (!RegExp(r'^[A-Za-z0-9._-]{1,128}$').hasMatch(created))
+    if (incoming != null && _validRequestId.hasMatch(incoming)) return incoming;
+    final factory = serverOptions.requestIdFactory;
+    if (factory == null) {
+      _requestIdCounter = (_requestIdCounter + 1) & 0xffffffffffff;
+      return '$_requestIdPrefix${_requestIdCounter.toRadixString(16).padLeft(16, '0')}';
+    }
+    final created = factory();
+    if (!_validRequestId.hasMatch(created))
       throw StateError('requestIdFactory returned an invalid request ID.');
     return created;
   }
@@ -795,9 +824,12 @@ final class RpcHttpApp {
 }
 
 final class _HttpExchange {
-  _HttpExchange(this.cancellation);
+  _HttpExchange(this.cancellation, {required bool timed})
+    : watch = timed ? (Stopwatch()..start()) : null;
   final RpcCancellationSource cancellation;
-  final watch = Stopwatch()..start();
+
+  /// Only started when metrics or `onComplete` will read the elapsed time.
+  final Stopwatch? watch;
   late RpcHttpRequest request;
   String route = '/unmatched';
   int statusCode = 500;
@@ -992,4 +1024,27 @@ final class _RpcRequestTracker {
       source.cancel();
     }
   }
+}
+
+/// Completes with [future], or with [RpcException.cancelled] if [signal] is
+/// cancelled first. The listener is removed once [future] completes, so a
+/// request that finishes normally never builds or throws an exception.
+Future<T> _untilCancelled<T>(Future<T> future, RpcCancellationSignal signal) {
+  if (signal.isCancelled) return Future<T>.error(RpcException.cancelled());
+  final completer = Completer<T>.sync();
+  final registration = signal.onCancel(() {
+    if (!completer.isCompleted)
+      completer.completeError(RpcException.cancelled());
+  });
+  future.then(
+    (value) {
+      registration.dispose();
+      if (!completer.isCompleted) completer.complete(value);
+    },
+    onError: (Object error, StackTrace stack) {
+      registration.dispose();
+      if (!completer.isCompleted) completer.completeError(error, stack);
+    },
+  );
+  return completer.future;
 }
