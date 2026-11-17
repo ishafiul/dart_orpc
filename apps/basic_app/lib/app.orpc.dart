@@ -5,6 +5,8 @@
 // RpcModuleGenerator
 // **************************************************************************
 
+// ignore_for_file: unnecessary_import
+
 export 'package:basic_app/app.dart';
 export 'package:basic_app/modules/auth/auth_module.orpc.dart';
 export 'package:basic_app/modules/todo/todo_module.orpc.dart';
@@ -12,6 +14,7 @@ export 'package:basic_app/modules/todo_analysis/todo_analysis_module.orpc.dart';
 
 import 'package:basic_app/app.dart';
 import 'package:basic_app/database/app_database.dart';
+import 'package:basic_app/database/database_module.orpc.dart';
 import 'package:basic_app/guard/jwt_auth_guard.dart';
 import 'package:basic_app/guard/logger_guard.dart';
 import 'package:basic_app/guard/permission_guard.dart';
@@ -30,13 +33,10 @@ class _$AppModuleContainer {
   _$AppModuleContainer({
     required this.appDatabase,
     required this.authService,
-    required this.appDatabase2,
     required this.todoService,
     required this.basicAppJwtAuthGuard,
     required this.todoRouteLoggerGuard,
     required this.todoPermissionGuard,
-    required this.appDatabase3,
-    required this.todoService2,
     required this.todoAnalysisService,
     required this.authController,
     required this.todoController,
@@ -47,8 +47,6 @@ class _$AppModuleContainer {
 
   final AuthService authService;
 
-  final AppDatabase appDatabase2;
-
   final TodoService todoService;
 
   final BasicAppJwtAuthGuard basicAppJwtAuthGuard;
@@ -56,10 +54,6 @@ class _$AppModuleContainer {
   final TodoRouteLoggerGuard todoRouteLoggerGuard;
 
   final TodoPermissionGuard todoPermissionGuard;
-
-  final AppDatabase appDatabase3;
-
-  final TodoService todoService2;
 
   final TodoAnalysisService todoAnalysisService;
 
@@ -74,13 +68,10 @@ class _$AppModuleContainer {
     todoController,
     authController,
     todoAnalysisService,
-    todoService2,
-    appDatabase3,
     todoPermissionGuard,
     todoRouteLoggerGuard,
     basicAppJwtAuthGuard,
     todoService,
-    appDatabase2,
     authService,
     appDatabase,
   ]);
@@ -89,14 +80,11 @@ class _$AppModuleContainer {
 _$AppModuleContainer _$createAppModuleContainer() {
   final appDatabase = AppDatabase();
   final authService = AuthService(appDatabase);
-  final appDatabase2 = AppDatabase();
-  final todoService = TodoService(appDatabase2);
+  final todoService = TodoService(appDatabase);
   final basicAppJwtAuthGuard = BasicAppJwtAuthGuard();
   final todoRouteLoggerGuard = TodoRouteLoggerGuard();
   final todoPermissionGuard = TodoPermissionGuard();
-  final appDatabase3 = AppDatabase();
-  final todoService2 = TodoService(appDatabase3);
-  final todoAnalysisService = TodoAnalysisService(todoService2);
+  final todoAnalysisService = TodoAnalysisService(todoService);
   final authController = AuthController(authService);
 
   final todoController = TodoController(todoService);
@@ -106,13 +94,10 @@ _$AppModuleContainer _$createAppModuleContainer() {
   return _$AppModuleContainer(
     appDatabase: appDatabase,
     authService: authService,
-    appDatabase2: appDatabase2,
     todoService: todoService,
     basicAppJwtAuthGuard: basicAppJwtAuthGuard,
     todoRouteLoggerGuard: todoRouteLoggerGuard,
     todoPermissionGuard: todoPermissionGuard,
-    appDatabase3: appDatabase3,
-    todoService2: todoService2,
     todoAnalysisService: todoAnalysisService,
     authController: authController,
     todoController: todoController,
@@ -1121,11 +1106,15 @@ DtoSchemaRegistry _$createAppModuleLocalDtoSchemaRegistry() {
   return DtoSchemaRegistry(const []);
 }
 
+DtoSchemaRegistry dartOrpcCreateAppModuleLocalDtoSchemaRegistry() =>
+    _$createAppModuleLocalDtoSchemaRegistry();
+
 DtoSchemaRegistry _$createAppModuleDtoSchemaRegistry() {
   return DtoSchemaRegistry([
-    ...dartOrpcCreateAuthModuleDtoSchemaRegistry().schemas,
-    ...dartOrpcCreateTodoModuleDtoSchemaRegistry().schemas,
-    ...dartOrpcCreateTodoAnalysisModuleDtoSchemaRegistry().schemas,
+    ...dartOrpcCreateDatabaseModuleLocalDtoSchemaRegistry().schemas,
+    ...dartOrpcCreateAuthModuleLocalDtoSchemaRegistry().schemas,
+    ...dartOrpcCreateTodoModuleLocalDtoSchemaRegistry().schemas,
+    ...dartOrpcCreateTodoAnalysisModuleLocalDtoSchemaRegistry().schemas,
     ..._$createAppModuleLocalDtoSchemaRegistry().schemas,
   ]);
 }

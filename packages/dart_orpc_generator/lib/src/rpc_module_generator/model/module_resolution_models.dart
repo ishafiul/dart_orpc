@@ -109,6 +109,27 @@ final class _ResolvedModule {
   final bool isGlobal;
   final List<_ExternalProviderRequirement> externalProviderRequirements;
 
+  /// Every module this module imports, directly or transitively, each once.
+  ///
+  /// A module imported along several paths is one module with one set of
+  /// providers, so compositions over the graph must visit it once. Modules
+  /// come before the modules that import them.
+  List<_ResolvedModule> get allImportedModules {
+    final modules = <_ResolvedModule>[];
+    final seenTypeKeys = <String>{typeKey};
+    void visit(_ResolvedModule module) {
+      for (final importedModule in module.importedModules) {
+        if (seenTypeKeys.add(importedModule.typeKey)) {
+          visit(importedModule);
+          modules.add(importedModule);
+        }
+      }
+    }
+
+    visit(this);
+    return modules;
+  }
+
   List<_ControllerBinding> get allControllers {
     final controllers = <_ControllerBinding>[];
     final seenTypes = <String>{};

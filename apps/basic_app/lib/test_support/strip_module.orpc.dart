@@ -5,6 +5,8 @@
 // RpcModuleGenerator
 // **************************************************************************
 
+// ignore_for_file: unnecessary_import
+
 export 'package:basic_app/test_support/strip_module.dart';
 
 import 'package:basic_app/test_support/strip_module.dart';
@@ -259,6 +261,9 @@ DtoSchemaRegistry _$createStripModuleLocalDtoSchemaRegistry() {
     ),
   ]);
 }
+
+DtoSchemaRegistry dartOrpcCreateStripModuleLocalDtoSchemaRegistry() =>
+    _$createStripModuleLocalDtoSchemaRegistry();
 
 DtoSchemaRegistry _$createStripModuleDtoSchemaRegistry() {
   return DtoSchemaRegistry([

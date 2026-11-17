@@ -182,6 +182,8 @@ String _publicProcedureMetadataRegistryFactoryNameFor(String moduleName) =>
     'dartOrpcCreate${moduleName}ProcedureMetadataRegistry';
 String _publicDtoSchemaRegistryFactoryNameFor(String moduleName) =>
     'dartOrpcCreate${moduleName}DtoSchemaRegistry';
+String _publicLocalDtoSchemaRegistryFactoryNameFor(String moduleName) =>
+    'dartOrpcCreate${moduleName}LocalDtoSchemaRegistry';
 String _publicOpenApiDocumentFactoryNameFor(String moduleName) =>
     'dartOrpcCreate${moduleName}OpenApiDocument';
 String _publicBuildAppFactoryNameFor(String moduleName) =>
@@ -199,6 +201,7 @@ List<_ComposedRpcClientGetter> _resolveComposedRpcClientGetters(
     for (final controller in importedModule.rpcCompatibleControllers) {
       final getterName = controller.clientGetterName;
       final nextGetter = _ComposedRpcClientGetter(
+        controllerTypeName: controller.typeName,
         clientClassName: controller.clientClassName,
         clientGetterName: getterName,
         initializerExpression: '$importedClientFieldName.$getterName',
@@ -217,6 +220,7 @@ List<_ComposedRpcClientGetter> _resolveComposedRpcClientGetters(
     _recordComposedRpcClientGetter(
       getters,
       _ComposedRpcClientGetter(
+        controllerTypeName: controller.typeName,
         clientClassName: controller.clientClassName,
         clientGetterName: controller.clientGetterName,
         initializerExpression: '${controller.clientClassName}(_transports)',
@@ -239,9 +243,11 @@ void _recordComposedRpcClientGetter(
     getters[getterName] = nextGetter;
     return;
   }
-  if (existingGetter.clientClassName == nextGetter.clientClassName &&
-      existingGetter.initializerExpression ==
-          nextGetter.initializerExpression) {
+  // A module imported along several paths is resolved once, so its
+  // controller can arrive through more than one imported client. Keep the
+  // first path; only a different controller with the same namespace is a
+  // conflict.
+  if (existingGetter.controllerTypeName == nextGetter.controllerTypeName) {
     return;
   }
   throw InvalidGenerationSourceError(

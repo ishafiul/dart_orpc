@@ -5,6 +5,8 @@
 // RpcModuleGenerator
 // **************************************************************************
 
+// ignore_for_file: unnecessary_import
+
 export 'package:dart_orpc_benchmark/benchmark_app.dart';
 
 import 'package:dart_orpc/dart_orpc.dart';
@@ -445,6 +447,9 @@ DtoSchemaRegistry _$createBenchmarkModuleLocalDtoSchemaRegistry() {
     ),
   ]);
 }
+
+DtoSchemaRegistry dartOrpcCreateBenchmarkModuleLocalDtoSchemaRegistry() =>
+    _$createBenchmarkModuleLocalDtoSchemaRegistry();
 
 DtoSchemaRegistry _$createBenchmarkModuleDtoSchemaRegistry() {
   return DtoSchemaRegistry([

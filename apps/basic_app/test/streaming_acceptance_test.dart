@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:basic_app/basic_app.dart';
+import 'package:basic_app/database/app_database.dart';
 import 'package:basic_app/database/database_open.dart';
 import 'package:basic_app/environment/app_env.dart';
 import 'package:basic_app/test_support/strip_module.orpc.dart';
@@ -46,7 +47,11 @@ void main() {
       'JWT_EXPIRES_IN_SECONDS': '3600',
     });
     final accessToken = _createAccessToken(env);
+    // TodoModule gets AppDatabase from the global DatabaseModule, so a
+    // standalone TodoModule app is given one and the test closes it.
+    final database = AppDatabase();
     final app = const TodoModule().buildRpcApp(
+      appDatabase: database,
       openApi: const OpenApiDocumentOptions(title: 'Acceptance API'),
       webSocket: const RpcWebSocketServerOptions(),
       sseHeartbeatInterval: Duration.zero,
@@ -87,6 +92,7 @@ void main() {
       authorizedHttp.close();
       await authorizedWebSocket.close();
       await server.close(gracePeriod: const Duration(seconds: 1));
+      await database.close();
       databasePathOverride = null;
       if (temporaryDirectory.existsSync()) {
         temporaryDirectory.deleteSync(recursive: true);
@@ -405,8 +411,10 @@ void main() {
       'JWT_EXPIRES_IN_SECONDS': '3600',
     });
     final accessToken = _createAccessToken(env);
+    final database = AppDatabase();
     final server = await const TodoModule()
         .buildRpcApp(
+          appDatabase: database,
           openApi: const OpenApiDocumentOptions(title: 'Acceptance API'),
           webSocket: const RpcWebSocketServerOptions(),
           sseHeartbeatInterval: Duration.zero,
@@ -443,6 +451,7 @@ void main() {
       httpTransport.close();
       await webSocketTransport.close();
       await server.close(gracePeriod: const Duration(seconds: 1));
+      await database.close();
       databasePathOverride = null;
       if (temporaryDirectory.existsSync()) {
         temporaryDirectory.deleteSync(recursive: true);

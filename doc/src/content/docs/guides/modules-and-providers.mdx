@@ -31,6 +31,8 @@ final class AnalysisModule {
 
 Declare dependencies as constructor parameters. The generator determines creation order and creates providers as singletons within one generated application container. Two application roots have separate containers and instances.
 
+A module imported along several paths is still one module. If `AppModule` imports `TodoModule` and `TodoAnalysisModule`, and `TodoAnalysisModule` also imports `TodoModule`, the app gets one `TodoService`, one `TodoController` and one `todo` client. Share a resource such as a database connection the same way: provide and export it from one module instead of listing the provider in each feature module. Either import that module wherever it is needed, or make it a [global module](#root-scoped-global-modules) and import it once in the app root. A feature module that relies on a global provider and is built on its own takes that provider as a required argument, for example `const TodoModule().buildRpcApp(appDatabase: database)`.
+
 ```dart
 final class TodoService {
   TodoService(this.repository);

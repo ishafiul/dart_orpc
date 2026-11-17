@@ -52,11 +52,15 @@ final class _GeneratedContainerMember {
 
 final class _ComposedRpcClientGetter {
   const _ComposedRpcClientGetter({
+    required this.controllerTypeName,
     required this.clientClassName,
     required this.clientGetterName,
     required this.initializerExpression,
   });
 
+  /// The controller this getter exposes. Two getters for the same controller
+  /// reach it through different imports and are interchangeable.
+  final String controllerTypeName;
   final String clientClassName;
   final String clientGetterName;
   final String initializerExpression;

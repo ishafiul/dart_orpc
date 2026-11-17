@@ -5,6 +5,8 @@
 // RpcModuleGenerator
 // **************************************************************************
 
+// ignore_for_file: unnecessary_import
+
 export 'package:dart_orpc_user_test_benchmark/challenge_app.dart';
 export 'package:dart_orpc_user_test_benchmark/challenge_dtos.dart';
 
@@ -392,6 +394,9 @@ RpcHttpApp dartOrpcBuildChallengeModuleRpcApp({
 DtoSchemaRegistry _$createChallengeModuleLocalDtoSchemaRegistry() {
   return DtoSchemaRegistry(const []);
 }
+
+DtoSchemaRegistry dartOrpcCreateChallengeModuleLocalDtoSchemaRegistry() =>
+    _$createChallengeModuleLocalDtoSchemaRegistry();
 
 DtoSchemaRegistry _$createChallengeModuleDtoSchemaRegistry() {
   return DtoSchemaRegistry([

@@ -8,36 +8,47 @@ void _writeClientSections(StringBuffer buffer, _ModuleGenerationPlan context) {
 
 void _writeRootClient(StringBuffer buffer, _ModuleGenerationPlan context) {
   final names = context.generatedNames;
+  final usesTransports =
+      context.hasImportedRpcClientControllers ||
+      context.composedRpcClientGetters.isNotEmpty;
   buffer
     ..writeln()
-    ..writeln('class ${names.rootClientName} {')
+    ..writeln('class ${names.rootClientName} {');
+  if (!usesTransports) {
+    // A module without client procedures keeps the same constructor, but
+    // has nothing to call, so it stores no transports.
+    buffer
+      ..writeln(
+        '  ${names.rootClientName}({required RpcClientTransports transports});',
+      )
+      ..writeln('}');
+    return;
+  }
+  buffer
     ..writeln(
       '  ${names.rootClientName}({required RpcClientTransports transports}) : _transports = transports;',
     )
     ..writeln()
-    ..writeln('  final RpcClientTransports _transports;');
-  if (context.hasImportedRpcClientControllers ||
-      context.composedRpcClientGetters.isNotEmpty) {
-    buffer.writeln();
-    for (final importedModule in context.importedModulesWithRpcClients) {
-      final importedRootClientName = _rootClientNameFor(
-        importedModule.displayName,
-        reservedNames: {
-          for (final controller in importedModule.rpcCompatibleControllers)
-            controller.clientClassName,
-        },
-      );
-      final importedClientFieldName =
-          '_${_camelCase(importedModule.displayName)}Client';
-      buffer.writeln(
-        '  late final $importedRootClientName $importedClientFieldName = $importedRootClientName(transports: _transports);',
-      );
-    }
-    for (final getter in context.composedRpcClientGetters) {
-      buffer.writeln(
-        '  late final ${getter.clientGetterName} = ${getter.initializerExpression};',
-      );
-    }
+    ..writeln('  final RpcClientTransports _transports;')
+    ..writeln();
+  for (final importedModule in context.importedModulesWithRpcClients) {
+    final importedRootClientName = _rootClientNameFor(
+      importedModule.displayName,
+      reservedNames: {
+        for (final controller in importedModule.rpcCompatibleControllers)
+          controller.clientClassName,
+      },
+    );
+    final importedClientFieldName =
+        '_${_camelCase(importedModule.displayName)}Client';
+    buffer.writeln(
+      '  late final $importedRootClientName $importedClientFieldName = $importedRootClientName(transports: _transports);',
+    );
+  }
+  for (final getter in context.composedRpcClientGetters) {
+    buffer.writeln(
+      '  late final ${getter.clientGetterName} = ${getter.initializerExpression};',
+    );
   }
   buffer.writeln('}');
 }
@@ -263,10 +274,10 @@ void _writeGeneratedExtension(
       'extension DartOrpc${context.moduleName}Generated on ${context.moduleName} {',
     )
     ..writeln(
-      '  RpcProcedureRegistry procedureRegistry() => ${names.composeProcedureRegistryName}();',
+      '  RpcProcedureRegistry procedureRegistry(${_dependencyParameterDeclaration(context)}) => ${names.composeProcedureRegistryName}(${_dependencyArgumentList(context)});',
     )
     ..writeln(
-      '  RestRouteRegistry restRouteRegistry() => ${names.composeRestRouteRegistryName}();',
+      '  RestRouteRegistry restRouteRegistry(${_dependencyParameterDeclaration(context)}) => ${names.composeRestRouteRegistryName}(${_dependencyArgumentList(context)});',
     )
     ..writeln(
       '  ProcedureMetadataRegistry procedureMetadata() => ${names.composeMetadataRegistryName}();',

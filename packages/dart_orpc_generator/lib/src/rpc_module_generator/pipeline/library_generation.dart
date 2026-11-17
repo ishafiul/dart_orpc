@@ -45,7 +45,11 @@ final class _RpcModuleLibraryGenerator {
     required Set<String> exports,
     required List<_GeneratedModuleOutput> moduleOutputs,
   }) {
-    final buffer = StringBuffer();
+    // Generated modules re-export the modules they import, so when a module
+    // is reachable along several paths some of these imports overlap.
+    final buffer = StringBuffer()
+      ..writeln('// ignore_for_file: unnecessary_import')
+      ..writeln();
     for (final exportDirective in exports.toList()..sort()) {
       buffer.writeln(exportDirective);
     }
