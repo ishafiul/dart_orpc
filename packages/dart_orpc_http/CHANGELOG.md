@@ -1,3 +1,9 @@
+## 0.1.0-dev.11
+
+> Note: This release has breaking changes.
+
+ - **BREAKING** **FEAT**(dart_orpc_http): Faster request hot path and byte JSON by default (#121).
+
 ## 0.1.0-dev.10
 
  - **FEAT**(dart_orpc_http): Faster byte JSON bodies, connection options, and accept bursts (#118).

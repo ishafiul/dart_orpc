@@ -11,6 +11,51 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 Packages with breaking changes:
 
+ - [`dart_orpc_core` - `v0.1.0-dev.9`](#dart_orpc_core---v010-dev9)
+ - [`dart_orpc_generator` - `v0.1.0-dev.11`](#dart_orpc_generator---v010-dev11)
+ - [`dart_orpc_http` - `v0.1.0-dev.11`](#dart_orpc_http---v010-dev11)
+
+Packages with other changes:
+
+ - [`dart_orpc` - `v0.1.0-dev.11`](#dart_orpc---v010-dev11)
+ - [`dart_orpc_client` - `v0.1.0-dev.9`](#dart_orpc_client---v010-dev9)
+ - [`dart_orpc_luthor` - `v0.1.0-dev.9`](#dart_orpc_luthor---v010-dev9)
+ - [`dart_orpc_openapi` - `v0.1.0-dev.10`](#dart_orpc_openapi---v010-dev10)
+ - [`dart_orpc_websocket` - `v0.1.0-dev.11`](#dart_orpc_websocket---v010-dev11)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `dart_orpc` - `v0.1.0-dev.11`
+ - `dart_orpc_client` - `v0.1.0-dev.9`
+ - `dart_orpc_luthor` - `v0.1.0-dev.9`
+ - `dart_orpc_openapi` - `v0.1.0-dev.10`
+ - `dart_orpc_websocket` - `v0.1.0-dev.11`
+
+---
+
+#### `dart_orpc_core` - `v0.1.0-dev.9`
+
+ - **BREAKING** **FEAT**(dart_orpc_http): Faster request hot path and byte JSON by default (#121).
+
+#### `dart_orpc_generator` - `v0.1.0-dev.11`
+
+ - **BREAKING** **FEAT**(dart_orpc_http): Faster request hot path and byte JSON by default (#121).
+
+#### `dart_orpc_http` - `v0.1.0-dev.11`
+
+ - **BREAKING** **FEAT**(dart_orpc_http): Faster request hot path and byte JSON by default (#121).
+
+
+## 2026-11-17
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
  - There are no breaking changes in this release.
 
 Packages with other changes:

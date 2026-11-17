@@ -1,3 +1,9 @@
+## 0.1.0-dev.11
+
+> Note: This release has breaking changes.
+
+ - **BREAKING** **FEAT**(dart_orpc_http): Faster request hot path and byte JSON by default (#121).
+
 ## 0.1.0-dev.10
 
  - **FIX**(dart_orpc_generator): Share one output encoder across RPC and REST and drop dead registry code (#120).
