@@ -176,4 +176,39 @@ void main() {
     expect(utf8.decode(writer.takeBytes()), '3');
     expect(writer.length, 0);
   });
+
+  test('toBytes returns an exact-size copy and keeps the buffer', () {
+    final writer = RpcJsonWriter()..writeValue({'a': 1});
+    final first = writer.toBytes();
+    writer
+      ..clear()
+      ..writeValue('b');
+
+    expect(first.buffer.lengthInBytes, first.length);
+    expect(utf8.decode(first), '{"a":1}');
+    expect(utf8.decode(writer.toBytes()), '"b"');
+  });
+
+  test('clear after a failed write starts clean', () {
+    final writer = RpcJsonWriter();
+    expect(
+      () => writer.writeValue([
+        [double.nan],
+      ]),
+      throwsA(isA<JsonUnsupportedObjectError>()),
+    );
+    writer
+      ..clear()
+      ..writeValue([1]);
+
+    expect(utf8.decode(writer.toBytes()), '[1]');
+  });
+
+  test('clear releases a buffer larger than the retained limit', () {
+    final writer = RpcJsonWriter(initialCapacity: 16)..writeValue('x' * 100);
+    writer.clear(maxRetainedCapacity: 32);
+    writer.writeValue('y');
+
+    expect(utf8.decode(writer.toBytes()), '"y"');
+  });
 }

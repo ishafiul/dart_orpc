@@ -1,9 +1,56 @@
+import 'dart:collection';
+
 import 'rpc_cancellation.dart';
 
 const _minimumIndexedHeaderLookups = 8;
 
 /// Correlation ID assigned by the transport at the request boundary.
 const rpcRequestIdKey = RpcContextKey<String>('dart_orpc.requestId');
+
+/// Wraps [headers] read-only without copying, so [RpcContext] can share it
+/// instead of taking its own copy. The caller hands [headers] over and must
+/// not change it afterwards. Transports use this for per-request headers.
+///
+/// Pass [lowercaseNames] when every name in [headers] is already lowercase,
+/// as HTTP transports produce. Lookups through [lookupRpcHeader] and
+/// [RpcContext.headerValue] then treat a missing name as absent after one
+/// map lookup instead of scanning every header.
+Map<String, String> adoptRpcHeaders(
+  Map<String, String> headers, {
+  bool lowercaseNames = false,
+}) {
+  if (headers is _AdoptedHeaders &&
+      (headers.lowercaseNames || !lowercaseNames)) {
+    return headers;
+  }
+  return _AdoptedHeaders(headers, lowercaseNames: lowercaseNames);
+}
+
+final class _AdoptedHeaders extends UnmodifiableMapView<String, String> {
+  _AdoptedHeaders(super.map, {required this.lowercaseNames});
+
+  final bool lowercaseNames;
+}
+
+bool _hasLowercaseNames(Map<String, String> headers) =>
+    headers is _AdoptedHeaders && headers.lowercaseNames;
+
+/// Case-insensitive header lookup. Duplicate spellings return the first
+/// match. For headers adopted with `lowercaseNames`, this is one map lookup.
+String? lookupRpcHeader(Map<String, String> headers, String name) {
+  final normalized = name.toLowerCase();
+  final direct = headers[normalized];
+  if (direct != null || _hasLowercaseNames(headers)) return direct;
+  for (final entry in headers.entries) {
+    if (entry.key.toLowerCase() == normalized) return entry.value;
+  }
+  return null;
+}
+
+Map<String, String> _readOnlyHeaders(Map<String, String> headers) =>
+    headers is _AdoptedHeaders
+    ? headers
+    : Map<String, String>.unmodifiable(headers);
 
 final class RpcContextKey<T extends Object> {
   const RpcContextKey(this.name);
@@ -103,7 +150,7 @@ final class RpcContext {
     Map<String, Object?> attributes = const {},
     this.bindings = const RpcContextBindings.empty(),
     this.cancellation = RpcCancellationSignal.none,
-  }) : headers = Map<String, String>.unmodifiable(headers),
+  }) : headers = _readOnlyHeaders(headers),
        attributes = Map<String, Object?>.unmodifiable(attributes);
 
   RpcContext._({
@@ -127,7 +174,9 @@ final class RpcContext {
   /// Case-insensitive lookup. Duplicate spellings retain their first value.
   String? headerValue(String name) {
     final normalized = name.toLowerCase();
-    if (_canonicalHeaders == true) return headers[normalized];
+    if (_canonicalHeaders == true || _hasLowercaseNames(headers)) {
+      return headers[normalized];
+    }
     final index = _headerIndex;
     if (index != null) return index[normalized];
     for (final entry in headers.entries) {
@@ -139,9 +188,9 @@ final class RpcContext {
   /// Amortizes normalization when a procedure binds many headers.
   void prepareHeaderLookup(int lookupCount) {
     if (lookupCount < 2 || _headerIndex != null) return;
-    final canonical = _canonicalHeaders ??= headers.keys.every(
-      (name) => name == name.toLowerCase(),
-    );
+    final canonical = _canonicalHeaders ??=
+        _hasLowercaseNames(headers) ||
+        headers.keys.every((name) => name == name.toLowerCase());
     if (canonical || lookupCount < _minimumIndexedHeaderLookups) return;
     final indexed = <String, String>{};
     for (final entry in headers.entries) {
@@ -164,9 +213,7 @@ final class RpcContext {
     RpcCancellationSignal? cancellation,
   }) {
     return RpcContext._(
-      headers: headers == null
-          ? this.headers
-          : Map<String, String>.unmodifiable(headers),
+      headers: headers == null ? this.headers : _readOnlyHeaders(headers),
       httpMethod: httpMethod ?? this.httpMethod,
       path: path ?? this.path,
       attributes: attributes == null

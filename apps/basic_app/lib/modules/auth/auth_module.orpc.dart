@@ -127,19 +127,11 @@ RestRouteRegistry _$createAuthModuleRestRouteRegistryFromContainer(
       method: 'POST',
       path: '/auth/signup',
       handler: (context, request, pathParameters) async {
-        final rawInput = request.body.trim().isEmpty
-            ? <String, Object?>{}
-            : Map<String, Object?>.from(
-                decodeRestBody<JsonObject>(
-                  rawBody: request.body,
-                  route: 'POST /auth/signup',
-                  parameterName: 'input',
-                  decode: (rawJson) => expectJsonObject(
-                    rawJson,
-                    context: 'POST /auth/signup body',
-                  ),
-                ),
-              );
+        final rawInput = decodeRestRpcInputBody(
+          request,
+          route: 'POST /auth/signup',
+          parameterName: 'input',
+        );
         final input = ((rawInput) => decodeRpcInputWithLuthor<SignUpDto>(
           rawInput: rawInput,
           method: 'auth.signUp',
@@ -159,19 +151,11 @@ RestRouteRegistry _$createAuthModuleRestRouteRegistryFromContainer(
       method: 'POST',
       path: '/auth/login',
       handler: (context, request, pathParameters) async {
-        final rawInput = request.body.trim().isEmpty
-            ? <String, Object?>{}
-            : Map<String, Object?>.from(
-                decodeRestBody<JsonObject>(
-                  rawBody: request.body,
-                  route: 'POST /auth/login',
-                  parameterName: 'input',
-                  decode: (rawJson) => expectJsonObject(
-                    rawJson,
-                    context: 'POST /auth/login body',
-                  ),
-                ),
-              );
+        final rawInput = decodeRestRpcInputBody(
+          request,
+          route: 'POST /auth/login',
+          parameterName: 'input',
+        );
         final input = ((rawInput) => decodeRpcInputWithLuthor<LoginDto>(
           rawInput: rawInput,
           method: 'auth.login',
@@ -291,7 +275,7 @@ RpcHttpApp _$buildAuthModuleRpcApp({
   RpcContextFactory? contextFactory,
   Duration sseHeartbeatInterval = const Duration(seconds: 15),
   bool sseFlushEachChunk = true,
-  bool encodeJsonToBytes = false,
+  bool encodeJsonToBytes = true,
   int? maxConcurrentRequests,
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
@@ -354,7 +338,7 @@ RpcHttpApp dartOrpcBuildAuthModuleRpcApp({
   RpcContextFactory? contextFactory,
   Duration sseHeartbeatInterval = const Duration(seconds: 15),
   bool sseFlushEachChunk = true,
-  bool encodeJsonToBytes = false,
+  bool encodeJsonToBytes = true,
   int? maxConcurrentRequests,
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
@@ -536,7 +520,7 @@ extension DartOrpcAuthModuleGenerated on AuthModule {
     RpcContextFactory? contextFactory,
     Duration sseHeartbeatInterval = const Duration(seconds: 15),
     bool sseFlushEachChunk = true,
-    bool encodeJsonToBytes = false,
+    bool encodeJsonToBytes = true,
     int? maxConcurrentRequests,
     Duration? requestBodyIdleTimeout,
     RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),

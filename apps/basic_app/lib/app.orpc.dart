@@ -395,19 +395,11 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
       method: 'POST',
       path: '/auth/signup',
       handler: (context, request, pathParameters) async {
-        final rawInput = request.body.trim().isEmpty
-            ? <String, Object?>{}
-            : Map<String, Object?>.from(
-                decodeRestBody<JsonObject>(
-                  rawBody: request.body,
-                  route: 'POST /auth/signup',
-                  parameterName: 'input',
-                  decode: (rawJson) => expectJsonObject(
-                    rawJson,
-                    context: 'POST /auth/signup body',
-                  ),
-                ),
-              );
+        final rawInput = decodeRestRpcInputBody(
+          request,
+          route: 'POST /auth/signup',
+          parameterName: 'input',
+        );
         final input = ((rawInput) => decodeRpcInputWithLuthor<SignUpDto>(
           rawInput: rawInput,
           method: 'auth.signUp',
@@ -427,19 +419,11 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
       method: 'POST',
       path: '/auth/login',
       handler: (context, request, pathParameters) async {
-        final rawInput = request.body.trim().isEmpty
-            ? <String, Object?>{}
-            : Map<String, Object?>.from(
-                decodeRestBody<JsonObject>(
-                  rawBody: request.body,
-                  route: 'POST /auth/login',
-                  parameterName: 'input',
-                  decode: (rawJson) => expectJsonObject(
-                    rawJson,
-                    context: 'POST /auth/login body',
-                  ),
-                ),
-              );
+        final rawInput = decodeRestRpcInputBody(
+          request,
+          route: 'POST /auth/login',
+          parameterName: 'input',
+        );
         final input = ((rawInput) => decodeRpcInputWithLuthor<LoginDto>(
           rawInput: rawInput,
           method: 'auth.login',
@@ -590,17 +574,11 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
       method: 'POST',
       path: '/todos',
       handler: (context, request, pathParameters) async {
-        final rawInput = request.body.trim().isEmpty
-            ? <String, Object?>{}
-            : Map<String, Object?>.from(
-                decodeRestBody<JsonObject>(
-                  rawBody: request.body,
-                  route: 'POST /todos',
-                  parameterName: 'input',
-                  decode: (rawJson) =>
-                      expectJsonObject(rawJson, context: 'POST /todos body'),
-                ),
-              );
+        final rawInput = decodeRestRpcInputBody(
+          request,
+          route: 'POST /todos',
+          parameterName: 'input',
+        );
         final input = ((rawInput) => decodeRpcInputWithLuthor<CreateTodoDto>(
           rawInput: rawInput,
           method: 'todo.create',
@@ -625,19 +603,11 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
       method: 'PATCH',
       path: '/todos/:id',
       handler: (context, request, pathParameters) async {
-        final rawInput = request.body.trim().isEmpty
-            ? <String, Object?>{}
-            : Map<String, Object?>.from(
-                decodeRestBody<JsonObject>(
-                  rawBody: request.body,
-                  route: 'PATCH /todos/:id',
-                  parameterName: 'input',
-                  decode: (rawJson) => expectJsonObject(
-                    rawJson,
-                    context: 'PATCH /todos/:id body',
-                  ),
-                ),
-              );
+        final rawInput = decodeRestRpcInputBody(
+          request,
+          route: 'PATCH /todos/:id',
+          parameterName: 'input',
+        );
         rawInput['id'] = decodeRestScalarParameter<int>(
           rawValue: pathParameters['id'],
           source: 'path parameter',
@@ -1065,7 +1035,7 @@ RpcHttpApp _$buildAppModuleRpcApp({
   RpcContextFactory? contextFactory,
   Duration sseHeartbeatInterval = const Duration(seconds: 15),
   bool sseFlushEachChunk = true,
-  bool encodeJsonToBytes = false,
+  bool encodeJsonToBytes = true,
   int? maxConcurrentRequests,
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
@@ -1124,7 +1094,7 @@ RpcHttpApp dartOrpcBuildAppModuleRpcApp({
   RpcContextFactory? contextFactory,
   Duration sseHeartbeatInterval = const Duration(seconds: 15),
   bool sseFlushEachChunk = true,
-  bool encodeJsonToBytes = false,
+  bool encodeJsonToBytes = true,
   int? maxConcurrentRequests,
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
@@ -1204,7 +1174,7 @@ extension DartOrpcAppModuleGenerated on AppModule {
     RpcContextFactory? contextFactory,
     Duration sseHeartbeatInterval = const Duration(seconds: 15),
     bool sseFlushEachChunk = true,
-    bool encodeJsonToBytes = false,
+    bool encodeJsonToBytes = true,
     int? maxConcurrentRequests,
     Duration? requestBodyIdleTimeout,
     RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),

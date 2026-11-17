@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -33,10 +34,30 @@ const rpcHttpResponseKey = RpcContextKey<RpcHttpResponseControl>(
 
 final class RpcHttpResponseControl {
   int? statusCode;
-  final Map<String, String> headers = {};
-  final List<Cookie> cookies = [];
+  Map<String, String>? _headers;
+  List<Cookie>? _cookies;
+
+  /// Response headers to add. Created on first use.
+  Map<String, String> get headers => _headers ??= {};
+
+  /// Response cookies to add. Created on first use.
+  List<Cookie> get cookies => _cookies ??= [];
+
+  /// Whether a procedure changed nothing, so responses pass through as is.
+  bool get _isUnused =>
+      statusCode == null &&
+      (_headers?.isEmpty ?? true) &&
+      (_cookies?.isEmpty ?? true);
 
   RpcHttpResponse apply(RpcHttpResponse response) {
+    final current = response.statusCode;
+    if (_isUnused &&
+        current >= 200 &&
+        current <= 599 &&
+        current != 204 &&
+        current != 304) {
+      return response;
+    }
     final status = statusCode ?? response.statusCode;
     if (status < 200 || status > 599)
       throw StateError('Invalid HTTP response status.');
@@ -146,12 +167,29 @@ final class RpcHttpRequest {
     List<int>? bodyBytes,
     this.queryParametersAll = const {},
     this.uri,
-    this.remoteAddress,
+    String? remoteAddress,
     this.requestId,
     this.onError,
     this.cancellation = RpcCancellationSignal.none,
   }) : _body = body,
        _bodyBytes = bodyBytes,
+       _remoteAddress = remoteAddress,
+       _restRouting = null;
+
+  RpcHttpRequest._lazyRemote({
+    required this.method,
+    required this.path,
+    required this.headers,
+    required this.queryParameters,
+    required this.queryParametersAll,
+    required this.uri,
+    required _LazyRemoteAddress remoteAddress,
+    required this.requestId,
+    required this.onError,
+    required this.cancellation,
+  }) : _body = '',
+       _bodyBytes = null,
+       _remoteAddress = remoteAddress,
        _restRouting = null;
 
   RpcHttpRequest._withRouting(
@@ -172,7 +210,7 @@ final class RpcHttpRequest {
        _body = body ?? request._body,
        _bodyBytes = body != null ? null : bodyBytes ?? request._bodyBytes,
        uri = request.uri,
-       remoteAddress = request.remoteAddress,
+       _remoteAddress = request._remoteAddress,
        requestId = request.requestId,
        onError = request.onError,
        cancellation = request.cancellation;
@@ -200,7 +238,15 @@ final class RpcHttpRequest {
       _bodyBytes ?? Uint8List.fromList(utf8.encode(_body)).asUnmodifiableView();
   final Map<String, List<String>> queryParametersAll;
   final Uri? uri;
-  final String? remoteAddress;
+
+  /// The peer address, resolved on first read.
+  String? get remoteAddress => switch (_remoteAddress) {
+    final _LazyRemoteAddress lazy => lazy.value,
+    final value => value as String?,
+  };
+
+  /// A `String?`, or a [_LazyRemoteAddress] for requests read from a socket.
+  final Object? _remoteAddress;
   final String? requestId;
 
   /// Error observer supplied by the server. Middleware should preserve it when
@@ -601,6 +647,7 @@ final class RestRouteRegistry {
 
 /// Creates a handler with string JSON bodies by default. [encodeJsonToBytes]
 /// opts into UTF-8 bodies for successful RPC/REST calls and OpenAPI output.
+/// [RpcHttpApp] and generated `buildRpcApp()` helpers enable it by default.
 /// [openApiDocument] is serialized once at construction as a startup snapshot.
 /// Disabling [sseFlushEachChunk] trades immediate SSE delivery for buffering.
 RpcHttpHandler createRpcHttpHandler({
@@ -881,15 +928,20 @@ Future<RpcHttpResponse> _handleRpcRequest(
         message: 'RPC requests require a JSON content type.',
       );
     }
-    final Object? jsonBody;
+    Object? jsonBody;
     try {
-      jsonBody = jsonDecode(request.body);
-    } on FormatException catch (error, stack) {
-      request.onError?.call(error, stack);
-      return _rpcErrorResponse(
-        RpcException.badRequest('RPC request body must be valid JSON.'),
-        request,
-      );
+      jsonBody = _utf8Json.convert(request.bodyBytes);
+    } on FormatException {
+      // Slow path for the exact error: invalid UTF-8 or invalid JSON.
+      try {
+        jsonBody = jsonDecode(request.body);
+      } on FormatException catch (error, stack) {
+        request.onError?.call(error, stack);
+        return _rpcErrorResponse(
+          RpcException.badRequest('RPC request body must be valid JSON.'),
+          request,
+        );
+      }
     }
     final rpcRequest = RpcRequest.fromJson(jsonBody);
     final context = await _buildContext(
@@ -907,7 +959,7 @@ Future<RpcHttpResponse> _handleRpcRequest(
     );
     final control = context.binding(rpcHttpResponseKey);
     // REST-specific status changes must not remove or change the RPC envelope.
-    return control == null
+    return control == null || control._isUnused
         ? response
         : response.copyWith(
             headers: {...response.headers, ...control.headers},
@@ -1646,7 +1698,7 @@ void _collectParameterizedRestMethods({
 Map<String, String> _pathParametersFor(
   List<({int index, String name})> parameterSlots,
   List<String> pathSegments,
-) => Map<String, String>.unmodifiable({
+) => UnmodifiableMapView({
   for (final slot in parameterSlots) slot.name: pathSegments[slot.index],
 });
 
@@ -1654,15 +1706,39 @@ String _canonicalPathForSegments(List<String> segments) {
   return segments.isEmpty ? '/' : '/${segments.join('/')}';
 }
 
+/// The non-empty segments of [path], in one fixed-length list. Counts first
+/// so it allocates only the list and the segment strings, not the empty
+/// pieces and iterator a `split('/').where(...)` chain makes.
 List<String> _splitPathSegments(String path) {
-  if (path == '/') {
+  final length = path.length;
+  var count = 0;
+  var inSegment = false;
+  for (var index = 0; index < length; index++) {
+    if (path.codeUnitAt(index) == 0x2f) {
+      inSegment = false;
+    } else if (!inSegment) {
+      inSegment = true;
+      count++;
+    }
+  }
+  if (count == 0) {
     return const [];
   }
 
-  return path
-      .split('/')
-      .where((segment) => segment.isNotEmpty)
-      .toList(growable: false);
+  final segments = List<String>.filled(count, '');
+  var next = 0;
+  var start = -1;
+  for (var index = 0; index <= length; index++) {
+    if (index == length || path.codeUnitAt(index) == 0x2f) {
+      if (start >= 0) {
+        segments[next++] = path.substring(start, index);
+        start = -1;
+      }
+    } else if (start < 0) {
+      start = index;
+    }
+  }
+  return segments;
 }
 
 String _normalizeRouteSignature(String path) {
@@ -1677,22 +1753,8 @@ String _normalizeRouteSignature(String path) {
   return '/$segments';
 }
 
-String? lookupRestHeader(Map<String, String> headers, String name) {
-  final normalizedName = name.toLowerCase();
-
-  final direct = headers[normalizedName];
-  if (direct != null) {
-    return direct;
-  }
-
-  for (final entry in headers.entries) {
-    if (entry.key.toLowerCase() == normalizedName) {
-      return entry.value;
-    }
-  }
-
-  return null;
-}
+String? lookupRestHeader(Map<String, String> headers, String name) =>
+    lookupRpcHeader(headers, name);
 
 /// Decodes one REST path, query or header value into [T].
 ///
@@ -1875,6 +1937,54 @@ T decodeRestJsonValue<T>({
   );
 }
 
+/// Decodes the JSON object body bound to a REST procedure's RPC input.
+///
+/// A blank body is an empty object. The body is decoded in one pass from its
+/// bytes; malformed input falls back to the text path so errors match
+/// [decodeRestBody]. The result is a fresh map that callers may extend.
+JsonObject decodeRestRpcInputBody(
+  RpcHttpRequest request, {
+  required String route,
+  required String parameterName,
+}) {
+  JsonObject slowPath() {
+    final body = request.body;
+    return body.trim().isEmpty
+        ? <String, Object?>{}
+        : Map<String, Object?>.from(
+            decodeRestBody<JsonObject>(
+              rawBody: body,
+              route: route,
+              parameterName: parameterName,
+              decode: (rawJson) =>
+                  expectJsonObject(rawJson, context: '$route body'),
+            ),
+          );
+  }
+
+  final bytes = request.bodyBytes;
+  if (_isBlankJson(bytes)) return <String, Object?>{};
+  final Object? rawJson;
+  try {
+    rawJson = _utf8Json.convert(bytes);
+  } on FormatException {
+    return slowPath();
+  }
+  if (rawJson is! Map<String, Object?>) return slowPath();
+  return rawJson;
+}
+
+final _utf8Json = utf8.decoder.fuse(json.decoder);
+
+bool _isBlankJson(List<int> bytes) {
+  for (final byte in bytes) {
+    if (byte != 0x20 && byte != 0x0a && byte != 0x0d && byte != 0x09) {
+      return false;
+    }
+  }
+  return true;
+}
+
 Object? _decodeRestBodyJson(String rawBody, {required String route}) {
   try {
     return jsonDecode(rawBody);
@@ -1924,8 +2034,27 @@ RpcHttpResponse rpcHttpErrorResponse(
   return _jsonResponse(error.statusCode, encoding.json, extraHeaders: headers);
 }
 
-Uint8List _encodeJsonBytes(Object? value) =>
-    (RpcJsonWriter()..writeValue(value)).takeBytes();
+// One writer per isolate, reused for every response so encoding allocates
+// only the exact-size result. Encoding is synchronous, so the writer is busy
+// only while a toJson or toJsonBytes call nests another encode; that nested
+// call gets its own writer.
+final RpcJsonWriter _scratchJsonWriter = RpcJsonWriter();
+bool _scratchJsonWriterBusy = false;
+
+Uint8List _encodeJsonBytes(Object? value) {
+  if (_scratchJsonWriterBusy) {
+    return (RpcJsonWriter()..writeValue(value)).takeBytes();
+  }
+  final writer = _scratchJsonWriter;
+  _scratchJsonWriterBusy = true;
+  try {
+    writer.writeValue(value);
+    return writer.toBytes();
+  } finally {
+    writer.clear();
+    _scratchJsonWriterBusy = false;
+  }
+}
 
 RpcHttpResponse _jsonResponse(
   int statusCode,
@@ -1942,3 +2071,36 @@ RpcHttpResponse _jsonResponse(
     },
   );
 }
+
+final class _LazyRemoteAddress {
+  _LazyRemoteAddress(this._resolve);
+
+  final String? Function() _resolve;
+  late final String? value = _resolve();
+}
+
+/// Builds the request for a native HTTP exchange. [remoteAddress] runs only
+/// when something reads [RpcHttpRequest.remoteAddress]. Not exported.
+RpcHttpRequest nativeRpcHttpRequest({
+  required String method,
+  required String path,
+  required Uri uri,
+  required String? Function() remoteAddress,
+  required Map<String, String> headers,
+  required Map<String, String> queryParameters,
+  required Map<String, List<String>> queryParametersAll,
+  required RpcCancellationSignal cancellation,
+  String? requestId,
+  void Function(Object, StackTrace)? onError,
+}) => RpcHttpRequest._lazyRemote(
+  method: method,
+  path: path,
+  uri: uri,
+  remoteAddress: _LazyRemoteAddress(remoteAddress),
+  headers: headers,
+  queryParameters: queryParameters,
+  queryParametersAll: queryParametersAll,
+  requestId: requestId,
+  onError: onError,
+  cancellation: cancellation,
+);
