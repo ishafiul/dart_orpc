@@ -11,7 +11,6 @@ export 'package:basic_app/modules/auth/auth_dtos.dart';
 export 'package:basic_app/modules/auth/auth_module.dart';
 
 import 'package:basic_app/database/app_database.dart';
-import 'package:basic_app/database/database_module.orpc.dart';
 import 'package:basic_app/modules/auth/auth_controller.dart';
 import 'package:basic_app/modules/auth/auth_dtos.dart';
 import 'package:basic_app/modules/auth/auth_module.dart';
@@ -20,30 +19,25 @@ import 'package:dart_orpc/dart_orpc.dart';
 
 class _$AuthModuleContainer {
   _$AuthModuleContainer({
-    required this.appDatabase,
     required this.authService,
     required this.authController,
   });
-
-  final AppDatabase appDatabase;
 
   final AuthService authService;
 
   final AuthController authController;
 
-  Future<void> dispose() =>
-      disposeRpcProviders([authController, authService, appDatabase]);
+  Future<void> dispose() => disposeRpcProviders([authController, authService]);
 }
 
-_$AuthModuleContainer _$createAuthModuleContainer() {
-  final appDatabase = AppDatabase();
-
+_$AuthModuleContainer _$createAuthModuleContainer({
+  required AppDatabase appDatabase,
+}) {
   final authService = AuthService(appDatabase);
 
   final authController = AuthController(authService);
 
   return _$AuthModuleContainer(
-    appDatabase: appDatabase,
     authService: authService,
     authController: authController,
   );
@@ -102,17 +96,19 @@ RpcProcedureRegistry _$createAuthModuleProcedureRegistryFromContainer(
   ]);
 }
 
-RpcProcedureRegistry _$createAuthModuleProcedureRegistry() =>
-    _$createAuthModuleProcedureRegistryFromContainer(
-      _$createAuthModuleContainer(),
-    );
+RpcProcedureRegistry _$createAuthModuleProcedureRegistry({
+  required AppDatabase appDatabase,
+}) => _$createAuthModuleProcedureRegistryFromContainer(
+  _$createAuthModuleContainer(appDatabase: appDatabase),
+);
 
-RpcProcedureRegistry dartOrpcCreateAuthModuleProcedureRegistry() =>
-    _$createAuthModuleProcedureRegistry();
+RpcProcedureRegistry dartOrpcCreateAuthModuleProcedureRegistry({
+  required AppDatabase appDatabase,
+}) => _$createAuthModuleProcedureRegistry(appDatabase: appDatabase);
 
 ({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
-_$createAuthModuleRuntime() {
-  final container = _$createAuthModuleContainer();
+_$createAuthModuleRuntime({required AppDatabase appDatabase}) {
+  final container = _$createAuthModuleContainer(appDatabase: appDatabase);
   return (
     procedures: _$createAuthModuleProcedureRegistryFromContainer(container),
     restRoutes: _$createAuthModuleRestRouteRegistryFromContainer(container),
@@ -120,7 +116,8 @@ _$createAuthModuleRuntime() {
 }
 
 ({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
-dartOrpcCreateAuthModuleRuntime() => _$createAuthModuleRuntime();
+dartOrpcCreateAuthModuleRuntime({required AppDatabase appDatabase}) =>
+    _$createAuthModuleRuntime(appDatabase: appDatabase);
 
 RestRouteRegistry _$createAuthModuleRestRouteRegistryFromContainer(
   _$AuthModuleContainer container,
@@ -187,13 +184,15 @@ RestRouteRegistry _$createAuthModuleRestRouteRegistryFromContainer(
   ]);
 }
 
-RestRouteRegistry _$createAuthModuleRestRouteRegistry() =>
-    _$createAuthModuleRestRouteRegistryFromContainer(
-      _$createAuthModuleContainer(),
-    );
+RestRouteRegistry _$createAuthModuleRestRouteRegistry({
+  required AppDatabase appDatabase,
+}) => _$createAuthModuleRestRouteRegistryFromContainer(
+  _$createAuthModuleContainer(appDatabase: appDatabase),
+);
 
-RestRouteRegistry dartOrpcCreateAuthModuleRestRouteRegistry() =>
-    _$createAuthModuleRestRouteRegistry();
+RestRouteRegistry dartOrpcCreateAuthModuleRestRouteRegistry({
+  required AppDatabase appDatabase,
+}) => _$createAuthModuleRestRouteRegistry(appDatabase: appDatabase);
 
 final ProcedureMetadataRegistry _$authModuleProcedureMetadata =
     ProcedureMetadataRegistry([
@@ -269,6 +268,7 @@ JsonObject dartOrpcCreateAuthModuleOpenApiDocument({
 }) => _$createAuthModuleOpenApiDocument(options: options);
 
 RpcHttpApp _$buildAuthModuleRpcApp({
+  required AppDatabase appDatabase,
   OpenApiDocumentOptions? openApi,
   RpcHttpDocsOptions? docs,
   RpcHttpStaticOptions? staticAssets,
@@ -289,7 +289,7 @@ RpcHttpApp _$buildAuthModuleRpcApp({
   final effectiveDocs = docs ?? const RpcHttpDocsOptions();
   final effectiveOpenApiTitle = effectiveOpenApi.title ?? 'Auth API';
   final effectiveOpenApiPath = effectiveDocs.openApiPath;
-  final container = _$createAuthModuleContainer();
+  final container = _$createAuthModuleContainer(appDatabase: appDatabase);
   final procedures = _$createAuthModuleProcedureRegistryFromContainer(
     container,
   );
@@ -332,6 +332,7 @@ RpcHttpApp _$buildAuthModuleRpcApp({
 }
 
 RpcHttpApp dartOrpcBuildAuthModuleRpcApp({
+  required AppDatabase appDatabase,
   OpenApiDocumentOptions? openApi,
   RpcHttpDocsOptions? docs,
   RpcHttpStaticOptions? staticAssets,
@@ -348,6 +349,7 @@ RpcHttpApp dartOrpcBuildAuthModuleRpcApp({
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
   Iterable<RpcHttpMiddleware> middleware = const [],
 }) => _$buildAuthModuleRpcApp(
+  appDatabase: appDatabase,
   openApi: openApi,
   docs: docs,
   staticAssets: staticAssets,
@@ -447,7 +449,6 @@ DtoSchemaRegistry dartOrpcCreateAuthModuleLocalDtoSchemaRegistry() =>
 
 DtoSchemaRegistry _$createAuthModuleDtoSchemaRegistry() {
   return DtoSchemaRegistry([
-    ...dartOrpcCreateDatabaseModuleLocalDtoSchemaRegistry().schemas,
     ..._$createAuthModuleLocalDtoSchemaRegistry().schemas,
   ]);
 }
@@ -507,10 +508,10 @@ class AuthClient {
 }
 
 extension DartOrpcAuthModuleGenerated on AuthModule {
-  RpcProcedureRegistry procedureRegistry() =>
-      dartOrpcCreateAuthModuleProcedureRegistry();
-  RestRouteRegistry restRouteRegistry() =>
-      dartOrpcCreateAuthModuleRestRouteRegistry();
+  RpcProcedureRegistry procedureRegistry({required AppDatabase appDatabase}) =>
+      dartOrpcCreateAuthModuleProcedureRegistry(appDatabase: appDatabase);
+  RestRouteRegistry restRouteRegistry({required AppDatabase appDatabase}) =>
+      dartOrpcCreateAuthModuleRestRouteRegistry(appDatabase: appDatabase);
   ProcedureMetadataRegistry procedureMetadata() =>
       dartOrpcCreateAuthModuleProcedureMetadataRegistry();
   DtoSchemaRegistry dtoSchemaRegistry() =>
@@ -518,6 +519,7 @@ extension DartOrpcAuthModuleGenerated on AuthModule {
   JsonObject openApiDocument({OpenApiDocumentOptions? options}) =>
       dartOrpcCreateAuthModuleOpenApiDocument(options: options);
   RpcHttpApp buildRpcApp({
+    required AppDatabase appDatabase,
     OpenApiDocumentOptions? openApi,
     RpcHttpDocsOptions? docs,
     RpcHttpStaticOptions? staticAssets,
@@ -534,6 +536,7 @@ extension DartOrpcAuthModuleGenerated on AuthModule {
     RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
     Iterable<RpcHttpMiddleware> middleware = const [],
   }) => dartOrpcBuildAuthModuleRpcApp(
+    appDatabase: appDatabase,
     openApi: openApi,
     docs: docs,
     staticAssets: staticAssets,

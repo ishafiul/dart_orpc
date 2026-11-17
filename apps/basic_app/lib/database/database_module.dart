@@ -4,9 +4,9 @@ import 'app_database.dart';
 
 /// Provides the single [AppDatabase] that every feature module shares.
 ///
-/// Import this module instead of listing [AppDatabase] as a provider, so the
-/// app opens one connection to the database file.
-@Module(providers: [AppDatabase], exports: [AppDatabase])
+/// It is global: import it once in the app root, and every module in the app
+/// can inject [AppDatabase] without importing it.
+@Module(global: true, providers: [AppDatabase], exports: [AppDatabase])
 final class DatabaseModule {
   const DatabaseModule();
 }

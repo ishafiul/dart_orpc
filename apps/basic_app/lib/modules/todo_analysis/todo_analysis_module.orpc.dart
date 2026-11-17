@@ -12,7 +12,6 @@ export 'package:basic_app/modules/todo_analysis/todo_analysis_dtos.dart';
 export 'package:basic_app/modules/todo_analysis/todo_analysis_module.dart';
 
 import 'package:basic_app/database/app_database.dart';
-import 'package:basic_app/database/database_module.orpc.dart';
 import 'package:basic_app/guard/jwt_auth_guard.dart';
 import 'package:basic_app/guard/logger_guard.dart';
 import 'package:basic_app/guard/permission_guard.dart';
@@ -27,7 +26,6 @@ import 'package:dart_orpc/dart_orpc.dart';
 
 class _$TodoAnalysisModuleContainer {
   _$TodoAnalysisModuleContainer({
-    required this.appDatabase,
     required this.todoService,
     required this.basicAppJwtAuthGuard,
     required this.todoRouteLoggerGuard,
@@ -36,8 +34,6 @@ class _$TodoAnalysisModuleContainer {
     required this.todoController,
     required this.todoAnalysisController,
   });
-
-  final AppDatabase appDatabase;
 
   final TodoService todoService;
 
@@ -61,12 +57,12 @@ class _$TodoAnalysisModuleContainer {
     todoRouteLoggerGuard,
     basicAppJwtAuthGuard,
     todoService,
-    appDatabase,
   ]);
 }
 
-_$TodoAnalysisModuleContainer _$createTodoAnalysisModuleContainer() {
-  final appDatabase = AppDatabase();
+_$TodoAnalysisModuleContainer _$createTodoAnalysisModuleContainer({
+  required AppDatabase appDatabase,
+}) {
   final todoService = TodoService(appDatabase);
   final basicAppJwtAuthGuard = BasicAppJwtAuthGuard();
   final todoRouteLoggerGuard = TodoRouteLoggerGuard();
@@ -79,7 +75,6 @@ _$TodoAnalysisModuleContainer _$createTodoAnalysisModuleContainer() {
   final todoAnalysisController = TodoAnalysisController(todoAnalysisService);
 
   return _$TodoAnalysisModuleContainer(
-    appDatabase: appDatabase,
     todoService: todoService,
     basicAppJwtAuthGuard: basicAppJwtAuthGuard,
     todoRouteLoggerGuard: todoRouteLoggerGuard,
@@ -291,17 +286,21 @@ RpcProcedureRegistry _$createTodoAnalysisModuleProcedureRegistryFromContainer(
   ]);
 }
 
-RpcProcedureRegistry _$createTodoAnalysisModuleProcedureRegistry() =>
-    _$createTodoAnalysisModuleProcedureRegistryFromContainer(
-      _$createTodoAnalysisModuleContainer(),
-    );
+RpcProcedureRegistry _$createTodoAnalysisModuleProcedureRegistry({
+  required AppDatabase appDatabase,
+}) => _$createTodoAnalysisModuleProcedureRegistryFromContainer(
+  _$createTodoAnalysisModuleContainer(appDatabase: appDatabase),
+);
 
-RpcProcedureRegistry dartOrpcCreateTodoAnalysisModuleProcedureRegistry() =>
-    _$createTodoAnalysisModuleProcedureRegistry();
+RpcProcedureRegistry dartOrpcCreateTodoAnalysisModuleProcedureRegistry({
+  required AppDatabase appDatabase,
+}) => _$createTodoAnalysisModuleProcedureRegistry(appDatabase: appDatabase);
 
 ({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
-_$createTodoAnalysisModuleRuntime() {
-  final container = _$createTodoAnalysisModuleContainer();
+_$createTodoAnalysisModuleRuntime({required AppDatabase appDatabase}) {
+  final container = _$createTodoAnalysisModuleContainer(
+    appDatabase: appDatabase,
+  );
   return (
     procedures: _$createTodoAnalysisModuleProcedureRegistryFromContainer(
       container,
@@ -313,8 +312,8 @@ _$createTodoAnalysisModuleRuntime() {
 }
 
 ({RpcProcedureRegistry procedures, RestRouteRegistry restRoutes})
-dartOrpcCreateTodoAnalysisModuleRuntime() =>
-    _$createTodoAnalysisModuleRuntime();
+dartOrpcCreateTodoAnalysisModuleRuntime({required AppDatabase appDatabase}) =>
+    _$createTodoAnalysisModuleRuntime(appDatabase: appDatabase);
 
 RestRouteRegistry _$createTodoAnalysisModuleRestRouteRegistryFromContainer(
   _$TodoAnalysisModuleContainer container,
@@ -555,13 +554,15 @@ RestRouteRegistry _$createTodoAnalysisModuleRestRouteRegistryFromContainer(
   ]);
 }
 
-RestRouteRegistry _$createTodoAnalysisModuleRestRouteRegistry() =>
-    _$createTodoAnalysisModuleRestRouteRegistryFromContainer(
-      _$createTodoAnalysisModuleContainer(),
-    );
+RestRouteRegistry _$createTodoAnalysisModuleRestRouteRegistry({
+  required AppDatabase appDatabase,
+}) => _$createTodoAnalysisModuleRestRouteRegistryFromContainer(
+  _$createTodoAnalysisModuleContainer(appDatabase: appDatabase),
+);
 
-RestRouteRegistry dartOrpcCreateTodoAnalysisModuleRestRouteRegistry() =>
-    _$createTodoAnalysisModuleRestRouteRegistry();
+RestRouteRegistry dartOrpcCreateTodoAnalysisModuleRestRouteRegistry({
+  required AppDatabase appDatabase,
+}) => _$createTodoAnalysisModuleRestRouteRegistry(appDatabase: appDatabase);
 
 final ProcedureMetadataRegistry _$todoAnalysisModuleProcedureMetadata =
     ProcedureMetadataRegistry([
@@ -857,6 +858,7 @@ JsonObject dartOrpcCreateTodoAnalysisModuleOpenApiDocument({
 }) => _$createTodoAnalysisModuleOpenApiDocument(options: options);
 
 RpcHttpApp _$buildTodoAnalysisModuleRpcApp({
+  required AppDatabase appDatabase,
   OpenApiDocumentOptions? openApi,
   RpcHttpDocsOptions? docs,
   RpcHttpStaticOptions? staticAssets,
@@ -877,7 +879,9 @@ RpcHttpApp _$buildTodoAnalysisModuleRpcApp({
   final effectiveDocs = docs ?? const RpcHttpDocsOptions();
   final effectiveOpenApiTitle = effectiveOpenApi.title ?? 'TodoAnalysis API';
   final effectiveOpenApiPath = effectiveDocs.openApiPath;
-  final container = _$createTodoAnalysisModuleContainer();
+  final container = _$createTodoAnalysisModuleContainer(
+    appDatabase: appDatabase,
+  );
   final procedures = _$createTodoAnalysisModuleProcedureRegistryFromContainer(
     container,
   );
@@ -920,6 +924,7 @@ RpcHttpApp _$buildTodoAnalysisModuleRpcApp({
 }
 
 RpcHttpApp dartOrpcBuildTodoAnalysisModuleRpcApp({
+  required AppDatabase appDatabase,
   OpenApiDocumentOptions? openApi,
   RpcHttpDocsOptions? docs,
   RpcHttpStaticOptions? staticAssets,
@@ -936,6 +941,7 @@ RpcHttpApp dartOrpcBuildTodoAnalysisModuleRpcApp({
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
   Iterable<RpcHttpMiddleware> middleware = const [],
 }) => _$buildTodoAnalysisModuleRpcApp(
+  appDatabase: appDatabase,
   openApi: openApi,
   docs: docs,
   staticAssets: staticAssets,
@@ -972,7 +978,6 @@ DtoSchemaRegistry dartOrpcCreateTodoAnalysisModuleLocalDtoSchemaRegistry() =>
 
 DtoSchemaRegistry _$createTodoAnalysisModuleDtoSchemaRegistry() {
   return DtoSchemaRegistry([
-    ...dartOrpcCreateDatabaseModuleLocalDtoSchemaRegistry().schemas,
     ...dartOrpcCreateTodoModuleLocalDtoSchemaRegistry().schemas,
     ..._$createTodoAnalysisModuleLocalDtoSchemaRegistry().schemas,
   ]);
@@ -1017,10 +1022,14 @@ class TodoAnalysisClient {
 }
 
 extension DartOrpcTodoAnalysisModuleGenerated on TodoAnalysisModule {
-  RpcProcedureRegistry procedureRegistry() =>
-      dartOrpcCreateTodoAnalysisModuleProcedureRegistry();
-  RestRouteRegistry restRouteRegistry() =>
-      dartOrpcCreateTodoAnalysisModuleRestRouteRegistry();
+  RpcProcedureRegistry procedureRegistry({required AppDatabase appDatabase}) =>
+      dartOrpcCreateTodoAnalysisModuleProcedureRegistry(
+        appDatabase: appDatabase,
+      );
+  RestRouteRegistry restRouteRegistry({required AppDatabase appDatabase}) =>
+      dartOrpcCreateTodoAnalysisModuleRestRouteRegistry(
+        appDatabase: appDatabase,
+      );
   ProcedureMetadataRegistry procedureMetadata() =>
       dartOrpcCreateTodoAnalysisModuleProcedureMetadataRegistry();
   DtoSchemaRegistry dtoSchemaRegistry() =>
@@ -1028,6 +1037,7 @@ extension DartOrpcTodoAnalysisModuleGenerated on TodoAnalysisModule {
   JsonObject openApiDocument({OpenApiDocumentOptions? options}) =>
       dartOrpcCreateTodoAnalysisModuleOpenApiDocument(options: options);
   RpcHttpApp buildRpcApp({
+    required AppDatabase appDatabase,
     OpenApiDocumentOptions? openApi,
     RpcHttpDocsOptions? docs,
     RpcHttpStaticOptions? staticAssets,
@@ -1044,6 +1054,7 @@ extension DartOrpcTodoAnalysisModuleGenerated on TodoAnalysisModule {
     RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
     Iterable<RpcHttpMiddleware> middleware = const [],
   }) => dartOrpcBuildTodoAnalysisModuleRpcApp(
+    appDatabase: appDatabase,
     openApi: openApi,
     docs: docs,
     staticAssets: staticAssets,
