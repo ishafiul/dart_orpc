@@ -849,6 +849,23 @@ final class SharedModule {
         contains('required MissingDependency missingDependency'),
       );
       expect(run.generatedOutput, contains('UserService(missingDependency)'));
+      expect(
+        run.generatedOutput,
+        matches(
+          RegExp(
+            r'procedureRegistry\(\{\s*required MissingDependency missingDependency,?\s*\}\)',
+          ),
+        ),
+        reason: 'the extension must accept and forward the requirement',
+      );
+      expect(
+        run.generatedOutput,
+        matches(
+          RegExp(
+            r'restRouteRegistry\(\{\s*required MissingDependency missingDependency,?\s*\}\)',
+          ),
+        ),
+      );
       expect(parseString(content: run.generatedOutput).errors, isEmpty);
     });
 

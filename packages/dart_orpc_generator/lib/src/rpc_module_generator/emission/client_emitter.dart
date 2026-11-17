@@ -274,10 +274,10 @@ void _writeGeneratedExtension(
       'extension DartOrpc${context.moduleName}Generated on ${context.moduleName} {',
     )
     ..writeln(
-      '  RpcProcedureRegistry procedureRegistry() => ${names.composeProcedureRegistryName}();',
+      '  RpcProcedureRegistry procedureRegistry(${_dependencyParameterDeclaration(context)}) => ${names.composeProcedureRegistryName}(${_dependencyArgumentList(context)});',
     )
     ..writeln(
-      '  RestRouteRegistry restRouteRegistry() => ${names.composeRestRouteRegistryName}();',
+      '  RestRouteRegistry restRouteRegistry(${_dependencyParameterDeclaration(context)}) => ${names.composeRestRouteRegistryName}(${_dependencyArgumentList(context)});',
     )
     ..writeln(
       '  ProcedureMetadataRegistry procedureMetadata() => ${names.composeMetadataRegistryName}();',
