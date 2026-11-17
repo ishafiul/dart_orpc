@@ -11,6 +11,28 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 Packages with breaking changes:
 
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`dart_orpc_generator` - `v0.1.0-dev.12`](#dart_orpc_generator---v010-dev12)
+
+---
+
+#### `dart_orpc_generator` - `v0.1.0-dev.12`
+
+ - **REFACTOR**(dart_orpc_generator): Move dependency resolution into an analyzer-free DI layer (#124).
+ - **FIX**(dart_orpc_generator): Share a module imported along several paths (#123).
+
+
+## 2026-11-17
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
  - [`dart_orpc_core` - `v0.1.0-dev.9`](#dart_orpc_core---v010-dev9)
  - [`dart_orpc_generator` - `v0.1.0-dev.11`](#dart_orpc_generator---v010-dev11)
  - [`dart_orpc_http` - `v0.1.0-dev.11`](#dart_orpc_http---v010-dev11)

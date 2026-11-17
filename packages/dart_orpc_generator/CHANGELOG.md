@@ -1,3 +1,8 @@
+## 0.1.0-dev.12
+
+ - **REFACTOR**(dart_orpc_generator): Move dependency resolution into an analyzer-free DI layer (#124).
+ - **FIX**(dart_orpc_generator): Share a module imported along several paths (#123).
+
 ## 0.1.0-dev.11
 
 > Note: This release has breaking changes.
