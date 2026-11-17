@@ -11,20 +11,24 @@ Most app code imports the facade. This lower-level package supplies shared runti
 | Envelopes | `RpcRequest`, `RpcSuccessResponse`, `RpcErrorBody`, `RpcErrorResponse` |
 | Errors | `RpcErrorCode`, `RpcException`, `encodeRpcError`, `RpcErrorEncoding`, `RpcErrorDetailsEncodingException` |
 | Validation issues | `RpcValidationIssue`, `rpcValidationIssueDetails`, `parseRpcValidationIssues`, `rpcValidationIssuesKey` |
-| Context | `RpcContext`, `RpcContextKey`, `RpcContextBindings`, bindings builder, `rpcRequestIdKey` |
+| Context | `RpcContext`, `RpcContextKey`, `RpcContextBindings`, bindings builder, `rpcRequestIdKey`, `adoptRpcHeaders`, `lookupRpcHeader` |
 | Cancellation | `RpcCancellationSignal`, `RpcCancellationSource`, listener/registration interfaces |
 | Guards | `RpcGuard`, `RpcGuardContext`, `runRpcGuards` |
 | Procedures | `RpcUnaryProcedure`, `RpcStreamProcedure`, registered/callable interfaces and decoder/encoder/handler callbacks |
 | Registries | `RpcProcedureRegistry`, `ProcedureMetadataRegistry` |
 | Metadata | `ProcedureMetadata`, parameter/custom/security/REST metadata and kind enums |
 | Lifecycle | `RpcDisposable`, `disposeRpcProviders` |
-| Advanced output | `RpcJsonBytes` |
+| Advanced output | `RpcJsonBytes`, `RpcJsonWriter` |
 
 `RpcRequest(method:, input:)` supports `.fromJson` and `.toJson`. Success is `{data: ...}`; error is `{error: {code, message, details?}}`, where the optional `details` is a JSON object that is left out when null or empty. This is not JSON-RPC 2.0.
 
 `RpcException` accepts optional `details`. Transports encode errors with `encodeRpcError`, which normalizes details like procedure outputs and, if they can't be encoded, keeps the code and message and returns an `RpcErrorDetailsEncodingException` to report. See [Error details](/dart-orpc/guides/errors-and-context#error-details).
 
 `RpcValidationIssue` is the shape of one entry in `error.details.issues`: a `path` of string keys and integer list indexes (`[]` for the whole value), an open string `code`, and a `message`. `rpcValidationIssueDetails` builds details from issues, and `parseRpcValidationIssues` reads them back, skipping malformed entries.
+
+`RpcJsonWriter` writes UTF-8 JSON straight into a byte buffer. Its output is byte-for-byte what `utf8.encode(jsonEncode(value))` gives, without building the intermediate string. Use `writeValue` for a `toJson()` tree, or the typed writes (`writeRaw`, `writeInt`, `writeString`, …) inside an `RpcJsonBytes.toJsonBytes()` to skip the map entirely. `takeBytes()` hands the buffer over; `toBytes()` plus `clear()` reuse one writer across values.
+
+`RpcContext.headerValue` and `lookupRpcHeader` are case-insensitive. Transports wrap request headers with `adoptRpcHeaders(headers, lowercaseNames: true)`, so the context shares them without copying and a missing header costs one map lookup.
 
 `RpcProcedureRegistry.dispatchUnary` invokes unary procedures; `dispatchStream` subscribes to server streams. `.dispatch` is the unary compatibility method. Duplicate methods are rejected. Procedure runtimes decode input, run guards, observe cancellation, invoke handlers, then encode outputs.
 

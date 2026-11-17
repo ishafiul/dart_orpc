@@ -48,6 +48,7 @@ export default defineConfig({
             { label: "Quick Start Guide", link: "/quick-start/" },
             { label: "Core Concepts", link: "/core-concepts/" },
             { label: "Architecture & Protocol", link: "/architecture/" },
+            { label: "Benchmarks", link: "/benchmarks/" },
           ],
         },
         {

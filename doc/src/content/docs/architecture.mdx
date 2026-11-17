@@ -17,6 +17,8 @@ HTTP request -> adapter policies -> HTTP middleware -> dispatch
 WebSocket upgrade -> connection authorization -> framed calls -> registry
 ```
 
+At the bottom, `RpcHttpApp.listen` serves on [`rust_http`](/dart-orpc/packages/rust-http): Rust accepts connections and parses HTTP, then hands each request to Dart as a `dart:io` `HttpRequest`. Everything above that line, from policies to your controller, runs in Dart.
+
 HTTP middleware and WebSocket connection authorization are different extension points. Procedure guards protect calls across transports. Input decoding occurs before guards in the RPC procedure runtime; invalid input may fail before authorization logic executes.
 
 ## HTTP RPC wire contract

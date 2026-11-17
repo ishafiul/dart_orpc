@@ -33,7 +33,7 @@ Isolated modules can introduce additional required typed dependencies. Inspect e
 | `contextFactory` | null | Build per-request HTTP context |
 | `sseHeartbeatInterval` | 15 seconds | Idle stream heartbeat interval |
 | `sseFlushEachChunk` | true | Immediate SSE writes |
-| `encodeJsonToBytes` | false | Encode successful JSON as UTF-8 bytes |
+| `encodeJsonToBytes` | true | Encode JSON responses as UTF-8 bytes; `false` keeps `String` bodies |
 | `maxConcurrentRequests` | null/unlimited | HTTP admission bound |
 | `requestBodyIdleTimeout` | null/disabled | Idle body-read deadline |
 | `serverOptions` | `RpcHttpServerOptions()` | Adapter policies/hooks |
@@ -55,6 +55,8 @@ Isolated modules can introduce additional required typed dependencies. Inspect e
 | `handlerTimeout` | null | Response-creation deadline |
 | `compress` | false | Negotiated gzip |
 | `rateLimit` | null | Process-local bounded rate limiter |
+| `idleTimeout` | null (30 seconds) | Keep-alive idle and request-head deadline |
+| `maxConnections` | null (no limit) | Open-connection bound; excess clients wait in the OS listen queue |
 
 `RpcHttpRateLimitOptions` requires `maxRequests`; `window` defaults to one minute, `maxKeys` to 10,000, and `key` to direct peer address lookup. Do not assume quota sharing across workers or implicit proxy trust.
 

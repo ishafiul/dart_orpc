@@ -1,0 +1,50 @@
+---
+title: rust_http
+description: Native HTTP/1.1 server with the dart:io HttpServer API. Rust owns the sockets; handlers stay in Dart.
+---
+
+`rust_http` is the HTTP server under every dart_orpc app. Rust accepts connections, parses HTTP/1.1, handles keep-alive, chunked bodies, gzip and WebSocket framing. Each request is handed to Dart, where your handlers run as usual.
+
+Each public class implements its `dart:io` interface, so code written for `dart:io` runs unchanged:
+
+| rust_http | Implements |
+| --- | --- |
+| `RustHttpServer` | `HttpServer` |
+| `RustHttpRequest` | `HttpRequest` |
+| `RustHttpResponse` | `HttpResponse` |
+| `RustHttpHeaders` | `HttpHeaders` |
+| `RustWebSocket` | `WebSocket` |
+
+You normally don't use it directly: `RpcHttpApp.listen` and `RpcHttpIsolateServer` bind it for you and pass the app's body limits, timeouts, `idleTimeout` and `maxConnections`. The package has no dart_orpc dependencies, so it can also serve a plain `dart:io` handler.
+
+## Supported platforms
+
+| OS | CPU | Prebuilt library |
+| --- | --- | --- |
+| macOS | arm64, x64 | Yes |
+| Linux (glibc 2.17+) | x64, arm64 | Yes |
+| Windows | x64 | Yes |
+
+Other platforms (Alpine/musl, Windows on ARM, FreeBSD) build from source and need Rust.
+
+On Linux, isolate workers each get their own `SO_REUSEPORT` socket. On macOS and Windows they share one listening socket.
+
+## The native library
+
+The package's build hook picks the first library it finds:
+
+1. `lib_path` from your app's `pubspec.yaml`: `hooks: user_defines: rust_http: lib_path: /path/to/library`.
+2. A release build in the package's `native/target/release`.
+3. A prebuilt library downloaded from the matching GitHub release. It is checked against a committed SHA-256 and cached, so only the first build needs network access. Set `hooks: user_defines: rust_http: prebuilt: false` to turn the download off.
+4. `cargo build --release`, which needs [Rust](https://rustup.rs).
+
+Use `dart run`, `dart test` or `dart build cli`. `dart build cli` bundles the library next to the executable, so the deployed server needs neither Rust nor network access. `dart compile exe` does not run build hooks. If the library is missing, `RustHttpServer.bind` throws an `UnsupportedError` explaining why.
+
+## Behavior notes
+
+- `bufferOutput = false` and `flush()` send the head and body promptly, which Server-Sent Events rely on.
+- `response.deadline` closes the connection when it expires.
+- IPv4 clients are reported as plain IPv4 addresses such as `127.0.0.1`, like `dart:io`.
+- `request.uri` is the target as sent: `..` segments are not removed. Check paths before using them on the filesystem (the static file handler already does).
+
+A contract test suite runs the same tests against `dart:io` and `RustHttpServer` to keep them in step. See [Benchmarks](/dart-orpc/benchmarks) for throughput.

@@ -1,0 +1,167 @@
+---
+type Row = {
+  name: string;
+  runtime: string;
+  rps: number;
+  /** "primary" for the featured row, "secondary" for a related one. */
+  emphasis?: "primary" | "secondary";
+  badge?: string;
+};
+
+type Props = {
+  rows: Row[];
+  caption: string;
+};
+
+const { rows, caption } = Astro.props;
+const max = Math.max(...rows.map((row) => row.rps));
+const format = new Intl.NumberFormat("en-US");
+---
+
+<figure class="bench-chart">
+  <ol aria-label={caption}>
+    {
+      rows.map((row) => (
+        <li class:list={[row.emphasis]}>
+          <span class="bench-label">
+            <span class="bench-name">
+              {row.name}
+              {row.badge && <span class="bench-badge">{row.badge}</span>}
+            </span>
+            <span class="bench-runtime">{row.runtime}</span>
+          </span>
+          <span class="bench-track">
+            <span
+              class="bench-bar"
+              style={`width: ${((row.rps / max) * 100).toFixed(1)}%`}
+            />
+          </span>
+          <span class="bench-value">{format.format(row.rps)}</span>
+        </li>
+      ))
+    }
+  </ol>
+  <figcaption>{caption}</figcaption>
+</figure>
+
+<style>
+  .bench-chart {
+    margin: 1.5rem 0;
+  }
+
+  .bench-chart ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  .bench-chart li {
+    display: grid;
+    grid-template-columns: minmax(9rem, 13rem) 1fr 5.5rem;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0.4rem 0.6rem;
+    border-radius: 0.4rem;
+  }
+
+  .bench-label {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+  }
+
+  .bench-name {
+    font-weight: 600;
+    color: var(--sl-color-white);
+  }
+
+  .bench-runtime {
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+  }
+
+  .bench-track {
+    height: 1.1rem;
+    border-radius: 0.25rem;
+    background: var(--sl-color-gray-6);
+    overflow: hidden;
+  }
+
+  .bench-bar {
+    display: block;
+    height: 100%;
+    border-radius: 0.25rem;
+    background: var(--sl-color-gray-4);
+  }
+
+
+  .primary {
+    background: color-mix(in srgb, var(--sl-color-accent) 14%, transparent);
+    box-shadow: inset 3px 0 0 var(--sl-color-accent);
+  }
+
+  .secondary {
+    background: color-mix(in srgb, var(--sl-color-accent) 6%, transparent);
+    box-shadow: inset 3px 0 0
+      color-mix(in srgb, var(--sl-color-accent) 55%, transparent);
+  }
+
+  .primary .bench-bar {
+    background: var(--sl-color-accent);
+  }
+
+  .secondary .bench-bar {
+    background: color-mix(in srgb, var(--sl-color-accent) 55%, transparent);
+  }
+
+  .primary .bench-name,
+  .primary .bench-value,
+  .secondary .bench-name,
+  .secondary .bench-value {
+    color: var(--sl-color-accent-high);
+  }
+
+  .primary .bench-name {
+    font-size: var(--sl-text-lg);
+  }
+
+  .bench-badge {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 0 0.45rem;
+    border: 1px solid var(--sl-color-accent);
+    border-radius: 999px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    line-height: 1.5;
+    vertical-align: 0.15em;
+    color: var(--sl-color-accent-high);
+  }
+
+  .bench-value {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    font-size: var(--sl-text-sm);
+  }
+
+  .bench-chart figcaption {
+    margin-top: 0.75rem;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+  }
+
+  @media (max-width: 40rem) {
+    .bench-chart li {
+      grid-template-columns: 1fr 4.5rem;
+    }
+
+    .bench-track {
+      grid-column: 1 / -1;
+      grid-row: 2;
+    }
+  }
+</style>

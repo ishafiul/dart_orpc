@@ -11,7 +11,8 @@ Start with `dart_orpc` for server runtime and `dart_orpc_generator`/`build_runne
 | [annotations](/dart-orpc/packages/annotations) | Declarative contracts and provider metadata |
 | [core](/dart-orpc/packages/core) | Transport-neutral types, errors, context, registries |
 | [generator](/dart-orpc/packages/generator) | Compile-time containers, routes, metadata, clients |
-| [HTTP](/dart-orpc/packages/http) | dart:io RPC/REST/SSE and server operations |
+| [HTTP](/dart-orpc/packages/http) | RPC/REST/SSE adapter and server operations |
+| [rust_http](/dart-orpc/packages/rust-http) | Native HTTP/1.1 server with the `dart:io` API, used by the HTTP adapter |
 | [WebSocket](/dart-orpc/packages/websocket) | Unary/server streams and VM client |
 | [client](/dart-orpc/packages/client) | Transport capabilities, HTTP client, interceptors |
 | [OpenAPI](/dart-orpc/packages/openapi) | OpenAPI 3.0.3 and Scalar HTML |
@@ -20,4 +21,4 @@ Start with `dart_orpc` for server runtime and `dart_orpc_generator`/`build_runne
 
 Compile-time DI lives in the generator. There is no separate current `dart_orpc_di` runtime package. The default HTTP client uses package:http; no Dio runtime is required.
 
-Server and bundled socket APIs use `dart:io`. Importing the facade/generated module is not a browser compatibility guarantee. Review [Client Distribution](/dart-orpc/guides/code-generation) for current packaging limits.
+Servers run on `rust_http`, and the bundled socket client uses `dart:io`. Importing the facade/generated module is not a browser compatibility guarantee. Review [Client Distribution](/dart-orpc/guides/code-generation) for current packaging limits.

@@ -36,6 +36,32 @@ const guides = [
     href: "/dart-orpc/reference",
   },
 ];
+const benchmark = {
+  heading: "Fast by default.",
+  headingMuted: "Native sockets. Dart handlers.",
+  summary:
+    "dart_orpc serves on rust_http: Rust accepts connections and parses HTTP, and your controllers run in Dart. A real controller route, with routing, context, middleware and JSON, handles more than twice the requests of a bare dart:io server.",
+  stats: [
+    { value: "138k", label: "requests per second on one CPU core" },
+    { value: "2.5×", label: "faster than a bare dart:io server" },
+    { value: "3 ms", label: "p99 latency at 256 connections" },
+  ],
+  panelTitle: "GET / · 1 CPU core · 256 connections",
+  panelTag: "REQ/S",
+  rows: [
+    { name: "hyper", detail: "Rust, 1.12", rps: 288141 },
+    { name: "rust_http", detail: "dart_orpc's native server", rps: 278150, emphasis: "secondary" as const, badge: "server" },
+    { name: "Bun.serve", detail: "Bun 1.4.4", rps: 267440 },
+    { name: "dart_orpc", detail: "Full framework, on rust_http", rps: 138272, emphasis: "primary" as const, badge: "framework" },
+    { name: "dart:io", detail: "Bare HttpServer", rps: 56126 },
+    { name: "Shelf", detail: "1.4.3", rps: 46645 },
+    { name: "Dart Frog", detail: "1.2.6", rps: 37288 },
+    { name: "Serverpod", detail: "4.0.4", rps: 33436 },
+  ],
+  caption: "Median of 3 rounds. Higher is better.",
+  href: "/dart-orpc/benchmarks",
+  linkLabel: "See the full benchmark",
+};
 ---
 
 <PackageLanding
@@ -54,4 +80,5 @@ const guides = [
   facts={["Dart", "Contract first", "Generated clients"]}
   features={features}
   guides={guides}
+  benchmark={benchmark}
 />

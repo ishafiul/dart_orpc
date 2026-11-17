@@ -46,6 +46,8 @@ Numbers above are examples; choose capacity from measured workload, stream count
 - `serverOptions.bodyTimeout`: disabled by default; bounds total body reading.
 - `serverOptions.handlerTimeout`: disabled by default; bounds response creation including context, guards, and middleware. Does not bound returned stream lifetime.
 - `serverOptions.maxHeaderBytes`: optional application header-size policy.
+- `serverOptions.idleTimeout`: 30 seconds by default. Closes keep-alive connections that stay idle, and bounds how long a request head may take to arrive. Behind a proxy or load balancer, set it above the proxy's own idle timeout (for example 65 seconds for Nginx or AWS ALB), so the server never closes a connection the proxy is about to reuse.
+- `serverOptions.maxConnections`: unlimited by default. At the limit the server stops accepting until a connection closes; new clients wait in the OS listen queue instead of being refused.
 - Low-level `RpcHttpApp.maxRequestBodyBytes`: default 1 MiB. The generated `buildRpcApp` helper currently does not expose this argument. Do not copy it into the helper call.
 
 Timeouts and disconnects signal cooperative cancellation. Arbitrary Futures may continue unless their implementation observes it.
@@ -99,7 +101,7 @@ staticAssets: const RpcHttpStaticOptions(
 
 ## Performance switches
 
-`encodeJsonToBytes: true` encodes successful JSON directly to UTF-8 bytes; middleware must accept buffered `String` and `List<int>`. Default is `false`. `RpcJsonBytes` provides a specialized REST byte path for already encoded JSON; treat it as an advanced escape hatch and test contract behavior. `serverOptions.compress: true` enables negotiated gzip, excluding SSE and partial range responses. `sseFlushEachChunk` defaults to true.
+JSON responses are encoded straight to UTF-8 bytes by default (`encodeJsonToBytes: true`), so `RpcHttpResponse.body` holds a `List<int>` for JSON. Middleware that reads a body should accept both `String` and `List<int>`, for example `body is String ? body : utf8.decode(body as List<int>)`. Pass `encodeJsonToBytes: false` to keep `String` bodies. The wire output is identical either way. `RpcJsonBytes` provides a specialized REST byte path for already encoded JSON; treat it as an advanced escape hatch and test contract behavior. `serverOptions.compress: true` enables negotiated gzip, excluding SSE and partial range responses. `sseFlushEachChunk` defaults to true.
 
 ## Environment configuration
 
@@ -113,7 +115,7 @@ await server.close(gracePeriod: const Duration(seconds: 30));
 
 Close stops admission, drains work, cancels remaining work at the deadline, closes upgrade handlers, and disposes generated providers. `app.close()` also works before listening, to release initialized providers. Wire process signal handlers in your executable and await close before exiting. `force: true` skips the drain.
 
-For production, generate first, analyze/test, compile the server, ship required assets, provide environment values, and configure TLS/proxy timeouts, WebSocket upgrades, and SSE buffering. The framework does not deploy or terminate TLS for you through the generated helper.
+For production, generate first, analyze/test, build the server with `dart build cli` (not `dart compile exe`, which skips the build hook that ships the native HTTP library), ship required assets, provide environment values, and configure TLS/proxy timeouts, WebSocket upgrades, and SSE buffering. The framework does not deploy or terminate TLS for you through the generated helper.
 
 ## Multiple isolates
 
