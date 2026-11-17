@@ -46,9 +46,10 @@ void main() {
 
     test('every component is registered as a library part', () {
       final source = libraryFile.readAsStringSync();
-      final declaredParts = RegExp(
-        "part 'rpc_module_generator/([^']+)';",
-      ).allMatches(source).map((match) => match.group(1)!).toSet();
+      final declaredParts = RegExp("part 'rpc_module_generator/([^']+)';")
+          .allMatches(source)
+          .map((match) => match.group(1)!)
+          .toSet();
       final actualParts = componentRoot
           .listSync(recursive: true)
           .whereType<File>()
@@ -99,9 +100,8 @@ void main() {
             if (!file.path.endsWith('.dart')) continue;
             final source = file.readAsStringSync();
             if (source.contains('part of ') ||
-                RegExp(
-                  r'''(?:import|export)\s+['"](?!dart:)''',
-                ).hasMatch(source) ||
+                RegExp(r'''(?:import|export)\s+['"](?!dart:)''')
+                    .hasMatch(source) ||
                 RegExp(
                   r'\b(?:InterfaceElement|DartType|ConstantReader|_ProviderDefinition)\b',
                 ).hasMatch(source)) {
@@ -112,6 +112,34 @@ void main() {
         expect(violations, isEmpty);
       },
     );
+
+    test('the dependency injection layer depends only on Dart and the graph helpers', () {
+      final root = Directory('${packageRoot.path}/lib/src/di');
+      final allowedImport = RegExp(
+        r'''^(?:dart:|(?:\.\./graph/)?[a-z_]+\.dart$)''',
+      );
+      final violations = <String>[];
+      for (final file
+          in root
+              .listSync(recursive: true)
+              .whereType<File>()
+              .where((file) => file.path.endsWith('.dart'))) {
+        final source = file.readAsStringSync();
+        final relativePath = _relativePath(file, root);
+        if (source.contains('part of ')) {
+          violations.add('$relativePath: part of');
+        }
+        for (final match in RegExp(
+          r'''^(?:import|export)\s+'([^']+)';?''',
+          multiLine: true,
+        ).allMatches(source)) {
+          if (!allowedImport.hasMatch(match.group(1)!)) {
+            violations.add('$relativePath: ${match.group(1)}');
+          }
+        }
+      }
+      expect(violations, isEmpty);
+    });
   });
 }
 

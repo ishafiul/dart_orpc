@@ -90,4 +90,4 @@ SSE requires `Stream<T>` and explicit `RestMapping.sse`. Each item is an ordinar
 
 ## Package boundaries
 
-Annotations and core define low-level contracts. Generator performs static analysis. HTTP, WebSocket, client, OpenAPI, and Luthor adapt those contracts. `dart_orpc` exposes the runtime facade. Compile-time DI is implemented by the generator; no separate `dart_orpc_di` package is needed in the current workspace.
+Annotations and core define low-level contracts. Generator performs static analysis. HTTP, WebSocket, client, OpenAPI, and Luthor adapt those contracts. `dart_orpc` exposes the runtime facade. Compile-time DI is implemented by the generator, in an analyzer-free layer (`lib/src/di`) that resolves modules, providers, imports, exports and global modules from plain declarations; no separate `dart_orpc_di` package is needed in the current workspace.

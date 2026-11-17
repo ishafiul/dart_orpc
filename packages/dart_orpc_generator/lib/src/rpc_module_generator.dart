@@ -16,8 +16,7 @@ import 'analysis/dto_schema_extraction.dart';
 import 'analysis/json_serializable_config.dart';
 import 'analysis/luthor_build_config.dart';
 import 'contracts/rest_route_pattern.dart';
-import 'graph/depth_first_search.dart';
-import 'graph/topological_sort.dart';
+import 'di/di.dart' as di;
 
 // Analyzer-facing discovery and contract resolution.
 part 'rpc_module_generator/analysis/controller_binding_builder.dart';
@@ -25,11 +24,11 @@ part 'rpc_module_generator/analysis/contract_collision_validator.dart';
 part 'rpc_module_generator/analysis/dto_field_resolver.dart';
 part 'rpc_module_generator/analysis/dto_schema_resolution.dart';
 part 'rpc_module_generator/analysis/module_analyzer.dart';
+part 'rpc_module_generator/analysis/module_catalog.dart';
 part 'rpc_module_generator/analysis/module_graph_resolver.dart';
 part 'rpc_module_generator/analysis/procedure_binding_builder.dart';
 part 'rpc_module_generator/analysis/procedure_invocation_resolution.dart';
 part 'rpc_module_generator/analysis/procedure_parameter_resolution.dart';
-part 'rpc_module_generator/analysis/provider_resolution.dart';
 part 'rpc_module_generator/analysis/resolved_rest_rpc_input_builder.dart';
 part 'rpc_module_generator/analysis/rest_input_field_resolver.dart';
 part 'rpc_module_generator/analysis/rest_rpc_input_resolver.dart';

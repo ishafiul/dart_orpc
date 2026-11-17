@@ -1,27 +1,5 @@
 part of '../../rpc_module_generator.dart';
 
-final class _ModuleDeclaration {
-  const _ModuleDeclaration({
-    required this.typeKey,
-    required this.displayName,
-    required this.moduleElement,
-    required this.importedModules,
-    required this.controllers,
-    required this.providers,
-    required this.exports,
-    required this.isGlobal,
-  });
-
-  final String typeKey;
-  final String displayName;
-  final InterfaceElement moduleElement;
-  final List<_ModuleDeclaration> importedModules;
-  final List<InterfaceElement> controllers;
-  final List<_ProviderDefinition> providers;
-  final List<InterfaceElement> exports;
-  final bool isGlobal;
-}
-
 final class _ProviderDefinition {
   const _ProviderDefinition({
     required this.typeKey,
@@ -73,13 +51,9 @@ final class _ExternalProviderRequirement {
 }
 
 final class _ResolvedModuleGraph {
-  const _ResolvedModuleGraph({
-    required this.orderedModules,
-    required this.globalProviders,
-  });
+  const _ResolvedModuleGraph({required this.orderedModules});
 
   final List<_ResolvedModule> orderedModules;
-  final Map<String, _ResolvedProviderBinding> globalProviders;
 
   _ResolvedModule get rootModule => orderedModules.last;
 }
@@ -90,11 +64,8 @@ final class _ResolvedModule {
     required this.displayName,
     required this.moduleElement,
     required this.importedModules,
-    required this.importedProviders,
     required this.providerInstantiations,
     required this.controllerBindings,
-    required this.exportedProviders,
-    required this.isGlobal,
     required this.externalProviderRequirements,
   });
 
@@ -102,11 +73,8 @@ final class _ResolvedModule {
   final String displayName;
   final InterfaceElement moduleElement;
   final List<_ResolvedModule> importedModules;
-  final Map<String, _ResolvedProviderBinding> importedProviders;
   final List<_ResolvedInstantiation> providerInstantiations;
   final List<_ControllerBinding> controllerBindings;
-  final Map<String, _ResolvedProviderBinding> exportedProviders;
-  final bool isGlobal;
   final List<_ExternalProviderRequirement> externalProviderRequirements;
 
   /// Every module this module imports, directly or transitively, each once.
@@ -149,18 +117,4 @@ final class _ResolvedModule {
     for (final controller in allControllers)
       if (controller.rpcCompatibleProcedures.isNotEmpty) controller,
   ];
-}
-
-final class _ResolvedProviderBinding {
-  const _ResolvedProviderBinding({
-    required this.typeKey,
-    required this.typeName,
-    required this.variableName,
-    required this.sourceLabel,
-  });
-
-  final String typeKey;
-  final String typeName;
-  final String variableName;
-  final String sourceLabel;
 }

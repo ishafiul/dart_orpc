@@ -35,48 +35,6 @@ String _nonNullableTypeCode(String typeCode) {
       : typeCode;
 }
 
-_ResolvedInstantiation? _tryBuildInstantiation(
-  _ProviderDefinition provider, {
-  required Map<String, String> availableProviders,
-  required Set<String> usedNames,
-  String? forcedVariableName,
-}) {
-  final positionalArguments = <String>[];
-  final namedArguments = <String>[];
-  var optionalPositionalGap = false;
-
-  for (final parameter in provider.parameters) {
-    final dependency =
-        availableProviders[_dependencyTypeKeyFor(parameter.type)];
-    if (dependency == null) {
-      if (!parameter.isOptional) return null;
-      if (parameter.isOptionalPositional) optionalPositionalGap = true;
-      continue;
-    }
-    if (parameter.isOptionalPositional && optionalPositionalGap) {
-      continue;
-    }
-    if (parameter.isNamed) {
-      namedArguments.add('${parameter.name}: $dependency');
-    } else {
-      positionalArguments.add(dependency);
-    }
-  }
-
-  final variableName = forcedVariableName == null
-      ? _uniqueName(_lowerCamel(provider.tokenElement.displayName), usedNames)
-      : forcedVariableName;
-  return _ResolvedInstantiation(
-    typeKey: provider.typeKey,
-    typeName: provider.typeName,
-    variableName: variableName,
-    providerElement: provider.providerElement,
-    tokenElement: provider.tokenElement,
-    code:
-        'final $variableName = ${provider.creationTarget}(${[...positionalArguments, ...namedArguments].join(', ')});',
-  );
-}
-
 ConstructorElement _selectUnnamedConstructor(InterfaceElement element) {
   final constructors = element.constructors
       .where((constructor) => !constructor.isFactory)
