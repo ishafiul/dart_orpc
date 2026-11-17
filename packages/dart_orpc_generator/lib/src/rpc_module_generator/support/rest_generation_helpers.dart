@@ -119,7 +119,7 @@ List<String> _restRpcInputDeclarations(
     lines.add('final rawInput = <String, Object?>{};');
   } else if (restRpcInput.bodyFields.isNotEmpty) {
     lines.add(
-      "final rawInput = request.body.trim().isEmpty ? <String, Object?>{} : Map<String, Object?>.from(decodeRestBody<JsonObject>(rawBody: request.body, route: '$routeLabel', parameterName: '${restRpcInput.parameterName}', decode: (rawJson) => expectJsonObject(rawJson, context: '$routeLabel body')));",
+      "final rawInput = decodeRestRpcInputBody(request, route: '$routeLabel', parameterName: '${restRpcInput.parameterName}');",
     );
   } else {
     lines.add('final rawInput = <String, Object?>{};');

@@ -102,7 +102,7 @@ void main() {
       expect(generatedOutput, contains('RpcHttpApp buildRpcApp({'));
       for (final option in [
         'bool sseFlushEachChunk = true',
-        'bool encodeJsonToBytes = false',
+        'bool encodeJsonToBytes = true',
         'int? maxConcurrentRequests',
         'Duration? requestBodyIdleTimeout',
         'RpcHttpServerOptions serverOptions = const RpcHttpServerOptions()',
@@ -557,9 +557,9 @@ void main() {
       );
       expect(
         generatedOutput,
-        contains('final rawInput = request.body.trim().isEmpty'),
+        contains('final rawInput = decodeRestRpcInputBody('),
       );
-      expect(generatedOutput, contains("decodeRestBody<JsonObject>("));
+      expect(generatedOutput, isNot(contains('request.body.trim()')));
       expect(
         generatedOutput,
         contains("rawInput['id'] = decodeRestScalarParameter<String>("),

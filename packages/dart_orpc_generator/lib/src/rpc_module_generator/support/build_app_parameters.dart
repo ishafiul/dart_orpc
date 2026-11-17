@@ -48,7 +48,7 @@ const _buildAppParameters = <_BuildAppParameter>[
     defaultValue: 'const Duration(seconds: 15)',
   ),
   _BuildAppParameter('sseFlushEachChunk', 'bool', defaultValue: 'true'),
-  _BuildAppParameter('encodeJsonToBytes', 'bool', defaultValue: 'false'),
+  _BuildAppParameter('encodeJsonToBytes', 'bool', defaultValue: 'true'),
   _BuildAppParameter('maxConcurrentRequests', 'int?'),
   _BuildAppParameter('requestBodyIdleTimeout', 'Duration?'),
   _BuildAppParameter(

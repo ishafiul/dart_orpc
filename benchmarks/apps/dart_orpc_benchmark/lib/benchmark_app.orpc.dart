@@ -146,17 +146,11 @@ RestRouteRegistry _$createBenchmarkModuleRestRouteRegistryFromContainer(
       method: 'POST',
       path: '/checkout',
       handler: (context, request, pathParameters) {
-        final rawInput = request.body.trim().isEmpty
-            ? <String, Object?>{}
-            : Map<String, Object?>.from(
-                decodeRestBody<JsonObject>(
-                  rawBody: request.body,
-                  route: 'POST /checkout',
-                  parameterName: 'input',
-                  decode: (rawJson) =>
-                      expectJsonObject(rawJson, context: 'POST /checkout body'),
-                ),
-              );
+        final rawInput = decodeRestRpcInputBody(
+          request,
+          route: 'POST /checkout',
+          parameterName: 'input',
+        );
         final input = ((rawInput) => decodeRpcInputWithLuthor<CheckoutInputDto>(
           rawInput: rawInput,
           method: 'benchmark.checkout',
@@ -281,7 +275,7 @@ RpcHttpApp _$buildBenchmarkModuleRpcApp({
   RpcContextFactory? contextFactory,
   Duration sseHeartbeatInterval = const Duration(seconds: 15),
   bool sseFlushEachChunk = true,
-  bool encodeJsonToBytes = false,
+  bool encodeJsonToBytes = true,
   int? maxConcurrentRequests,
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
@@ -344,7 +338,7 @@ RpcHttpApp dartOrpcBuildBenchmarkModuleRpcApp({
   RpcContextFactory? contextFactory,
   Duration sseHeartbeatInterval = const Duration(seconds: 15),
   bool sseFlushEachChunk = true,
-  bool encodeJsonToBytes = false,
+  bool encodeJsonToBytes = true,
   int? maxConcurrentRequests,
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
@@ -547,7 +541,7 @@ extension DartOrpcBenchmarkModuleGenerated on BenchmarkModule {
     RpcContextFactory? contextFactory,
     Duration sseHeartbeatInterval = const Duration(seconds: 15),
     bool sseFlushEachChunk = true,
-    bool encodeJsonToBytes = false,
+    bool encodeJsonToBytes = true,
     int? maxConcurrentRequests,
     Duration? requestBodyIdleTimeout,
     RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),

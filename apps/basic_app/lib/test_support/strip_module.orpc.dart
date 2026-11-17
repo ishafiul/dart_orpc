@@ -78,17 +78,11 @@ RestRouteRegistry _$createStripModuleRestRouteRegistryFromContainer(
       method: 'POST',
       path: '/strip',
       handler: (context, request, pathParameters) {
-        final rawInput = request.body.trim().isEmpty
-            ? <String, Object?>{}
-            : Map<String, Object?>.from(
-                decodeRestBody<JsonObject>(
-                  rawBody: request.body,
-                  route: 'POST /strip',
-                  parameterName: 'input',
-                  decode: (rawJson) =>
-                      expectJsonObject(rawJson, context: 'POST /strip body'),
-                ),
-              );
+        final rawInput = decodeRestRpcInputBody(
+          request,
+          route: 'POST /strip',
+          parameterName: 'input',
+        );
         final input = ((rawInput) => decodeRpcInputWithLuthor<StripDto>(
           rawInput: rawInput,
           method: 'strip.echo',
@@ -171,7 +165,7 @@ RpcHttpApp _$buildStripModuleRpcApp({
   RpcContextFactory? contextFactory,
   Duration sseHeartbeatInterval = const Duration(seconds: 15),
   bool sseFlushEachChunk = true,
-  bool encodeJsonToBytes = false,
+  bool encodeJsonToBytes = true,
   int? maxConcurrentRequests,
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
@@ -234,7 +228,7 @@ RpcHttpApp dartOrpcBuildStripModuleRpcApp({
   RpcContextFactory? contextFactory,
   Duration sseHeartbeatInterval = const Duration(seconds: 15),
   bool sseFlushEachChunk = true,
-  bool encodeJsonToBytes = false,
+  bool encodeJsonToBytes = true,
   int? maxConcurrentRequests,
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
@@ -325,7 +319,7 @@ extension DartOrpcStripModuleGenerated on StripModule {
     RpcContextFactory? contextFactory,
     Duration sseHeartbeatInterval = const Duration(seconds: 15),
     bool sseFlushEachChunk = true,
-    bool encodeJsonToBytes = false,
+    bool encodeJsonToBytes = true,
     int? maxConcurrentRequests,
     Duration? requestBodyIdleTimeout,
     RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
