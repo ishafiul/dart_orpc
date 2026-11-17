@@ -23,7 +23,9 @@ Future<Set<String>> _collectImportDirectivesForModule(
     }
   }
 
-  for (final importedModule in rootModule.importedModules) {
+  // Every module in the graph, not only direct imports: the DTO schema
+  // registry composes each module's local registry.
+  for (final importedModule in rootModule.allImportedModules) {
     final moduleAsset = await buildStep.resolver.assetIdForElement(
       importedModule.moduleElement,
     );

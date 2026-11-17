@@ -6,6 +6,64 @@ import 'support/generator_test_harness.dart';
 
 void main() {
   group('Given RpcModuleGenerator', () {
+    test('Given a module imported along two paths When the builder runs Then the app shares one instance and one client', () async {
+      final run = await runModuleBuilder(_diamondImportModuleSource);
+
+      expect(run.succeeded, isTrue, reason: run.errors.join('\n'));
+      final container = RegExp(
+        r'_\$AppModuleContainer _\$createAppModuleContainer\(\) \{[^}]*\}',
+      ).firstMatch(run.generatedOutput)!.group(0)!;
+      expect(RegExp(r'SharedService\(').allMatches(container), hasLength(1));
+      expect(RegExp(r'SharedController\(').allMatches(container), hasLength(1));
+      expect(
+        RegExp(r'FeatureService\(sharedService\)').hasMatch(container),
+        isTrue,
+      );
+      expect(
+        RegExp(r'late final shared = ').allMatches(run.generatedOutput),
+        hasLength(3),
+        reason: 'one getter each in the Shared, Feature and App root clients',
+      );
+      expect(
+        run.generatedOutput,
+        contains('late final shared = _sharedModuleClient.shared;'),
+      );
+      final appSchemas = RegExp(
+        r'DtoSchemaRegistry _\$createAppModuleDtoSchemaRegistry\(\) \{[^}]*\}',
+      ).firstMatch(run.generatedOutput)!.group(0)!;
+      expect(
+        RegExp(r'dartOrpcCreateSharedModuleLocalDtoSchemaRegistry\(\)')
+            .allMatches(appSchemas),
+        hasLength(1),
+      );
+      expect(
+        appSchemas,
+        isNot(contains('dartOrpcCreateFeatureModuleDtoSchemaRegistry()')),
+      );
+    });
+
+    test('Given a module with only providers When the builder runs Then its client stores no unused transports', () async {
+      final run = await runModuleBuilder('''
+import 'package:dart_orpc/dart_orpc.dart';
+
+final class SharedService {
+  const SharedService();
+}
+
+@Module(providers: [SharedService], exports: [SharedService])
+final class SharedModule {
+  const SharedModule();
+}
+''');
+
+      expect(run.succeeded, isTrue);
+      expect(
+        run.generatedOutput,
+        contains('SharedClient({required RpcClientTransports transports});'),
+      );
+      expect(run.generatedOutput, isNot(contains('_transports')));
+    });
+
     test(
       'declared REST response metadata is generated and invalid statuses fail',
       () async {
@@ -2794,3 +2852,63 @@ List<String> _parameterList(String output, String signature) {
       .where((parameter) => parameter.isNotEmpty)
       .toList();
 }
+
+const _diamondImportModuleSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+import 'package:dart_orpc_core/dart_orpc_core.dart';
+
+final class SharedService {
+  String ping() => 'pong';
+}
+
+@Controller('shared')
+final class SharedController {
+  SharedController(this.sharedService);
+
+  final SharedService sharedService;
+
+  @RpcMethod(name: 'ping')
+  String ping() => sharedService.ping();
+}
+
+@Module(
+  controllers: [SharedController],
+  providers: [SharedService],
+  exports: [SharedService],
+)
+final class SharedModule {
+  const SharedModule();
+}
+
+final class FeatureService {
+  FeatureService(this.sharedService);
+
+  final SharedService sharedService;
+}
+
+@Controller('feature')
+final class FeatureController {
+  FeatureController(this.featureService);
+
+  final FeatureService featureService;
+
+  @RpcMethod(name: 'echo')
+  String echo() => featureService.sharedService.ping();
+}
+
+@Module(
+  imports: [SharedModule],
+  controllers: [FeatureController],
+  providers: [FeatureService],
+)
+final class FeatureModule {
+  const FeatureModule();
+}
+
+@Module(imports: [SharedModule, FeatureModule])
+final class AppModule {
+  const AppModule();
+}
+''';

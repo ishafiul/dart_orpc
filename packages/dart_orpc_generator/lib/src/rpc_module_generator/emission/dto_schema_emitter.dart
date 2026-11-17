@@ -23,11 +23,18 @@ void _writeDtoSchemaSections(
   buffer
     ..writeln('}')
     ..writeln()
+    ..writeln(
+      'DtoSchemaRegistry ${_publicLocalDtoSchemaRegistryFactoryNameFor(context.moduleName)}() => ${names.createLocalDtoSchemaRegistryName}();',
+    )
+    ..writeln()
     ..writeln('DtoSchemaRegistry ${names.createDtoSchemaRegistryName}() {')
     ..writeln('  return DtoSchemaRegistry([');
-  for (final importedModule in context.rootModule.importedModules) {
+  // Each module contributes only its own DTOs, once, however many paths
+  // import it. Composing imported modules' full registries would repeat a
+  // shared module's DTOs once per path.
+  for (final importedModule in context.rootModule.allImportedModules) {
     buffer.writeln(
-      '    ...${_publicDtoSchemaRegistryFactoryNameFor(importedModule.displayName)}().schemas,',
+      '    ...${_publicLocalDtoSchemaRegistryFactoryNameFor(importedModule.displayName)}().schemas,',
     );
   }
   buffer
