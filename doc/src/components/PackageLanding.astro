@@ -2,6 +2,25 @@
 import "./PackageLanding.css";
 
 type LandingLink = { title: string; description: string; href: string };
+type BenchmarkRow = {
+  name: string;
+  detail: string;
+  rps: number;
+  emphasis?: "primary" | "secondary";
+  badge?: string;
+};
+type Benchmark = {
+  heading: string;
+  headingMuted: string;
+  summary: string;
+  stats: { value: string; label: string }[];
+  panelTitle: string;
+  panelTag: string;
+  rows: BenchmarkRow[];
+  caption: string;
+  href: string;
+  linkLabel: string;
+};
 type Props = {
   name: string;
   title: string;
@@ -21,9 +40,16 @@ type Props = {
   features: { title: string; description: string }[];
   guides: LandingLink[];
   note?: string;
+  benchmark?: Benchmark;
 };
 
 const page = Astro.props;
+const benchmark = page.benchmark;
+const benchmarkMax = benchmark
+  ? Math.max(...benchmark.rows.map((row) => row.rps))
+  : 1;
+const formatNumber = new Intl.NumberFormat("en-US");
+const guidesNumber = benchmark ? "03" : "02";
 const canonicalUrl = new URL(
   Astro.url.pathname.replace(/\/$/, "") || "/",
   Astro.site ?? "https://shafi.dev",
@@ -133,8 +159,34 @@ const sourceSchema = {
         {page.note && <p class="package-note">{page.note}</p>}
       </section>
 
+      {benchmark && (
+        <section class="benchmark-section" id="performance" aria-labelledby="benchmark-title">
+          <div class="benchmark-copy">
+            <div class="section-heading"><p class="eyebrow">02 / Performance</p><h2 id="benchmark-title">{benchmark.heading}<br /><span class="heading-muted">{benchmark.headingMuted}</span></h2></div>
+            <p class="benchmark-summary">{benchmark.summary}</p>
+            <dl class="benchmark-stats">
+              {benchmark.stats.map((stat) => <div><dt>{stat.label}</dt><dd>{stat.value}</dd></div>)}
+            </dl>
+            <a class="benchmark-link" href={benchmark.href}>{benchmark.linkLabel}<span aria-hidden="true"> →</span></a>
+          </div>
+          <figure class="diagram-panel benchmark-panel">
+            <div class="panel-heading"><span class="eyebrow">{benchmark.panelTitle}</span><span class="mono">{benchmark.panelTag}</span></div>
+            <ol class="benchmark-bars" aria-label={benchmark.caption}>
+              {benchmark.rows.map((row) => (
+                <li class:list={["benchmark-row", row.emphasis]}>
+                  <span class="benchmark-name">{row.name}{row.badge && <span class="benchmark-badge">{row.badge}</span>}<small>{row.detail}</small></span>
+                  <span class="benchmark-track" aria-hidden="true"><i style={`width: ${((row.rps / benchmarkMax) * 100).toFixed(1)}%`}></i></span>
+                  <span class="benchmark-value mono">{formatNumber.format(row.rps)}</span>
+                </li>
+              ))}
+            </ol>
+            <figcaption class="diagram-bottom"><span>{benchmark.caption}</span></figcaption>
+          </figure>
+        </section>
+      )}
+
       <section class="guides-section" aria-labelledby="guides-title">
-        <div class="section-heading"><p class="eyebrow">02 / Documentation</p><h2 id="guides-title">Find your next step.</h2></div>
+        <div class="section-heading"><p class="eyebrow">{guidesNumber} / Documentation</p><h2 id="guides-title">Find your next step.</h2></div>
         <nav class="guide-grid" aria-label={`${page.name} documentation`}>
           {page.guides.map((guide) => <a class="guide" href={guide.href}><h3>{guide.title}</h3><p>{guide.description}</p><span class="guide-action">Read guide</span></a>)}
         </nav>

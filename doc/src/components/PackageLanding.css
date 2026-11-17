@@ -703,3 +703,184 @@
     transform: none;
   }
 }
+
+/* Performance section: shown only when a page passes `benchmark`. */
+.package-page .benchmark-section {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 56px;
+  align-items: center;
+  padding-top: 80px;
+  scroll-margin-top: 24px;
+}
+.package-page .benchmark-summary {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.85;
+  margin: 22px 0 0;
+  max-width: 440px;
+}
+.package-page .benchmark-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin: 30px 0 0;
+}
+.package-page .benchmark-stats div {
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.package-page .benchmark-stats dd {
+  margin: 0;
+  font-family: "Sora", sans-serif;
+  font-size: clamp(22px, 2.4vw, 30px);
+  font-weight: 500;
+  letter-spacing: -1px;
+  color: var(--lime);
+}
+.package-page .benchmark-stats dt {
+  order: 2;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.package-page .benchmark-stats div {
+  display: flex;
+  flex-direction: column;
+}
+.package-page .benchmark-link {
+  display: inline-block;
+  margin-top: 30px;
+  color: var(--lime);
+  font-size: 13px;
+  font-weight: 600;
+  border-bottom: 1px solid transparent;
+  transition: border-color 180ms;
+}
+.package-page main a.benchmark-link {
+  color: var(--lime);
+}
+.package-page .benchmark-link:hover {
+  border-bottom-color: var(--lime);
+}
+.package-page .benchmark-panel {
+  margin: 0;
+}
+.package-page .benchmark-bars {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.package-page .benchmark-row {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) 64px;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 10px;
+  border-radius: 6px;
+}
+.package-page .benchmark-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.package-page .benchmark-name small {
+  flex-basis: 100%;
+  font-size: 10px;
+  font-weight: 400;
+  color: #6f786c;
+}
+.package-page .benchmark-track {
+  height: 8px;
+  border-radius: 4px;
+  background: #222722;
+  overflow: hidden;
+}
+.package-page .benchmark-track i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: #4a5347;
+}
+.package-page .benchmark-value {
+  text-align: right;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.package-page .benchmark-badge {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 8.5px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+}
+.package-page .benchmark-row.primary {
+  background: rgba(213, 247, 139, 0.09);
+  box-shadow: inset 2px 0 0 var(--lime);
+}
+.package-page .benchmark-row.primary .benchmark-name,
+.package-page .benchmark-row.primary .benchmark-value {
+  color: var(--lime);
+}
+.package-page .benchmark-row.primary .benchmark-name {
+  font-size: 14px;
+}
+.package-page .benchmark-row.primary .benchmark-track {
+  height: 12px;
+}
+.package-page .benchmark-row.primary .benchmark-track i {
+  background: var(--lime);
+  box-shadow: 0 0 14px rgba(213, 247, 139, 0.35);
+}
+.package-page .benchmark-row.secondary {
+  background: rgba(213, 247, 139, 0.04);
+  box-shadow: inset 2px 0 0 #8fa65e;
+}
+.package-page .benchmark-row.secondary .benchmark-name,
+.package-page .benchmark-row.secondary .benchmark-value {
+  color: #c4dc8e;
+}
+.package-page .benchmark-row.secondary .benchmark-track i {
+  background: #8fa65e;
+}
+@media (max-width: 1000px) {
+  .package-page .benchmark-section {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 36px;
+  }
+  .package-page .benchmark-summary {
+    max-width: none;
+  }
+}
+@media (max-width: 700px) {
+  .package-page .benchmark-section {
+    padding-top: 50px;
+  }
+  .package-page .benchmark-row {
+    grid-template-columns: minmax(0, 1fr) 58px;
+    row-gap: 6px;
+  }
+  .package-page .benchmark-track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .package-page .benchmark-stats {
+    gap: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .package-page .benchmark-link {
+    transition: none;
+  }
+}
