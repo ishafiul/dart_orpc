@@ -1,603 +1,152 @@
 part of '../../rpc_module_generator.dart';
 
+/// Resolves the module graph under [rootModule] for emission.
+///
+/// The dependency layer decides what the container holds and how each object
+/// is built; this names every object and turns the result into the models the
+/// emitters read. Controller procedures are analyzed here too, once each
+/// module's injectable providers are known.
 _ResolvedModuleGraph _resolveModuleGraph(
   InterfaceElement rootModule, {
   required ConstantReader annotation,
   required Set<String> usedNames,
+  di.DependencyGraphResolver resolver = const di.ModuleDependencyResolver(),
 }) {
-  final orderedDeclarations = _discoverModuleDeclarations(
+  final catalog = _AnalyzerModuleCatalog(
     rootModule,
-    annotation,
+    rootAnnotation: annotation,
   );
-
-  final exportedProviderDeclarations = <String, _DeclaredProvider>{};
-  final exportCache = <String, Map<String, _DeclaredProvider>>{};
-  for (final declaration in orderedDeclarations.where(
-    (module) => module.isGlobal,
-  )) {
-    for (final provider in _declaredExportsFor(
-      declaration,
-      exportCache,
-    ).values) {
-      final existing = exportedProviderDeclarations[provider.typeKey];
-      if (existing != null && existing.ownerTypeKey != provider.ownerTypeKey) {
-        throw InvalidGenerationSourceError(
-          'Global provider "${provider.typeName}" is exported by both "${existing.ownerName}" and "${provider.ownerName}".',
-          element: declaration.moduleElement,
-        );
-      }
-      exportedProviderDeclarations[provider.typeKey] = provider;
-    }
-  }
-
-  final forcedGlobalNames = <String, String>{};
-  final globalBindings = <String, _ResolvedProviderBinding>{};
-  final privateGlobalProviderKeys = <String>{};
-  for (final declaration in orderedDeclarations.where(
-    (module) => module.isGlobal,
-  )) {
-    final exportedKeys = _declaredExportsFor(declaration, exportCache).keys;
-    for (final provider in declaration.providers) {
-      if (!exportedKeys.contains(provider.typeKey)) {
-        privateGlobalProviderKeys.add(provider.typeKey);
-      }
-    }
-  }
-  for (final provider in exportedProviderDeclarations.values) {
-    final variableName = _uniqueName(
-      _lowerCamel(provider.tokenElement.displayName),
-      usedNames,
-    );
-    forcedGlobalNames[provider.typeKey] = variableName;
-    globalBindings[provider.typeKey] = _ResolvedProviderBinding(
-      typeKey: provider.typeKey,
-      typeName: provider.typeName,
-      variableName: variableName,
-      sourceLabel:
-          'global provider "${provider.typeName}" from "${provider.ownerName}"',
-    );
-  }
-
-  final resolvedModules = <String, _ResolvedModule>{};
-  final orderedModules = <_ResolvedModule>[];
-  for (final declaration in orderedDeclarations) {
-    final importedProviders = <String, _ResolvedProviderBinding>{
-      ...globalBindings,
-    };
-    for (final importedModule in declaration.importedModules) {
-      final resolvedImported = resolvedModules[importedModule.typeKey];
-      if (resolvedImported == null) {
-        throw InvalidGenerationSourceError(
-          'Module "${declaration.displayName}" imports "${importedModule.displayName}" before it can be resolved.',
-          element: declaration.moduleElement,
-        );
-      }
-      for (final provider in resolvedImported.exportedProviders.values) {
-        _recordProviderBinding(
-          importedProviders,
-          provider,
-          moduleElement: declaration.moduleElement,
-        );
-      }
-    }
-
-    final localProviderKeys = {
-      for (final provider in declaration.providers) provider.typeKey,
-    };
-    final visibleImportedProviders =
-        Map<String, _ResolvedProviderBinding>.from(importedProviders)
-          ..removeWhere(
-            (typeKey, _) =>
-                declaration.isGlobal && localProviderKeys.contains(typeKey),
-          );
-    for (final provider in declaration.providers) {
-      final typeKey = provider.typeKey;
-      final globalProvider = exportedProviderDeclarations[typeKey];
-      if (globalProvider != null &&
-          globalProvider.ownerTypeKey != declaration.typeKey) {
-        throw InvalidGenerationSourceError(
-          'Module "${declaration.displayName}" declares provider "${provider.typeName}" that shadows a global provider.',
-          element: provider.providerElement,
-        );
-      }
-    }
-
-    final externalRequirements = _resolveExternalProviderRequirements(
-      declaration,
-      visibleProviders: visibleImportedProviders,
-      localProviderKeys: localProviderKeys,
-      privateGlobalProviderKeys: privateGlobalProviderKeys,
-      usedNames: usedNames,
-    );
-    final externalProviders = {
-      for (final requirement in externalRequirements)
-        requirement.typeKey: requirement.variableName,
-    };
-    final providerInstantiations = _resolveProviderInstantiations(
-      declaration.providers,
-      importedProviders: visibleImportedProviders,
-      externalProviders: externalProviders,
-      forcedVariableNames: forcedGlobalNames,
-      usedNames: usedNames,
-      moduleElement: declaration.moduleElement,
-    );
-    final localProviders = {
-      for (final instantiation in providerInstantiations)
-        instantiation.typeKey: _ResolvedProviderBinding(
-          typeKey: instantiation.typeKey,
-          typeName: instantiation.typeName,
-          variableName: instantiation.variableName,
-          sourceLabel:
-              'provider "${instantiation.typeName}" from module "${declaration.displayName}"',
-        ),
-    };
-    final availableProviders = <String, String>{
-      for (final provider in visibleImportedProviders.values)
-        provider.typeKey: provider.variableName,
-      ...externalProviders,
-      for (final provider in localProviders.values)
-        provider.typeKey: provider.variableName,
-    };
-    final controllerBindings = declaration.controllers
-        .map(
-          (controller) => _buildControllerBinding(
-            controller,
-            availableProviders: availableProviders,
-            usedNames: usedNames,
-          ),
-        )
-        .toList(growable: false);
-    final resolvedModule = _ResolvedModule(
-      typeKey: declaration.typeKey,
-      displayName: declaration.displayName,
-      moduleElement: declaration.moduleElement,
-      importedModules: declaration.importedModules
-          .map((module) => resolvedModules[module.typeKey]!)
-          .toList(growable: false),
-      importedProviders: visibleImportedProviders,
-      providerInstantiations: providerInstantiations,
-      controllerBindings: controllerBindings,
-      exportedProviders: _resolveExportedProviders(
-        declaration.exports,
-        moduleElement: declaration.moduleElement,
-        importedModules: declaration.importedModules
-            .map((module) => resolvedModules[module.typeKey]!)
-            .toList(growable: false),
-        importedProviders: visibleImportedProviders,
-        localProviders: localProviders,
-      ),
-      isGlobal: declaration.isGlobal,
-      externalProviderRequirements: externalRequirements,
-    );
-    resolvedModules[declaration.typeKey] = resolvedModule;
-    orderedModules.add(resolvedModule);
-  }
-
-  final resolvedGlobalProviders = <String, _ResolvedProviderBinding>{};
-  for (final module in orderedModules.where((module) => module.isGlobal)) {
-    for (final provider in module.exportedProviders.values) {
-      _recordProviderBinding(
-        resolvedGlobalProviders,
-        provider,
-        moduleElement: module.moduleElement,
-      );
-    }
-  }
-  return _ResolvedModuleGraph(
-    orderedModules: orderedModules,
-    globalProviders: resolvedGlobalProviders,
-  );
-}
-
-List<_ModuleDeclaration> _discoverModuleDeclarations(
-  InterfaceElement rootModule,
-  ConstantReader rootAnnotation,
-) {
-  final annotations = <String, ConstantReader>{
-    _typeKeyFor(rootModule.thisType): rootAnnotation,
-  };
-  final imports = <String, List<InterfaceElement>>{};
-  final List<InterfaceElement> orderedModules;
+  final di.ResolvedDependencyGraph graph;
   try {
-    orderedModules = depthFirstPostorder<InterfaceElement, String>(
-      [rootModule],
-      keyOf: (module) => _typeKeyFor(module.thisType),
-      dependenciesOf: (module) {
-        final key = _typeKeyFor(module.thisType);
-        final annotation = annotations.putIfAbsent(
-          key,
-          () => _readModuleAnnotation(module),
-        );
-        return imports[key] = _readModuleElements(
-          annotation.read('imports'),
-          element: module,
-          fieldName: 'imports',
-        );
-      },
-    );
-  } on DependencyCycle<InterfaceElement> catch (cycle) {
-    final path = cycle.path.map((module) => module.displayName).join(' -> ');
+    graph = resolver.resolve(catalog.rootKey, catalog);
+  } on di.DependencyResolutionError catch (error) {
     throw InvalidGenerationSourceError(
-      'Detected circular @Module.imports chain: $path.',
-      element: cycle.path.last,
+      error.message,
+      element: error.origin as Element?,
     );
   }
 
-  final declarations = <String, _ModuleDeclaration>{};
-  for (final module in orderedModules) {
-    final key = _typeKeyFor(module.thisType);
-    final annotation = annotations[key]!;
-    declarations[key] = _ModuleDeclaration(
-      typeKey: key,
-      displayName: module.displayName,
-      moduleElement: module,
+  final names = _containerVariableNames(graph, usedNames: usedNames);
+  final resolvedModules = <String, _ResolvedModule>{};
+  for (final scope in graph.modules) {
+    final moduleElement = scope.declaration.origin! as InterfaceElement;
+    final availableProviders = {
+      for (final MapEntry(:key, :value) in scope.injectable.entries)
+        key: names[value]!,
+    };
+    resolvedModules[scope.key] = _ResolvedModule(
+      typeKey: scope.key,
+      displayName: moduleElement.displayName,
+      moduleElement: moduleElement,
       importedModules: [
-        for (final imported in imports[key]!)
-          declarations[_typeKeyFor(imported.thisType)]!,
+        for (final imported in scope.imports) resolvedModules[imported.key]!,
       ],
-      controllers: _readInterfaceElements(
-        annotation.read('controllers'),
-        element: module,
-        fieldName: 'controllers',
-      ),
-      providers: _readProviderDefinitions(annotation, element: module),
-      exports: _readInterfaceElements(
-        annotation.read('exports'),
-        element: module,
-        fieldName: 'exports',
-      ),
-      isGlobal: annotation.read('global').boolValue,
+      providerInstantiations: [
+        for (final provider in scope.providers)
+          _providerInstantiation(
+            provider,
+            catalog.definitionOf(provider.declaration),
+            names,
+          ),
+      ],
+      controllerBindings: [
+        for (final controller in scope.controllers)
+          _buildControllerBinding(
+            controller.declaration.origin! as InterfaceElement,
+            availableProviders: availableProviders,
+            instanceName: names[controller.instance]!,
+            instantiationCode: _constructionCode(
+              names[controller.instance]!,
+              creationTarget: controller.declaration.token.typeName,
+              arguments: controller.arguments,
+              names: names,
+            ),
+          ),
+      ],
+      externalProviderRequirements: [
+        for (final requirement in scope.externalRequirements)
+          _ExternalProviderRequirement(
+            typeKey: requirement.instance.token.key,
+            typeName: requirement.type.name,
+            typeElement: requirement.type.origin! as InterfaceElement,
+            variableName: names[requirement.instance]!,
+          ),
+      ],
     );
-  }
-  return declarations.values.toList(growable: false);
-}
-
-List<_ProviderDefinition> _readProviderDefinitions(
-  ConstantReader moduleAnnotation, {
-  required Element element,
-}) {
-  final providers = <_ProviderDefinition>[];
-  for (final providerObject in moduleAnnotation.read('providers').listValue) {
-    final providerType = providerObject.toTypeValue();
-    if (providerType is! InterfaceType) {
-      throw InvalidGenerationSourceError(
-        '@Module.providers entries must be class types.',
-        element: element,
-      );
-    }
-    providers.add(
-      _classProviderDefinition(providerType, providerType, element: element),
-    );
-  }
-
-  for (final bindingObject in moduleAnnotation.read('bindings').listValue) {
-    final binding = ConstantReader(bindingObject);
-    final providedType = binding.read('provide').typeValue;
-    if (providedType is! InterfaceType) {
-      throw InvalidGenerationSourceError(
-        '@Module.bindings provide entries must be interface types.',
-        element: element,
-      );
-    }
-    final useClass = binding.read('useClass');
-    if (!useClass.isNull) {
-      providers.add(
-        _classProviderDefinition(
-          providedType,
-          useClass.typeValue,
-          element: element,
-        ),
-      );
-      continue;
-    }
-
-    final factory = binding.read('factory').objectValue.toFunctionValue();
-    if (factory == null) {
-      throw InvalidGenerationSourceError(
-        '@Module.bindings must declare either useClass or a top-level/static factory.',
-        element: element,
-      );
-    }
-    providers.add(_factoryProviderDefinition(providedType, factory));
   }
 
-  return providers;
-}
-
-_ProviderDefinition _classProviderDefinition(
-  InterfaceType providedType,
-  DartType? implementationType, {
-  required Element element,
-}) {
-  if (implementationType is! InterfaceType) {
-    throw InvalidGenerationSourceError(
-      '@Module.bindings useClass entries must be class types.',
-      element: element,
-    );
-  }
-  if (providedType.element.displayName.startsWith('_')) {
-    throw InvalidGenerationSourceError(
-      'Provider token "${providedType.element.displayName}" must be public because generated code references it from another library.',
-      element: providedType.element,
-    );
-  }
-  final implementation = implementationType.element;
-  if (implementation is! ClassElement) {
-    throw InvalidGenerationSourceError(
-      'Provider implementation "${implementation.displayName}" must be a class.',
-      element: implementation,
-    );
-  }
-  if (implementation.displayName.startsWith('_')) {
-    throw InvalidGenerationSourceError(
-      'Provider implementation "${implementation.displayName}" must be public because generated code references it from another library.',
-      element: implementation,
-    );
-  }
-  if (implementation.isAbstract) {
-    throw InvalidGenerationSourceError(
-      'Provider implementation "${implementation.displayName}" must be concrete.',
-      element: implementation,
-    );
-  }
-  if (!providedType.element.library.typeSystem.isSubtypeOf(
-    implementationType,
-    providedType,
-  )) {
-    throw InvalidGenerationSourceError(
-      'Provider implementation "${implementation.displayName}" is not assignable to "${providedType.getDisplayString()}".',
-      element: implementation,
-    );
-  }
-  final constructor = _selectUnnamedConstructor(implementation);
-  return _ProviderDefinition(
-    typeKey: _typeKeyFor(providedType),
-    typeName: providedType.getDisplayString(),
-    tokenElement: providedType.element,
-    providerElement: implementation,
-    creationTarget: implementationType.getDisplayString(),
-    parameters: constructor.formalParameters,
+  return _ResolvedModuleGraph(
+    orderedModules: [
+      for (final scope in graph.modules) resolvedModules[scope.key]!,
+    ],
   );
 }
 
-_ProviderDefinition _factoryProviderDefinition(
-  InterfaceType providedType,
-  ExecutableElement factory,
-) {
-  if (providedType.element.displayName.startsWith('_')) {
-    throw InvalidGenerationSourceError(
-      'Provider token "${providedType.element.displayName}" must be public because generated code references it from another library.',
-      element: providedType.element,
-    );
-  }
-  final enclosingElement = factory.enclosingElement;
-  if (factory.displayName.startsWith('_') ||
-      (enclosingElement is InterfaceElement &&
-          enclosingElement.displayName.startsWith('_'))) {
-    throw InvalidGenerationSourceError(
-      'Provider factory "${factory.displayName}" must be public because generated code references it from another library.',
-      element: factory,
-    );
-  }
-  if (enclosingElement is InterfaceElement && !factory.isStatic) {
-    throw InvalidGenerationSourceError(
-      'Provider factory "${factory.displayName}" must be top-level or static.',
-      element: factory,
-    );
-  }
-  if (_isFutureType(factory.returnType)) {
-    throw InvalidGenerationSourceError(
-      'Provider factory "${factory.displayName}" must be synchronous.',
-      element: factory,
-    );
-  }
-  if (!providedType.element.library.typeSystem.isSubtypeOf(
-    factory.returnType,
-    providedType,
-  )) {
-    throw InvalidGenerationSourceError(
-      'Provider factory "${factory.displayName}" must return an instance assignable to "${providedType.getDisplayString()}".',
-      element: factory,
-    );
-  }
-
-  final invocationTarget = enclosingElement is InterfaceElement
-      ? '${enclosingElement.displayName}.${factory.displayName}'
-      : factory.displayName;
-  return _ProviderDefinition(
-    typeKey: _typeKeyFor(providedType),
-    typeName: providedType.getDisplayString(),
-    tokenElement: providedType.element,
-    providerElement: factory,
-    creationTarget: invocationTarget,
-    parameters: factory.formalParameters,
-  );
-}
-
-Map<String, _DeclaredProvider> _declaredExportsFor(
-  _ModuleDeclaration declaration,
-  Map<String, Map<String, _DeclaredProvider>> cache,
-) {
-  final cached = cache[declaration.typeKey];
-  if (cached != null) return cached;
-  final importedByType = <String, _DeclaredProvider>{};
-  for (final importedModule in declaration.importedModules) {
-    for (final provider in _declaredExportsFor(importedModule, cache).values) {
-      _recordDeclaredProvider(importedByType, provider, declaration);
-    }
-  }
-  final localByType = {
-    for (final provider in declaration.providers)
-      provider.typeKey: _DeclaredProvider(
-        typeKey: provider.typeKey,
-        typeName: provider.typeName,
-        tokenElement: provider.tokenElement,
-        ownerTypeKey: declaration.typeKey,
-        ownerName: declaration.displayName,
-      ),
-  };
-  final exported = <String, _DeclaredProvider>{};
-  for (final exportElement in declaration.exports) {
-    final importedModule = declaration.importedModules.where(
-      (module) => module.typeKey == _typeKeyFor(exportElement.thisType),
-    );
-    if (importedModule.isNotEmpty) {
-      for (final provider in _declaredExportsFor(
-        importedModule.single,
-        cache,
-      ).values) {
-        _recordDeclaredProvider(exported, provider, declaration);
-      }
-      continue;
-    }
-    final provider =
-        localByType[_typeKeyFor(exportElement.thisType)] ??
-        importedByType[_typeKeyFor(exportElement.thisType)];
-    if (provider == null) {
-      continue;
-    }
-    _recordDeclaredProvider(exported, provider, declaration);
-  }
-  cache[declaration.typeKey] = exported;
-  return exported;
-}
-
-void _recordDeclaredProvider(
-  Map<String, _DeclaredProvider> target,
-  _DeclaredProvider provider,
-  _ModuleDeclaration declaration,
-) {
-  final existing = target[provider.typeKey];
-  if (existing != null && existing.ownerTypeKey != provider.ownerTypeKey) {
-    throw InvalidGenerationSourceError(
-      'Module "${declaration.displayName}" exports provider "${provider.typeName}" from more than one source.',
-      element: declaration.moduleElement,
-    );
-  }
-  target[provider.typeKey] = provider;
-}
-
-final class _DeclaredProvider {
-  const _DeclaredProvider({
-    required this.typeKey,
-    required this.typeName,
-    required this.tokenElement,
-    required this.ownerTypeKey,
-    required this.ownerName,
-  });
-
-  final String typeKey;
-  final String typeName;
-  final InterfaceElement tokenElement;
-  final String ownerTypeKey;
-  final String ownerName;
-}
-
-List<_ExternalProviderRequirement> _resolveExternalProviderRequirements(
-  _ModuleDeclaration declaration, {
-  required Map<String, _ResolvedProviderBinding> visibleProviders,
-  required Set<String> localProviderKeys,
-  required Set<String> privateGlobalProviderKeys,
+/// A unique variable name for every object in the container.
+///
+/// Globally exported providers are named first, then each module's external
+/// requirements, providers and controllers, in build order.
+Map<di.InstanceRef, String> _containerVariableNames(
+  di.ResolvedDependencyGraph graph, {
   required Set<String> usedNames,
 }) {
-  final requirements = <String, _ExternalProviderRequirement>{};
+  final names = <di.InstanceRef, String>{};
+  String allocate(di.InstanceRef instance) =>
+      _uniqueName(_lowerCamel(instance.token.name), usedNames);
 
-  void addType(DartType type) {
-    final interfaceType = type is InterfaceType ? type : null;
-    final element = interfaceType?.element;
-    if (element == null || element.displayName == 'Object') return;
-    final typeKey = _dependencyTypeKeyFor(type);
-    if (visibleProviders.containsKey(typeKey) ||
-        localProviderKeys.contains(typeKey)) {
-      return;
-    }
-    if (privateGlobalProviderKeys.contains(typeKey)) {
-      throw InvalidGenerationSourceError(
-        'Module "${declaration.displayName}" requires a private provider that is declared by a global module. Export the provider from that module.',
-        element: declaration.moduleElement,
-      );
-    }
-    if (element.displayName.startsWith('_')) {
-      throw InvalidGenerationSourceError(
-        'Module "${declaration.displayName}" requires private dependency "${element.displayName}", which generated code cannot reference from another library.',
-        element: declaration.moduleElement,
-      );
-    }
-    requirements.putIfAbsent(
-      typeKey,
-      () => _ExternalProviderRequirement(
-        typeKey: typeKey,
-        typeName: element.displayName,
-        typeElement: element,
-        variableName: _uniqueName(_lowerCamel(element.displayName), usedNames),
-      ),
-    );
+  for (final instance in graph.globalExports) {
+    names[instance] = allocate(instance);
   }
-
-  for (final provider in declaration.providers) {
-    for (final parameter in provider.parameters) {
-      if (parameter.isOptional) continue;
-      addType(parameter.type);
+  for (final scope in graph.modules) {
+    for (final requirement in scope.externalRequirements) {
+      names[requirement.instance] = allocate(requirement.instance);
+    }
+    for (final provider in scope.providers) {
+      names.putIfAbsent(provider.instance, () => allocate(provider.instance));
+    }
+    for (final controller in scope.controllers) {
+      names[controller.instance] = allocate(controller.instance);
     }
   }
-  for (final controller in declaration.controllers) {
-    for (final parameter in _selectUnnamedConstructor(
-      controller,
-    ).formalParameters) {
-      if (parameter.isOptional) continue;
-      addType(parameter.type);
-    }
-  }
-  return requirements.values.toList(growable: false);
+  return names;
 }
 
-ConstantReader _readModuleAnnotation(InterfaceElement moduleElement) {
-  final annotation = _moduleChecker.firstAnnotationOfExact(moduleElement);
-  if (annotation == null) {
-    throw InvalidGenerationSourceError(
-      'Module "${moduleElement.displayName}" must be annotated with @Module.',
-      element: moduleElement,
-    );
-  }
-  return ConstantReader(annotation);
-}
-
-List<InterfaceElement> _readModuleElements(
-  ConstantReader reader, {
-  required Element element,
-  required String fieldName,
-}) {
-  final moduleElements = _readInterfaceElements(
-    reader,
-    element: element,
-    fieldName: fieldName,
+_ResolvedInstantiation _providerInstantiation(
+  di.ProviderConstruction construction,
+  _ProviderDefinition definition,
+  Map<di.InstanceRef, String> names,
+) {
+  final variableName = names[construction.instance]!;
+  return _ResolvedInstantiation(
+    typeKey: definition.typeKey,
+    typeName: definition.typeName,
+    variableName: variableName,
+    providerElement: definition.providerElement,
+    tokenElement: definition.tokenElement,
+    code: _constructionCode(
+      variableName,
+      creationTarget: definition.creationTarget,
+      arguments: construction.arguments,
+      names: names,
+    ),
   );
-  for (final moduleElement in moduleElements) {
-    if (!_moduleChecker.hasAnnotationOfExact(moduleElement)) {
-      throw InvalidGenerationSourceError(
-        '@Module.$fieldName entries must be classes annotated with @Module.',
-        element: moduleElement,
-      );
-    }
-  }
-  return moduleElements;
 }
 
-List<InterfaceElement> _readInterfaceElements(
-  ConstantReader reader, {
-  required Element element,
-  required String fieldName,
+/// `final name = Target(positional..., named: ...);`
+String _constructionCode(
+  String variableName, {
+  required String creationTarget,
+  required List<di.ResolvedArgument> arguments,
+  required Map<di.InstanceRef, String> names,
 }) {
-  return reader.listValue
-      .map((object) {
-        final type = object.toTypeValue();
-        if (type is! InterfaceType) {
-          throw InvalidGenerationSourceError(
-            '@Module.$fieldName entries must be class types.',
-            element: element,
-          );
-        }
-        return type.element;
-      })
-      .toList(growable: false);
+  final positional = [
+    for (final argument in arguments)
+      if (!argument.parameter.kind.isNamed) names[argument.instance]!,
+  ];
+  final named = [
+    for (final argument in arguments)
+      if (argument.parameter.kind.isNamed)
+        '${argument.parameter.name}: ${names[argument.instance]!}',
+  ];
+  return 'final $variableName = $creationTarget(${[...positional, ...named].join(', ')});';
 }

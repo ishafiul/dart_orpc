@@ -1,9 +1,13 @@
 part of '../../rpc_module_generator.dart';
 
+/// Analyzes a controller the dependency layer has already planned.
+///
+/// [instanceName] and [instantiationCode] say how the container builds it.
 _ControllerBinding _buildControllerBinding(
   InterfaceElement controllerElement, {
   required Map<String, String> availableProviders,
-  required Set<String> usedNames,
+  required String instanceName,
+  required String instantiationCode,
 }) {
   if (controllerElement is! ClassElement ||
       controllerElement.isAbstract ||
@@ -39,22 +43,6 @@ _ControllerBinding _buildControllerBinding(
     controllerElement,
     ownerLabel: 'controller "${controllerElement.displayName}"',
   );
-  final controllerInstantiation = _tryBuildInstantiation(
-    _classProviderDefinition(
-      controllerElement.thisType,
-      controllerElement.thisType,
-      element: controllerElement,
-    ),
-    availableProviders: availableProviders,
-    usedNames: usedNames,
-  );
-  if (controllerInstantiation == null) {
-    throw InvalidGenerationSourceError(
-      'Unable to resolve controller constructor dependencies for "${controllerElement.displayName}".',
-      element: controllerElement,
-    );
-  }
-
   final procedures = controllerElement.methods
       .where((method) => _rpcMethodChecker.hasAnnotationOfExact(method))
       .map(
@@ -77,8 +65,8 @@ _ControllerBinding _buildControllerBinding(
 
   return _ControllerBinding(
     typeName: controllerElement.displayName,
-    instanceName: controllerInstantiation.variableName,
-    instantiationCode: controllerInstantiation.code,
+    instanceName: instanceName,
+    instantiationCode: instantiationCode,
     controllerElement: controllerElement,
     clientClassName: _clientClassNameFor(controllerElement.displayName),
     clientGetterName: _clientGetterNameFor(namespace),
