@@ -677,6 +677,14 @@ final class SharedModule {
       );
     });
 
+    test('When a binding factory is a constructor tear-off then the generated container calls that constructor', () async {
+      final run = await runModuleBuilder(_constructorFactoryBindingsSource);
+
+      expect(run.succeeded, isTrue, reason: run.errors.join('\n'));
+      expect(run.generatedOutput, contains('final clock = Clock.system();'));
+      expect(run.generatedOutput, contains('final ledger = Ledger(clock);'));
+    });
+
     test('When provider bindings map interfaces and factories then constructor dependencies are injected and optional ones stay optional', () async {
       final run = await runModuleBuilder(_providerBindingsSource);
 
@@ -2317,6 +2325,43 @@ final class SecondService {
   SecondService(this.first);
 
   final FirstService first;
+}
+''';
+
+const _constructorFactoryBindingsSource = r'''
+library example;
+
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+part 'example.g.dart';
+
+@Module(
+  providers: [Report],
+  bindings: [
+    RpcProviderBinding.useFactory(provide: Clock, factory: Clock.system),
+    RpcProviderBinding.useFactory(provide: Ledger, factory: Ledger.new),
+  ],
+)
+final class AppModule {
+  const AppModule();
+}
+
+final class Clock {
+  const Clock._();
+
+  factory Clock.system() => const Clock._();
+}
+
+final class Ledger {
+  const Ledger(this.clock);
+
+  final Clock clock;
+}
+
+final class Report {
+  const Report(this.ledger);
+
+  final Ledger ledger;
 }
 ''';
 
