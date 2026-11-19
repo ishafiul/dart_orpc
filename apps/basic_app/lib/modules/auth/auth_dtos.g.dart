@@ -73,17 +73,17 @@ Map<String, dynamic> _$AuthUserDtoToJson(_AuthUserDto instance) =>
 _AuthResponseDto _$AuthResponseDtoFromJson(Map<String, dynamic> json) =>
     _AuthResponseDto(
       accessToken: json['accessToken'] as String,
-      tokenType: json['tokenType'] as String? ?? 'Bearer',
       expiresIn: (json['expiresIn'] as num).toInt(),
       user: AuthUserDto.fromJson(json['user'] as Map<String, dynamic>),
+      tokenType: json['tokenType'] as String? ?? 'Bearer',
     );
 
 Map<String, dynamic> _$AuthResponseDtoToJson(_AuthResponseDto instance) =>
     <String, dynamic>{
       'accessToken': instance.accessToken,
-      'tokenType': instance.tokenType,
       'expiresIn': instance.expiresIn,
       'user': instance.user,
+      'tokenType': instance.tokenType,
     };
 
 // **************************************************************************
@@ -190,19 +190,19 @@ const AuthUserDtoErrorKeys = (id: "id", name: "name", email: "email");
 // ignore: constant_identifier_names
 const AuthResponseDtoSchemaKeys = (
   accessToken: "accessToken",
-  tokenType: "tokenType",
   expiresIn: "expiresIn",
   user: "user",
+  tokenType: "tokenType",
 );
 
 final SchemaValidator $AuthResponseDtoSchema = l
     .schema({
       AuthResponseDtoSchemaKeys.accessToken: l.string().required(),
-      AuthResponseDtoSchemaKeys.tokenType: l.string(),
       AuthResponseDtoSchemaKeys.expiresIn: l.int().required(),
       AuthResponseDtoSchemaKeys.user: forwardRef(
         () => $AuthUserDtoSchema.required(),
       ),
+      AuthResponseDtoSchemaKeys.tokenType: l.string(),
     })
     .withName("AuthResponseDto");
 
@@ -220,9 +220,9 @@ extension AuthResponseDtoValidationExtension on AuthResponseDto {
 // ignore: constant_identifier_names
 const AuthResponseDtoErrorKeys = (
   accessToken: "accessToken",
-  tokenType: "tokenType",
   expiresIn: "expiresIn",
   user: ($key: "user", id: "user.id", name: "user.name", email: "user.email"),
+  tokenType: "tokenType",
 );
 
 Map<String, Object?> _$luthorJsonMap(Map<Object?, Object?> map) => {

@@ -63,9 +63,9 @@ abstract class AuthUserDto with _$AuthUserDto {
 abstract class AuthResponseDto with _$AuthResponseDto {
   const factory AuthResponseDto({
     required String accessToken,
-    @Default('Bearer') String tokenType,
     required int expiresIn,
     required AuthUserDto user,
+    @Default('Bearer') String tokenType,
   }) = _AuthResponseDto;
 
   factory AuthResponseDto.fromJson(Map<String, dynamic> json) =>

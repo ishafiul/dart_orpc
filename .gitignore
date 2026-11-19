@@ -6,7 +6,9 @@ pubspec.lock
 .melos_tool/
 .agent-memory/  
 .asdf/
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .idea/
 *.iml
 .dart_home/

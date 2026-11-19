@@ -1,7 +1,6 @@
+import 'package:basic_app/modules/todo_analysis/todo_analysis_dtos.dart';
+import 'package:basic_app/modules/todo_analysis/todo_analysis_service.dart';
 import 'package:dart_orpc/dart_orpc.dart';
-
-import 'todo_analysis_dtos.dart';
-import 'todo_analysis_service.dart';
 
 @Controller('todoAnalysis')
 final class TodoAnalysisController {

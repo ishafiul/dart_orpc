@@ -1,0 +1,9 @@
+include: package:dart_orpc_lints/app.yaml
+
+plugins:
+  strict_dart_lints:
+    path: ../../packages/strict_dart_lints
+    diagnostics:
+      no_doc_comments: true
+  dart_orpc_lints:
+    path: ../../packages/dart_orpc_lints

@@ -270,9 +270,11 @@ _ProviderDefinition _factoryProviderDefinition(
       element: factory,
     );
   }
-  if (enclosingElement is InterfaceElement && !factory.isStatic) {
+  if (enclosingElement is InterfaceElement &&
+      !factory.isStatic &&
+      factory is! ConstructorElement) {
     throw InvalidGenerationSourceError(
-      'Provider factory "${factory.displayName}" must be top-level or static.',
+      'Provider factory "${factory.displayName}" must be a top-level function, a static method, or a constructor.',
       element: factory,
     );
   }
@@ -292,9 +294,15 @@ _ProviderDefinition _factoryProviderDefinition(
     );
   }
 
-  final invocationTarget = enclosingElement is InterfaceElement
-      ? '${enclosingElement.displayName}.${factory.displayName}'
-      : factory.displayName;
+  final invocationTarget = switch ((factory, enclosingElement)) {
+    (ConstructorElement(name: null || 'new'), final InterfaceElement owner) =>
+      owner.displayName,
+    (ConstructorElement(:final name?), final InterfaceElement owner) =>
+      '${owner.displayName}.$name',
+    (_, final InterfaceElement owner) =>
+      '${owner.displayName}.${factory.displayName}',
+    _ => factory.displayName,
+  };
   return _ProviderDefinition(
     typeKey: _typeKeyFor(providedType),
     typeName: providedType.getDisplayString(),

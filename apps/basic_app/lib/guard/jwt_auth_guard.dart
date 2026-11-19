@@ -1,32 +1,37 @@
+import 'package:basic_app/environment/app_env.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:dart_orpc/dart_orpc.dart';
 
-import '../environment/app_env.dart';
+const _authorizationHeader = 'authorization';
+const _bearerScheme = 'bearer';
+const _whitespacePattern = r'\s+';
+const _missingToken = 'Bearer token is required.';
+const _wrongScheme = 'Authorization header must use Bearer scheme.';
+const _invalidToken = 'Invalid or expired bearer token.';
 
-/// Verifies Basic App bearer tokens using application-owned JWT policy.
 final class BasicAppJwtAuthGuard implements RpcGuard {
+  static final RegExp _whitespace = RegExp(_whitespacePattern);
+
   @override
   void canActivate(RpcGuardContext context) {
     final authorization = _findHeader(
       context.rpcContext.headers,
-      'authorization',
+      _authorizationHeader,
     );
     if (authorization == null) {
-      throw RpcException.unauthorized('Bearer token is required.');
+      throw RpcException.unauthorized(_missingToken);
     }
 
-    final parts = authorization.trim().split(RegExp(r'\s+'));
-    if (parts.length != 2 || parts.first.toLowerCase() != 'bearer') {
-      throw RpcException.unauthorized(
-        'Authorization header must use Bearer scheme.',
-      );
+    final parts = authorization.trim().split(_whitespace);
+    if (parts.length != 2 || parts.first.toLowerCase() != _bearerScheme) {
+      throw RpcException.unauthorized(_wrongScheme);
     }
 
     final env = context.rpcContext.requireBinding(appEnvKey);
     try {
       JWT.verify(parts[1], SecretKey(env.jwtSecret), issuer: env.jwtIssuer);
-    } on Object {
-      throw RpcException.unauthorized('Invalid or expired bearer token.');
+    } on JWTException {
+      throw RpcException.unauthorized(_invalidToken);
     }
   }
 }

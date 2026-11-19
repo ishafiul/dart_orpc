@@ -1,32 +1,60 @@
 import 'package:dart_orpc/dart_orpc.dart';
 
-final class AppEnv {
-  AppEnv._(EnvReader env) {
-    jwtSecret = env.string('JWT_SECRET', fallback: 'default_secret');
-    jwtIssuer = env.string('JWT_ISSUER', fallback: 'basic_app');
-    jwtLifetime = env.duration(
-      'JWT_EXPIRES_IN_SECONDS',
-      fallback: const Duration(hours: 1),
-    );
-    port = env.port('PORT', fallback: 3000);
-    docsUsername = env.string('DOCS_USERNAME', fallback: 'admin');
-    docsPassword = env.string('DOCS_PASSWORD', fallback: 'password');
-    docsRealm = env.string('DOCS_REALM', fallback: 'Basic App Docs');
-  }
+const _jwtSecretKey = 'JWT_SECRET';
+const _jwtIssuerKey = 'JWT_ISSUER';
+const _jwtLifetimeKey = 'JWT_EXPIRES_IN_SECONDS';
+const _portKey = 'PORT';
+const _docsUsernameKey = 'DOCS_USERNAME';
+const _docsPasswordKey = 'DOCS_PASSWORD';
+const _docsRealmKey = 'DOCS_REALM';
+const _otlpEndpointKey = 'OTEL_EXPORTER_OTLP_ENDPOINT';
 
-  factory AppEnv.load({String path = '.env'}) =>
-      AppEnv._(EnvReader.load(path: path));
+const _defaultJwtSecret = 'default_secret';
+const _defaultJwtIssuer = 'basic_app';
+const _defaultJwtLifetime = Duration(hours: 1);
+const _defaultPort = 3000;
+const _defaultDocsUsername = 'admin';
+const _defaultDocsPassword = 'password';
+const _defaultDocsRealm = 'Basic App Docs';
+const _defaultEnvFile = '.env';
+
+final class AppEnv {
+  const AppEnv._({
+    required this.jwtSecret,
+    required this.jwtIssuer,
+    required this.jwtLifetime,
+    required this.port,
+    required this.docsUsername,
+    required this.docsPassword,
+    required this.docsRealm,
+    required this.otlpEndpoint,
+  });
+
+  factory AppEnv._read(EnvReader env) => AppEnv._(
+    jwtSecret: env.string(_jwtSecretKey, fallback: _defaultJwtSecret),
+    jwtIssuer: env.string(_jwtIssuerKey, fallback: _defaultJwtIssuer),
+    jwtLifetime: env.duration(_jwtLifetimeKey, fallback: _defaultJwtLifetime),
+    port: env.port(_portKey, fallback: _defaultPort),
+    docsUsername: env.string(_docsUsernameKey, fallback: _defaultDocsUsername),
+    docsPassword: env.string(_docsPasswordKey, fallback: _defaultDocsPassword),
+    docsRealm: env.string(_docsRealmKey, fallback: _defaultDocsRealm),
+    otlpEndpoint: env.optionalUri(_otlpEndpointKey),
+  );
+
+  factory AppEnv.load({String path = _defaultEnvFile}) =>
+      AppEnv._read(EnvReader.load(path: path));
 
   factory AppEnv.fromMap(Map<String, String> values) =>
-      AppEnv._(EnvReader.fromMap(values));
+      AppEnv._read(EnvReader.fromMap(values));
 
-  late final String jwtSecret;
-  late final String jwtIssuer;
-  late final Duration jwtLifetime;
-  late final int port;
-  late final String docsUsername;
-  late final String docsPassword;
-  late final String docsRealm;
+  final String jwtSecret;
+  final String jwtIssuer;
+  final Duration jwtLifetime;
+  final int port;
+  final String docsUsername;
+  final String docsPassword;
+  final String docsRealm;
+  final Uri? otlpEndpoint;
 }
 
 const appEnvKey = RpcContextKey<AppEnv>('basic_app.env');

@@ -1417,7 +1417,7 @@ $TodoMetadataDtoCopyWith<$Res>? get metadata {
 /// @nodoc
 mixin _$TodoChangeResponseDto {
 
- String get type; TodoResponseDto get todo;
+ TodoChangeType get type; TodoResponseDto get todo;
 /// Create a copy of TodoChangeResponseDto
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1455,7 +1455,7 @@ abstract mixin class $TodoChangeResponseDtoCopyWith<$Res>  {
   factory $TodoChangeResponseDtoCopyWith(TodoChangeResponseDto value, $Res Function(TodoChangeResponseDto) _then) = _$TodoChangeResponseDtoCopyWithImpl;
 @useResult
 $Res call({
- String type, TodoResponseDto todo
+ TodoChangeType type, TodoResponseDto todo
 });
 
 
@@ -1475,7 +1475,7 @@ class _$TodoChangeResponseDtoCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') @override $Res call({Object? type = null,Object? todo = null,}) {
   return _then(TodoChangeResponseDto(
 type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
-as String,todo: null == todo ? _self.todo : todo // ignore: cast_nullable_to_non_nullable
+as TodoChangeType,todo: null == todo ? _self.todo : todo // ignore: cast_nullable_to_non_nullable
 as TodoResponseDto,
   ));
 }
@@ -1570,7 +1570,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String type,  TodoResponseDto todo)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( TodoChangeType type,  TodoResponseDto todo)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _TodoChangeResponseDto() when $default != null:
 return $default(_that.type,_that.todo);case _:
@@ -1591,7 +1591,7 @@ return $default(_that.type,_that.todo);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String type,  TodoResponseDto todo)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( TodoChangeType type,  TodoResponseDto todo)  $default,) {final _that = this;
 switch (_that) {
 case _TodoChangeResponseDto():
 return $default(_that.type,_that.todo);case _:
@@ -1611,7 +1611,7 @@ return $default(_that.type,_that.todo);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String type,  TodoResponseDto todo)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( TodoChangeType type,  TodoResponseDto todo)?  $default,) {final _that = this;
 switch (_that) {
 case _TodoChangeResponseDto() when $default != null:
 return $default(_that.type,_that.todo);case _:
@@ -1629,7 +1629,7 @@ class _TodoChangeResponseDto implements TodoChangeResponseDto {
   const _TodoChangeResponseDto({required this.type, required this.todo});
   factory _TodoChangeResponseDto.fromJson(Map<String, dynamic> json) => _$TodoChangeResponseDtoFromJson(json);
 
-@override final  String type;
+@override final  TodoChangeType type;
 @override final  TodoResponseDto todo;
 
 /// Create a copy of TodoChangeResponseDto
@@ -1667,7 +1667,7 @@ abstract mixin class _$TodoChangeResponseDtoCopyWith<$Res> implements $TodoChang
   factory _$TodoChangeResponseDtoCopyWith(_TodoChangeResponseDto value, $Res Function(_TodoChangeResponseDto) _then) = __$TodoChangeResponseDtoCopyWithImpl;
 @override @useResult
 $Res call({
- String type, TodoResponseDto todo
+ TodoChangeType type, TodoResponseDto todo
 });
 
 
@@ -1687,7 +1687,7 @@ class __$TodoChangeResponseDtoCopyWithImpl<$Res>
 @override @pragma('vm:prefer-inline') $Res call({Object? type = null,Object? todo = null,}) {
   return _then(_TodoChangeResponseDto(
 type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
-as String,todo: null == todo ? _self.todo : todo // ignore: cast_nullable_to_non_nullable
+as TodoChangeType,todo: null == todo ? _self.todo : todo // ignore: cast_nullable_to_non_nullable
 as TodoResponseDto,
   ));
 }

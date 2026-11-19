@@ -108,13 +108,22 @@ Map<String, dynamic> _$TodoResponseDtoToJson(_TodoResponseDto instance) =>
 _TodoChangeResponseDto _$TodoChangeResponseDtoFromJson(
   Map<String, dynamic> json,
 ) => _TodoChangeResponseDto(
-  type: json['type'] as String,
+  type: $enumDecode(_$TodoChangeTypeEnumMap, json['type']),
   todo: TodoResponseDto.fromJson(json['todo'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$TodoChangeResponseDtoToJson(
   _TodoChangeResponseDto instance,
-) => <String, dynamic>{'type': instance.type, 'todo': instance.todo};
+) => <String, dynamic>{
+  'type': _$TodoChangeTypeEnumMap[instance.type]!,
+  'todo': instance.todo,
+};
+
+const _$TodoChangeTypeEnumMap = {
+  TodoChangeType.created: 'created',
+  TodoChangeType.updated: 'updated',
+  TodoChangeType.deleted: 'deleted',
+};
 
 _TodoListResponseDto _$TodoListResponseDtoFromJson(Map<String, dynamic> json) =>
     _TodoListResponseDto(
@@ -282,7 +291,11 @@ const TodoChangeResponseDtoSchemaKeys = (type: "type", todo: "todo");
 
 final SchemaValidator $TodoChangeResponseDtoSchema = l
     .schema({
-      TodoChangeResponseDtoSchemaKeys.type: l.string().required(),
+      TodoChangeResponseDtoSchemaKeys.type: l.oneOf([
+        "created",
+        "updated",
+        "deleted",
+      ]).required(),
       TodoChangeResponseDtoSchemaKeys.todo: forwardRef(
         () => $TodoResponseDtoSchema.required(),
       ),

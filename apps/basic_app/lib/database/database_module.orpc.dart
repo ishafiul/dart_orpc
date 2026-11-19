@@ -22,7 +22,7 @@ class _$DatabaseModuleContainer {
 }
 
 _$DatabaseModuleContainer _$createDatabaseModuleContainer() {
-  final appDatabase = AppDatabase();
+  final appDatabase = AppDatabase.atDefaultPath();
 
   return _$DatabaseModuleContainer(appDatabase: appDatabase);
 }
@@ -111,6 +111,7 @@ RpcHttpApp _$buildDatabaseModuleRpcApp({
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
   Iterable<RpcHttpMiddleware> middleware = const [],
+  RpcObserver? observer,
 }) {
   final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();
   final effectiveDocs = docs ?? const RpcHttpDocsOptions();
@@ -151,9 +152,14 @@ RpcHttpApp _$buildDatabaseModuleRpcApp({
     requestBodyIdleTimeout: requestBodyIdleTimeout,
     serverOptions: serverOptions,
     middleware: middleware,
+    observer: observer,
     upgradeHandlers: [
       if (webSocket != null)
-        RpcWebSocketUpgradeHandler(procedures: procedures, options: webSocket),
+        RpcWebSocketUpgradeHandler(
+          procedures: procedures,
+          options: webSocket,
+          observer: observer,
+        ),
     ],
   );
 }
@@ -174,6 +180,7 @@ RpcHttpApp dartOrpcBuildDatabaseModuleRpcApp({
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
   Iterable<RpcHttpMiddleware> middleware = const [],
+  RpcObserver? observer,
 }) => _$buildDatabaseModuleRpcApp(
   openApi: openApi,
   docs: docs,
@@ -190,6 +197,7 @@ RpcHttpApp dartOrpcBuildDatabaseModuleRpcApp({
   requestBodyIdleTimeout: requestBodyIdleTimeout,
   serverOptions: serverOptions,
   middleware: middleware,
+  observer: observer,
 );
 
 DtoSchemaRegistry _$createDatabaseModuleLocalDtoSchemaRegistry() {
@@ -239,6 +247,7 @@ extension DartOrpcDatabaseModuleGenerated on DatabaseModule {
     Duration? requestBodyIdleTimeout,
     RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
     Iterable<RpcHttpMiddleware> middleware = const [],
+    RpcObserver? observer,
   }) => dartOrpcBuildDatabaseModuleRpcApp(
     openApi: openApi,
     docs: docs,
@@ -255,6 +264,7 @@ extension DartOrpcDatabaseModuleGenerated on DatabaseModule {
     requestBodyIdleTimeout: requestBodyIdleTimeout,
     serverOptions: serverOptions,
     middleware: middleware,
+    observer: observer,
   );
   DatabaseClient createClient({required RpcClientTransports transports}) =>
       DatabaseClient(transports: transports);

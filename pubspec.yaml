@@ -15,7 +15,10 @@ workspace:
   - packages/dart_orpc_luthor
   - packages/dart_orpc_openapi
   - packages/dart_orpc_websocket
+  - packages/dart_orpc_lints
+  - packages/dart_orpc_logger
   - packages/rust_http
+  - packages/strict_dart_lints
   - apps/basic_app
   - apps/client_app
 

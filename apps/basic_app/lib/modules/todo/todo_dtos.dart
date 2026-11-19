@@ -63,11 +63,13 @@ abstract class TodoResponseDto with _$TodoResponseDto {
       _$TodoResponseDtoFromJson(json);
 }
 
+enum TodoChangeType { created, updated, deleted }
+
 @luthor
 @freezed
 abstract class TodoChangeResponseDto with _$TodoChangeResponseDto {
   const factory TodoChangeResponseDto({
-    required String type,
+    required TodoChangeType type,
     required TodoResponseDto todo,
   }) = _TodoChangeResponseDto;
 

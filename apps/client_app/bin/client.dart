@@ -52,7 +52,7 @@ Future<void> main(List<String> args) async {
       'through RPC/REST; press Ctrl+C to stop.',
     );
     await for (final change in client.todo.watchLive()) {
-      _printStep('todo.watchLive (${change.type})', change.todo.toJson());
+      _printStep('todo.watchLive (${change.type.name})', change.todo.toJson());
     }
   } on RpcException catch (error) {
     _printStep('rpc.error', {

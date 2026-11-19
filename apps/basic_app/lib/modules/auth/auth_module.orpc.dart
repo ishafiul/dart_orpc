@@ -84,15 +84,6 @@ RpcProcedureRegistry _$createAuthModuleProcedureRegistryFromContainer(
       handler: (context, input) =>
           container.authController.login(context, input),
     ),
-    RpcUnaryProcedure<Null, int>(
-      method: 'auth.test',
-      decodeInput: (rawInput) =>
-          expectNoRpcInput(rawInput, context: 'RPC method "auth.test"'),
-      encodeOutput: (output) => output,
-      metadata: metadataRegistry['auth.test']!,
-
-      handler: (context, input) => container.authController.test(context),
-    ),
   ]);
 }
 
@@ -172,15 +163,6 @@ RestRouteRegistry _$createAuthModuleRestRouteRegistryFromContainer(
       },
       metadata: metadataRegistry['auth.login']!,
     ),
-    RestUnaryRoute(
-      method: 'POST',
-      path: '/auth/test',
-      handler: (context, request, pathParameters) async {
-        final output = await container.authController.test(context);
-        return output;
-      },
-      metadata: metadataRegistry['auth.test']!,
-    ),
   ]);
 }
 
@@ -232,15 +214,6 @@ final ProcedureMetadataRegistry _$authModuleProcedureMetadata =
           ),
         ],
       ),
-      const ProcedureMetadata(
-        rpcMethod: 'auth.test',
-        controllerNamespace: 'auth',
-        methodName: 'test',
-        path: RestProcedureMetadata(method: 'POST', path: '/auth/test'),
-        outputTypeCode: 'int',
-        description: 'Authenticate with email and password.',
-        tags: ['auth'],
-      ),
     ]);
 
 ProcedureMetadataRegistry _$createAuthModuleProcedureMetadataRegistry() =>
@@ -284,6 +257,7 @@ RpcHttpApp _$buildAuthModuleRpcApp({
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
   Iterable<RpcHttpMiddleware> middleware = const [],
+  RpcObserver? observer,
 }) {
   final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();
   final effectiveDocs = docs ?? const RpcHttpDocsOptions();
@@ -324,9 +298,14 @@ RpcHttpApp _$buildAuthModuleRpcApp({
     requestBodyIdleTimeout: requestBodyIdleTimeout,
     serverOptions: serverOptions,
     middleware: middleware,
+    observer: observer,
     upgradeHandlers: [
       if (webSocket != null)
-        RpcWebSocketUpgradeHandler(procedures: procedures, options: webSocket),
+        RpcWebSocketUpgradeHandler(
+          procedures: procedures,
+          options: webSocket,
+          observer: observer,
+        ),
     ],
   );
 }
@@ -348,6 +327,7 @@ RpcHttpApp dartOrpcBuildAuthModuleRpcApp({
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
   Iterable<RpcHttpMiddleware> middleware = const [],
+  RpcObserver? observer,
 }) => _$buildAuthModuleRpcApp(
   appDatabase: appDatabase,
   openApi: openApi,
@@ -365,6 +345,7 @@ RpcHttpApp dartOrpcBuildAuthModuleRpcApp({
   requestBodyIdleTimeout: requestBodyIdleTimeout,
   serverOptions: serverOptions,
   middleware: middleware,
+  observer: observer,
 );
 
 DtoSchemaRegistry _$createAuthModuleLocalDtoSchemaRegistry() {
@@ -373,13 +354,13 @@ DtoSchemaRegistry _$createAuthModuleLocalDtoSchemaRegistry() {
       name: 'AuthResponseDto',
       fields: [
         DtoFieldMetadata(wireName: 'accessToken', type: DtoStringType()),
+        DtoFieldMetadata(wireName: 'expiresIn', type: DtoIntegerType()),
+        DtoFieldMetadata(wireName: 'user', type: DtoObjectType('AuthUserDto')),
         DtoFieldMetadata(
           wireName: 'tokenType',
           type: DtoStringType(),
           required: false,
         ),
-        DtoFieldMetadata(wireName: 'expiresIn', type: DtoIntegerType()),
-        DtoFieldMetadata(wireName: 'user', type: DtoObjectType('AuthUserDto')),
       ],
     ),
     DtoSchemaMetadata(
@@ -497,14 +478,6 @@ class AuthClient {
           ),
         );
   }
-
-  Future<int> test() {
-    return RpcCaller(_transports.requireUnary('auth.test')).call<int>(
-      method: 'auth.test',
-      options: null,
-      decode: (json) => json as int,
-    );
-  }
 }
 
 extension DartOrpcAuthModuleGenerated on AuthModule {
@@ -535,6 +508,7 @@ extension DartOrpcAuthModuleGenerated on AuthModule {
     Duration? requestBodyIdleTimeout,
     RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
     Iterable<RpcHttpMiddleware> middleware = const [],
+    RpcObserver? observer,
   }) => dartOrpcBuildAuthModuleRpcApp(
     appDatabase: appDatabase,
     openApi: openApi,
@@ -552,6 +526,7 @@ extension DartOrpcAuthModuleGenerated on AuthModule {
     requestBodyIdleTimeout: requestBodyIdleTimeout,
     serverOptions: serverOptions,
     middleware: middleware,
+    observer: observer,
   );
   AuthClientRoot createClient({required RpcClientTransports transports}) =>
       AuthClientRoot(transports: transports);

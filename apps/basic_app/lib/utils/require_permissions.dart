@@ -1,11 +1,33 @@
 import 'package:dart_orpc/dart_orpc.dart';
 
-@RpcMetadata('permissions')
+const permissionMetadataKey = 'permissions';
+const grantedPermissionsAttribute = 'permissions';
+
+const _anyOfField = 'anyOf';
+const _allOfField = 'allOf';
+const _requirePermissionsShape =
+    'RequirePermissions expects exactly one of anyOf or allOf.';
+const _permissionRuleShape =
+    'PermissionRule expects exactly one of anyOf or allOf.';
+
+String _ambiguousRule(String procedure) =>
+    'Permission metadata for "$procedure" must declare exactly one of '
+    '"$_anyOfField" or "$_allOfField".';
+
+String _notAList(String field, String procedure) =>
+    'Permission metadata field "$field" for "$procedure" must be a list of '
+    'strings.';
+
+String _emptyPermission(String field, String procedure) =>
+    'Permission metadata field "$field" for "$procedure" must contain '
+    'non-empty strings.';
+
+@RpcMetadata(permissionMetadataKey)
 final class RequirePermissions {
   const RequirePermissions({this.anyOf, this.allOf})
     : assert(
         (anyOf == null) != (allOf == null),
-        'RequirePermissions expects exactly one of anyOf or allOf.',
+        _requirePermissionsShape,
       );
 
   final List<String>? anyOf;
@@ -16,11 +38,8 @@ final class PermissionRule {
   const PermissionRule({this.anyOf, this.allOf})
     : assert(
         (anyOf == null) != (allOf == null),
-        'PermissionRule expects exactly one of anyOf or allOf.',
+        _permissionRuleShape,
       );
-
-  final List<String>? anyOf;
-  final List<String>? allOf;
 
   factory PermissionRule.fromMetadata(
     JsonObject metadata, {
@@ -28,23 +47,23 @@ final class PermissionRule {
   }) {
     final anyOf = _readPermissionList(
       metadata,
-      field: 'anyOf',
+      field: _anyOfField,
       procedure: procedure,
     );
     final allOf = _readPermissionList(
       metadata,
-      field: 'allOf',
+      field: _allOfField,
       procedure: procedure,
     );
     if ((anyOf == null) == (allOf == null)) {
-      throw RpcException.internalError(
-        'Permission metadata for "$procedure" must declare exactly one of '
-        '"anyOf" or "allOf".',
-      );
+      throw RpcException.internalError(_ambiguousRule(procedure));
     }
 
     return PermissionRule(anyOf: anyOf, allOf: allOf);
   }
+
+  final List<String>? anyOf;
+  final List<String>? allOf;
 }
 
 List<String>? _readPermissionList(
@@ -57,17 +76,13 @@ List<String>? _readPermissionList(
     return null;
   }
   if (value is! List) {
-    throw RpcException.internalError(
-      'Permission metadata field "$field" for "$procedure" must be a list of strings.',
-    );
+    throw RpcException.internalError(_notAList(field, procedure));
   }
 
   final permissions = <String>[];
   for (final item in value) {
     if (item is! String || item.trim().isEmpty) {
-      throw RpcException.internalError(
-        'Permission metadata field "$field" for "$procedure" must contain non-empty strings.',
-      );
+      throw RpcException.internalError(_emptyPermission(field, procedure));
     }
     permissions.add(item);
   }

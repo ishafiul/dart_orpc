@@ -172,6 +172,7 @@ RpcHttpApp _$buildStripModuleRpcApp({
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
   Iterable<RpcHttpMiddleware> middleware = const [],
+  RpcObserver? observer,
 }) {
   final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();
   final effectiveDocs = docs ?? const RpcHttpDocsOptions();
@@ -212,9 +213,14 @@ RpcHttpApp _$buildStripModuleRpcApp({
     requestBodyIdleTimeout: requestBodyIdleTimeout,
     serverOptions: serverOptions,
     middleware: middleware,
+    observer: observer,
     upgradeHandlers: [
       if (webSocket != null)
-        RpcWebSocketUpgradeHandler(procedures: procedures, options: webSocket),
+        RpcWebSocketUpgradeHandler(
+          procedures: procedures,
+          options: webSocket,
+          observer: observer,
+        ),
     ],
   );
 }
@@ -235,6 +241,7 @@ RpcHttpApp dartOrpcBuildStripModuleRpcApp({
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
   Iterable<RpcHttpMiddleware> middleware = const [],
+  RpcObserver? observer,
 }) => _$buildStripModuleRpcApp(
   openApi: openApi,
   docs: docs,
@@ -251,6 +258,7 @@ RpcHttpApp dartOrpcBuildStripModuleRpcApp({
   requestBodyIdleTimeout: requestBodyIdleTimeout,
   serverOptions: serverOptions,
   middleware: middleware,
+  observer: observer,
 );
 
 DtoSchemaRegistry _$createStripModuleLocalDtoSchemaRegistry() {
@@ -329,6 +337,7 @@ extension DartOrpcStripModuleGenerated on StripModule {
     Duration? requestBodyIdleTimeout,
     RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
     Iterable<RpcHttpMiddleware> middleware = const [],
+    RpcObserver? observer,
   }) => dartOrpcBuildStripModuleRpcApp(
     openApi: openApi,
     docs: docs,
@@ -345,6 +354,7 @@ extension DartOrpcStripModuleGenerated on StripModule {
     requestBodyIdleTimeout: requestBodyIdleTimeout,
     serverOptions: serverOptions,
     middleware: middleware,
+    observer: observer,
   );
   StripClientRoot createClient({required RpcClientTransports transports}) =>
       StripClientRoot(transports: transports);

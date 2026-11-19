@@ -804,6 +804,7 @@ RpcHttpApp _$buildTodoModuleRpcApp({
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
   Iterable<RpcHttpMiddleware> middleware = const [],
+  RpcObserver? observer,
 }) {
   final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();
   final effectiveDocs = docs ?? const RpcHttpDocsOptions();
@@ -844,9 +845,14 @@ RpcHttpApp _$buildTodoModuleRpcApp({
     requestBodyIdleTimeout: requestBodyIdleTimeout,
     serverOptions: serverOptions,
     middleware: middleware,
+    observer: observer,
     upgradeHandlers: [
       if (webSocket != null)
-        RpcWebSocketUpgradeHandler(procedures: procedures, options: webSocket),
+        RpcWebSocketUpgradeHandler(
+          procedures: procedures,
+          options: webSocket,
+          observer: observer,
+        ),
     ],
   );
 }
@@ -868,6 +874,7 @@ RpcHttpApp dartOrpcBuildTodoModuleRpcApp({
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
   Iterable<RpcHttpMiddleware> middleware = const [],
+  RpcObserver? observer,
 }) => _$buildTodoModuleRpcApp(
   appDatabase: appDatabase,
   openApi: openApi,
@@ -885,6 +892,7 @@ RpcHttpApp dartOrpcBuildTodoModuleRpcApp({
   requestBodyIdleTimeout: requestBodyIdleTimeout,
   serverOptions: serverOptions,
   middleware: middleware,
+  observer: observer,
 );
 
 DtoSchemaRegistry _$createTodoModuleLocalDtoSchemaRegistry() {
@@ -918,7 +926,10 @@ DtoSchemaRegistry _$createTodoModuleLocalDtoSchemaRegistry() {
     DtoSchemaMetadata(
       name: 'TodoChangeResponseDto',
       fields: [
-        DtoFieldMetadata(wireName: 'type', type: DtoStringType()),
+        DtoFieldMetadata(
+          wireName: 'type',
+          type: DtoEnumType(['created', 'updated', 'deleted']),
+        ),
         DtoFieldMetadata(
           wireName: 'todo',
           type: DtoObjectType('TodoResponseDto'),
@@ -1165,6 +1176,7 @@ extension DartOrpcTodoModuleGenerated on TodoModule {
     Duration? requestBodyIdleTimeout,
     RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
     Iterable<RpcHttpMiddleware> middleware = const [],
+    RpcObserver? observer,
   }) => dartOrpcBuildTodoModuleRpcApp(
     appDatabase: appDatabase,
     openApi: openApi,
@@ -1182,6 +1194,7 @@ extension DartOrpcTodoModuleGenerated on TodoModule {
     requestBodyIdleTimeout: requestBodyIdleTimeout,
     serverOptions: serverOptions,
     middleware: middleware,
+    observer: observer,
   );
   TodoClientRoot createClient({required RpcClientTransports transports}) =>
       TodoClientRoot(transports: transports);

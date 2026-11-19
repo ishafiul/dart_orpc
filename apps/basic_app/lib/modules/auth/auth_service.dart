@@ -1,10 +1,14 @@
+import 'package:basic_app/database/app_database.dart';
+import 'package:basic_app/environment/app_env.dart';
+import 'package:basic_app/modules/auth/auth_dtos.dart';
 import 'package:bcrypt/bcrypt.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:dart_orpc/dart_orpc.dart';
 
-import '../../database/app_database.dart';
-import '../../environment/app_env.dart';
-import 'auth_dtos.dart';
+const _emailClaim = 'email';
+const _nameClaim = 'name';
+const _emailTaken = 'An account with this email already exists.';
+const _invalidCredentials = 'Invalid email or password.';
 
 final class AuthService {
   AuthService(this.db);
@@ -17,7 +21,7 @@ final class AuthService {
       db.users,
     )..where((user) => user.email.equals(email))).getSingleOrNull();
     if (existingUser != null) {
-      throw RpcException.conflict('An account with this email already exists.');
+      throw RpcException.conflict(_emailTaken);
     }
 
     final id = await db
@@ -41,7 +45,7 @@ final class AuthService {
       db.users,
     )..where((user) => user.email.equals(email))).getSingleOrNull();
     if (user == null || !BCrypt.checkpw(input.password, user.passwordHash)) {
-      throw RpcException.unauthorized('Invalid email or password.');
+      throw RpcException.unauthorized(_invalidCredentials);
     }
     return _createAuthResponse(user, env);
   }
@@ -49,7 +53,7 @@ final class AuthService {
   AuthResponseDto _createAuthResponse(User user, AppEnv env) {
     final userId = user.id.toString();
     final token = JWT(
-      {'email': user.email, 'name': user.name},
+      {_emailClaim: user.email, _nameClaim: user.name},
       subject: userId,
       issuer: env.jwtIssuer,
     ).sign(SecretKey(env.jwtSecret), expiresIn: env.jwtLifetime);

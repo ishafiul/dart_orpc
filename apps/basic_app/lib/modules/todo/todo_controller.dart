@@ -1,11 +1,10 @@
+import 'package:basic_app/guard/jwt_auth_guard.dart';
+import 'package:basic_app/guard/logger_guard.dart';
 import 'package:basic_app/guard/permission_guard.dart';
+import 'package:basic_app/modules/todo/todo_dtos.dart';
+import 'package:basic_app/modules/todo/todo_service.dart';
 import 'package:basic_app/utils/require_permissions.dart';
 import 'package:dart_orpc/dart_orpc.dart';
-
-import '../../guard/logger_guard.dart';
-import '../../guard/jwt_auth_guard.dart';
-import 'todo_dtos.dart';
-import 'todo_service.dart';
 
 @BearerAuth(guard: BasicAppJwtAuthGuard)
 @UseGuards([BasicAppJwtAuthGuard, TodoRouteLoggerGuard, TodoPermissionGuard])
@@ -33,12 +32,8 @@ final class TodoController {
     description: 'Stream the current todo snapshot as validated events.',
     tags: ['todo'],
   )
-  Stream<TodoResponseDto> watch(RpcContext context) async* {
-    final snapshot = await todoService.list();
-    for (final todo in snapshot.items) {
-      context.cancellation.throwIfCancelled();
-      yield todo;
-    }
+  Stream<TodoResponseDto> watch(RpcContext context) {
+    return todoService.watchSnapshot(context.cancellation);
   }
 
   @RequirePermissions(anyOf: ['todo.read', 'todo.admin'])

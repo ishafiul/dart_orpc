@@ -1,0 +1,10 @@
+include: package:strict_dart_lints/strict.yaml
+
+linter:
+  rules:
+    - comment_references
+    - dangling_library_doc_comments
+    - missing_code_block_language_in_doc_comment
+    - public_member_api_docs
+    - slash_for_doc_comments
+    - unintended_html_in_doc_comment

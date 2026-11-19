@@ -20,8 +20,10 @@ dependencies:
 dev_dependencies:
   build_runner: ^2.16.2
   dart_orpc_generator: ^0.1.0-dev.12
+  dart_orpc_lints: ^0.1.0-dev.1
   drift_dev: ^2.35.3
   freezed: ^4.0.3
   json_serializable: ^6.15.2
   luthor_generator: ^1.1.0
+  strict_dart_lints: ^0.1.0-dev.1
   test: ^1.33.0

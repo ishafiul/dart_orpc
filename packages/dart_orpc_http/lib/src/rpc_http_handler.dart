@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:dart_orpc_core/dart_orpc_core.dart';
 
 import 'rpc_http_metrics.dart';
+import 'rpc_observer.dart';
 
 typedef RpcHttpHandler = Future<RpcHttpResponse> Function(
   RpcHttpRequest request,
@@ -944,6 +945,7 @@ Future<RpcHttpResponse> _handleRpcRequest(
       }
     }
     final rpcRequest = RpcRequest.fromJson(jsonBody);
+    currentRpcCallObservation()?.identify(rpcRequest.method);
     final context = await _buildContext(
       request,
       path: path,
@@ -993,6 +995,9 @@ Future<RpcHttpResponse> _handleRestRequest(
     );
 
     final metadata = match.route.metadata;
+    if (metadata != null) {
+      currentRpcCallObservation()?.identify(metadata.rpcMethod);
+    }
     if (metadata != null && match.route.guards.isNotEmpty) {
       await runRpcGuards(
         match.route.guards,
