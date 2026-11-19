@@ -3,6 +3,72 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-11-19
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`dart_orpc` - `v0.1.0-dev.12`](#dart_orpc---v010-dev12)
+ - [`dart_orpc_core` - `v0.1.0-dev.10`](#dart_orpc_core---v010-dev10)
+ - [`dart_orpc_generator` - `v0.1.0-dev.13`](#dart_orpc_generator---v010-dev13)
+ - [`dart_orpc_http` - `v0.1.0-dev.12`](#dart_orpc_http---v010-dev12)
+ - [`dart_orpc_lints` - `v0.1.0-dev.2`](#dart_orpc_lints---v010-dev2)
+ - [`dart_orpc_logger` - `v0.1.0-dev.2`](#dart_orpc_logger---v010-dev2)
+ - [`dart_orpc_websocket` - `v0.1.0-dev.12`](#dart_orpc_websocket---v010-dev12)
+ - [`strict_dart_lints` - `v0.1.0-dev.2`](#strict_dart_lints---v010-dev2)
+
+Packages with other changes:
+
+ - [`dart_orpc_client` - `v0.1.0-dev.10`](#dart_orpc_client---v010-dev10)
+ - [`dart_orpc_luthor` - `v0.1.0-dev.10`](#dart_orpc_luthor---v010-dev10)
+ - [`dart_orpc_openapi` - `v0.1.0-dev.11`](#dart_orpc_openapi---v010-dev11)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `dart_orpc_client` - `v0.1.0-dev.10`
+ - `dart_orpc_luthor` - `v0.1.0-dev.10`
+ - `dart_orpc_openapi` - `v0.1.0-dev.11`
+
+---
+
+#### `dart_orpc` - `v0.1.0-dev.12`
+
+ - **BREAKING** **FEAT**: Strict lint packages, dart_orpc_logger telemetry, and Delay/RetryPolicy (#125).
+
+#### `dart_orpc_core` - `v0.1.0-dev.10`
+
+ - **BREAKING** **FEAT**: Strict lint packages, dart_orpc_logger telemetry, and Delay/RetryPolicy (#125).
+
+#### `dart_orpc_generator` - `v0.1.0-dev.13`
+
+ - **BREAKING** **FEAT**: Strict lint packages, dart_orpc_logger telemetry, and Delay/RetryPolicy (#125).
+
+#### `dart_orpc_http` - `v0.1.0-dev.12`
+
+ - **BREAKING** **FEAT**: Strict lint packages, dart_orpc_logger telemetry, and Delay/RetryPolicy (#125).
+
+#### `dart_orpc_lints` - `v0.1.0-dev.2`
+
+ - **BREAKING** **FEAT**: Strict lint packages, dart_orpc_logger telemetry, and Delay/RetryPolicy (#125).
+
+#### `dart_orpc_logger` - `v0.1.0-dev.2`
+
+ - **BREAKING** **FEAT**: Strict lint packages, dart_orpc_logger telemetry, and Delay/RetryPolicy (#125).
+
+#### `dart_orpc_websocket` - `v0.1.0-dev.12`
+
+ - **BREAKING** **FEAT**: Strict lint packages, dart_orpc_logger telemetry, and Delay/RetryPolicy (#125).
+
+#### `strict_dart_lints` - `v0.1.0-dev.2`
+
+ - **BREAKING** **FEAT**: Strict lint packages, dart_orpc_logger telemetry, and Delay/RetryPolicy (#125).
+
+
 ## 2026-11-17
 
 ### Changes

@@ -1,6 +1,6 @@
 name: strict_dart_lints
 description: Strict analyzer presets and analyzer-plugin rules that stop quick fixes, comments as documentation, and hidden escape hatches in Dart code.
-version: 0.1.0-dev.1
+version: 0.1.0-dev.2
 repository: https://github.com/ishafiul/dart_orpc/tree/main/packages/strict_dart_lints
 issue_tracker: https://github.com/ishafiul/dart_orpc/issues
 resolution: workspace

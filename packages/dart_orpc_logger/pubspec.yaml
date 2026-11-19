@@ -1,6 +1,6 @@
 name: dart_orpc_logger
 description: Structured logging and tracing for dart_orpc apps, with console and OpenTelemetry (OTLP) export that never delays a response.
-version: 0.1.0-dev.1
+version: 0.1.0-dev.2
 repository: https://github.com/ishafiul/dart_orpc/tree/main/packages/dart_orpc_logger
 issue_tracker: https://github.com/ishafiul/dart_orpc/issues
 resolution: workspace
@@ -9,8 +9,8 @@ environment:
   sdk: ^3.14.0
 
 dependencies:
-  dart_orpc_core: ^0.1.0-dev.9
-  dart_orpc_http: ^0.1.0-dev.11
+  dart_orpc_core: ^0.1.0-dev.10
+  dart_orpc_http: ^0.1.0-dev.12
 
 dev_dependencies:
   test: ^1.33.0

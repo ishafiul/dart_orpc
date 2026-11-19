@@ -1,3 +1,9 @@
+## 0.1.0-dev.13
+
+> Note: This release has breaking changes.
+
+ - **BREAKING** **FEAT**: Strict lint packages, dart_orpc_logger telemetry, and Delay/RetryPolicy (#125).
+
 ## 0.1.0-dev.12
 
  - **REFACTOR**(dart_orpc_generator): Move dependency resolution into an analyzer-free DI layer (#124).
