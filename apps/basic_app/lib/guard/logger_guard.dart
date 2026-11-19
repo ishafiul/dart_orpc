@@ -1,14 +1,16 @@
-import 'dart:io';
-
 import 'package:dart_orpc/dart_orpc.dart';
 
-String _guardLine(RpcGuardContext context) =>
-    '[todo-guard] ${context.procedure.rpcMethod} '
-    '(${context.rpcContext.httpMethod} ${context.rpcContext.path})';
+const _todoGuardPassed = 'todo.guard.passed';
+const _rpcMethodAttribute = 'rpc.method';
+
+const _log = Logger('todo.guard');
 
 final class TodoRouteLoggerGuard implements RpcGuard {
   @override
   void canActivate(RpcGuardContext context) {
-    stdout.writeln(_guardLine(context));
+    _log.debug(
+      _todoGuardPassed,
+      attributes: {_rpcMethodAttribute: context.procedure.rpcMethod},
+    );
   }
 }

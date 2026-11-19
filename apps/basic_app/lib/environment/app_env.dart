@@ -7,6 +7,7 @@ const _portKey = 'PORT';
 const _docsUsernameKey = 'DOCS_USERNAME';
 const _docsPasswordKey = 'DOCS_PASSWORD';
 const _docsRealmKey = 'DOCS_REALM';
+const _otlpEndpointKey = 'OTEL_EXPORTER_OTLP_ENDPOINT';
 
 const _defaultJwtSecret = 'default_secret';
 const _defaultJwtIssuer = 'basic_app';
@@ -26,6 +27,7 @@ final class AppEnv {
     required this.docsUsername,
     required this.docsPassword,
     required this.docsRealm,
+    required this.otlpEndpoint,
   });
 
   factory AppEnv._read(EnvReader env) => AppEnv._(
@@ -36,6 +38,7 @@ final class AppEnv {
     docsUsername: env.string(_docsUsernameKey, fallback: _defaultDocsUsername),
     docsPassword: env.string(_docsPasswordKey, fallback: _defaultDocsPassword),
     docsRealm: env.string(_docsRealmKey, fallback: _defaultDocsRealm),
+    otlpEndpoint: env.optionalUri(_otlpEndpointKey),
   );
 
   factory AppEnv.load({String path = _defaultEnvFile}) =>
@@ -51,6 +54,7 @@ final class AppEnv {
   final String docsUsername;
   final String docsPassword;
   final String docsRealm;
+  final Uri? otlpEndpoint;
 }
 
 const appEnvKey = RpcContextKey<AppEnv>('basic_app.env');
