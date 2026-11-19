@@ -45,7 +45,13 @@ Future<void> main() async {
         realm: 'Todo API Docs',
       ),
     ),
-    middleware: [requestLogMiddleware, appHeadersMiddleware],
+    middleware: [serverTimingMiddleware, appHeadersMiddleware],
+    observer: RpcLogger(
+      resource: const RpcTelemetryResource(
+        serviceName: 'todo-api',
+        serviceVersion: '1.0.0',
+      ),
+    ),
     health: const RpcHttpHealthOptions(
       livenessPath: '/live',
       readinessPath: '/ready',
@@ -67,15 +73,6 @@ Future<void> main() async {
       maxHeaderBytes: 16 * 1024,
       bodyTimeout: const Duration(seconds: 15),
       handlerTimeout: const Duration(seconds: 10),
-      onError: (event) {
-        stderr.writeln('Request ${event.request.requestId} failed: ${event.error}');
-      },
-      onComplete: (event) {
-        print(
-          '${event.request.requestId} ${event.route} ${event.statusCode} '
-          '${event.elapsed.inMilliseconds}ms',
-        );
-      },
     ),
   );
 
@@ -94,8 +91,7 @@ Future<void> main() async {
   }();
 
   try {
-    final server = await app.listen(config.port, hostname: config.hostname);
-    print('Todo API listening on ${server.address.address}:${server.port}');
+    await app.listen(config.port, hostname: config.hostname);
     signals.add(ProcessSignal.sigint.watch().listen((_) => unawaited(shutdown())));
     if (!Platform.isWindows) {
       signals.add(ProcessSignal.sigterm.watch().listen((_) => unawaited(shutdown())));

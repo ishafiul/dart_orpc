@@ -68,7 +68,7 @@ Consumers inject `Clock`. Export the token other modules consume. Do not registe
 
 ## Factory bindings
 
-`RpcProviderBinding.useFactory(provide: Token, factory: createToken)` accepts a **top-level or static synchronous factory**. Its typed parameters participate in dependency resolution.
+`RpcProviderBinding.useFactory(provide: Token, factory: createToken)` accepts a **synchronous factory: a top-level function, a static method, or a named or unnamed constructor tear-off** (`AppDatabase.atDefaultPath`, `Ledger.new`). Its typed parameters participate in dependency resolution.
 
 ```dart
 Clock createClock() => SystemClock();

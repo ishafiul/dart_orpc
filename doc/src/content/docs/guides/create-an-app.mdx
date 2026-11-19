@@ -186,9 +186,9 @@ import 'package:todo_api/todo_api.dart';
 Future<void> main() async {
   final app = const AppModule().buildRpcApp(
     openApi: const OpenApiDocumentOptions(title: 'Todo API'),
+    observer: RpcLogger(),
   );
-  final server = await app.listen(3000);
-  print('Todo API on http://127.0.0.1:${server.port}');
+  await app.listen(3000);
 }
 ```
 

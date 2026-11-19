@@ -1,0 +1,82 @@
+---
+title: Retries and Delays
+description: Wait on purpose through one injectable Delay, retry transient failures with backoff and jitter, and keep tests instant.
+---
+
+## Why not `Future.delayed`
+
+A fixed wait usually hides an ordering problem: "wait 100 ms so the subscription is ready". The `no_delay_as_fix` rule bans it. Some waits are the intent, though: retry backoff, rate limits, polling a system that cannot push. Those go through one injected `Delay`, so the waiting has a single owner and tests replace it.
+
+## Delay
+
+```dart
+abstract interface class Delay {
+  Future<void> wait(
+    Duration duration, {
+    RpcCancellationSignal cancellation = RpcCancellationSignal.none,
+  });
+}
+```
+
+| Implementation | Use |
+| --- | --- |
+| `SystemDelay` | Production. Backed by a `Timer`; when `cancellation` fires it stops at once with `RpcException.cancelled`. |
+| `RecordingDelay` | Tests. Returns immediately and records every requested wait in `waits`. |
+
+Provide it once:
+
+```dart
+@Module(
+  providers: [PaymentService],
+  bindings: [RpcProviderBinding.useClass(provide: Delay, useClass: SystemDelay)],
+)
+final class PaymentModule {
+  const PaymentModule();
+}
+```
+
+## RetryPolicy
+
+```dart
+final class PaymentService {
+  PaymentService(this.gateway, this.delay);
+
+  final PaymentGateway gateway;
+  final Delay delay;
+
+  static const _retry = RetryPolicy(maxAttempts: 4);
+
+  Future<Receipt> charge(ChargeDto input, RpcCancellationSignal cancellation) =>
+      _retry.run(
+        (attempt) => gateway.charge(input),
+        retryIf: (error) => error is GatewayUnavailable,
+        delay: delay,
+        cancellation: cancellation,
+      );
+}
+```
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `maxAttempts` | 3 | Attempts in total, including the first |
+| `initialDelay` | 200 ms | Wait before the first retry |
+| `multiplier` | 2 | Growth per retry |
+| `maxDelay` | 10 s | Cap on any wait |
+| `jitter` | 0.2 | Spread around the exponential value (80%–120%), so clients do not retry together |
+
+`retryIf` is required: there is no blind retry. Any failure it does not name is rethrown at once without waiting, and the last failure is rethrown when attempts run out. Pass the call's cancellation signal (`context.cancellation`) so retries stop when the client goes away.
+
+## Test without waiting
+
+```dart
+test('retries a transient gateway failure with backoff', () async {
+  final delay = RecordingDelay();
+  final service = PaymentService(FlakyGateway(failures: 2), delay);
+
+  await service.charge(input, RpcCancellationSignal.none);
+
+  expect(delay.waits, hasLength(2));
+});
+```
+
+The test runs instantly and asserts the exact backoff, with no real time passing.

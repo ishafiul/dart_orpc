@@ -38,6 +38,7 @@ Isolated modules can introduce additional required typed dependencies. Inspect e
 | `requestBodyIdleTimeout` | null/disabled | Idle body-read deadline |
 | `serverOptions` | `RpcHttpServerOptions()` | Adapter policies/hooks |
 | `middleware` | empty | HTTP middleware chain |
+| `observer` | null | `RpcObserver` for every HTTP exchange, WebSocket call, and server start/stop; use `RpcLogger` |
 
 `maxRequestBodyBytes`, `docsPath`, `openApiPath`, `websocketPath`, and `onClose` are not direct generated helper arguments. Configure docs paths through `docs`, WebSocket path through `webSocket`, and lower-level customization through `RpcHttpApp` where necessary.
 

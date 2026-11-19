@@ -1,0 +1,81 @@
+---
+title: Strict Linting
+description: Make wrong code fail analysis for people and AI agents alike, with error-level rules that push fixes to their root cause.
+---
+
+## Why strict by default
+
+Agents and people learn conventions from the code in front of them. One controller calling a repository, one swallowed exception, or one stale comment becomes a pattern the next change repeats. Guidelines get ignored; a red analyzer does not. So every rule here is an **error**, and its message names the fix that removes the cause, not just the symptom.
+
+## Set up
+
+```yaml
+# pubspec.yaml
+dev_dependencies:
+  dart_orpc_lints: ^0.1.0-dev.2
+```
+
+```yaml
+# analysis_options.yaml
+include: package:dart_orpc_lints/app.yaml
+
+plugins:
+  strict_dart_lints:
+    version: ^0.1.0-dev.2
+    diagnostics:
+      no_doc_comments: true
+  dart_orpc_lints: ^0.1.0-dev.2
+```
+
+`dart_orpc_lints` brings `strict_dart_lints` with it. Configure the plugins in the root `analysis_options.yaml` of the package or workspace, and run CI with `dart analyze --fatal-infos`.
+
+## Base rules (`strict_dart_lints`)
+
+They apply to any Dart code.
+
+| Rule | Bans | Tests |
+| --- | --- | --- |
+| `no_code_comments` | `//` and `/* */` comments; allowed: `// ignore: rule -- reason`, `// TODO(#issue) text`, coverage markers | checked |
+| `no_doc_comments` | `///` doc comments (opt-in, for applications) | checked |
+| `ignore_requires_reason` | `// ignore:` without `-- reason` of at least ten characters | checked |
+| `no_null_assertion` | `value!` and `case x!` | exempt |
+| `no_unchecked_cast` | `as` downcasts and cast patterns | exempt |
+| `no_delay_as_fix` | `Future.delayed` and `sleep`; inject [`Delay`](/dart-orpc/guides/retries-and-delays) when waiting is intended | checked |
+| `no_late_without_initializer` | `late` without an initializer | exempt |
+| `no_hardcoded_strings` | literals outside constants, named message functions, annotations, patterns and default values | exempt |
+| `no_mirrors` | `dart:mirrors` | checked |
+| `no_global_mutable_state` | non-final top-level variables and static fields | exempt |
+| `no_broad_catch` | catching `Object`, `Exception` or everything without rethrowing or throwing | checked |
+
+`strict.yaml` also enables about 190 curated core lints with strict casts, inference, and raw types, and excludes generated files. `library.yaml` adds the public API documentation lints for published packages.
+
+Interpolated text cannot be `const`, so give it a name instead: `String todoNotFound(int id) => 'Todo $id was not found.';`.
+
+## dart_orpc rules (`dart_orpc_lints`)
+
+| Rule | Bans |
+| --- | --- |
+| `throw_framework_errors` | throwing anything but `RpcException` or an `Error` subtype |
+| `no_manual_routes` | using `HttpServer` from `dart:io` or `rust_http` directly |
+| `controller_no_logic` | loops, `try` statements and `dart:io` inside `@Controller` classes |
+| `no_cross_module_internal_import` | using another module's controllers or non-exported providers |
+| `no_undeclared_module_dependency` | using a provider of a module that is neither imported nor global |
+| `no_manual_provider_construction` | constructing a provider outside DI; a provider may construct itself, such as in a factory constructor used by `useFactory` |
+
+A file belongs to the module declared in it, otherwise to the single `@Module` class in the nearest enclosing folder.
+
+## Suppressing a rule
+
+Fix the root cause first. When a rule truly cannot apply, say why where it is suppressed:
+
+```dart
+// ignore: strict_dart_lints/no_delay_as_fix -- the single place real time passes; everything else injects Delay
+```
+
+An ignore without a reason is itself an error.
+
+## Developing the rules
+
+The analysis server keeps each plugin build running. After editing a rule, restart it (VS Code: **Dart: Restart Analysis Server**); `dart analyze` always starts fresh.
+
+The server resolves all plugins together outside the workspace, so in this repository `apps/basic_app` enables `dart_orpc_lints` by `path:` and `strict_dart_lints` by `version:`. Enabling both by `path:` makes resolution fail and silently loads no plugin.

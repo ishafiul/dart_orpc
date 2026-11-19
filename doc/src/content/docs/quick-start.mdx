@@ -73,13 +73,13 @@ Future<void> main() async {
       title: 'Hello API',
       description: 'My first dart_orpc backend.',
     ),
+    observer: RpcLogger(),
   );
-  final server = await app.listen(3000);
-  print('Listening on http://127.0.0.1:${server.port}');
+  await app.listen(3000);
 }
 ```
 
-`listen` owns the HTTP server and returns an `RpcHttpServer`. No manual route registration or separate `HttpServer.bind` is needed.
+`listen` owns the HTTP server and returns an `RpcHttpServer`. No manual route registration or separate `HttpServer.bind` is needed. `observer: RpcLogger()` makes the framework print a startup banner with every URL and log each call.
 
 ## 4. Generate and run
 

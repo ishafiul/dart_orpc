@@ -9,7 +9,7 @@ description: Complete annotation options and their roles in generated contracts.
 | --- | --- | --- |
 | `Module` | `imports`, `controllers`, `providers`, `bindings`, `exports` (all empty lists); `global` (false) | Reachable feature graph and provider visibility |
 | `RpcProviderBinding.useClass` | required `provide`, `useClass` | Bind an injected type token to a generated implementation |
-| `RpcProviderBinding.useFactory` | required `provide`, `factory` | Bind token through top-level/static synchronous factory |
+| `RpcProviderBinding.useFactory` | required `provide`, `factory` | Bind token through a synchronous top-level function, static method, or constructor tear-off |
 | `Controller` | required positional `namespace` | RPC namespace; does not prefix REST paths |
 
 Providers are singleton instances per generated application container. Use [Modules and DI](/dart-orpc/guides/modules-and-providers) for export/global/ownership rules.

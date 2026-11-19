@@ -18,12 +18,12 @@ import 'package:dart_orpc/dart_orpc.dart';
 import 'package:todo_api/todo_api.dart';
 
 Future<void> main() async {
-  final app = const AppModule().buildRpcApp();
-  final server = await app.listen(3000, hostname: '127.0.0.1');
-  print('Server: http://127.0.0.1:${server.port}');
-  print('Docs: http://127.0.0.1:${server.port}/docs');
+  final app = const AppModule().buildRpcApp(observer: RpcLogger());
+  await app.listen(3000, hostname: '127.0.0.1');
 }
 ```
+
+`observer: RpcLogger()` turns on the framework's logging: a startup banner listing every URL the app serves, one access line per call, and a stop message on shutdown. See [Logging and Tracing](/dart-orpc/guides/logging-and-tracing).
 
 From the app directory:
 
@@ -85,6 +85,8 @@ The low-level HTTP body limit defaults to 1 MiB. The generated helper currently 
 | `trustRequestId` | false | Accept bounded safe incoming IDs |
 | `onError` | null | Observe original exception/stack |
 | `onComplete` | null | Observe full completion/abort, including streams |
+
+`buildRpcApp(observer: ...)` is a separate app option, not a server option. It receives every HTTP exchange and WebSocket call plus server start and stop; `RpcLogger` from `dart_orpc_logger` is the standard implementation.
 | `idleTimeout` | 30 seconds | Close idle keep-alive connections; set it above a proxy's own idle timeout |
 | `maxConnections` | null (no limit) | Stop accepting at this many open connections; new clients wait in the OS queue |
 

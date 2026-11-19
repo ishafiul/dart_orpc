@@ -19,6 +19,7 @@ Most app code imports the facade. This lower-level package supplies shared runti
 | Metadata | `ProcedureMetadata`, parameter/custom/security/REST metadata and kind enums |
 | Lifecycle | `RpcDisposable`, `disposeRpcProviders` |
 | Advanced output | `RpcJsonBytes`, `RpcJsonWriter` |
+| Waiting and retries | `Delay`, `SystemDelay`, `RecordingDelay`, `RetryPolicy` |
 
 `RpcRequest(method:, input:)` supports `.fromJson` and `.toJson`. Success is `{data: ...}`; error is `{error: {code, message, details?}}`, where the optional `details` is a JSON object that is left out when null or empty. This is not JSON-RPC 2.0.
 
@@ -33,5 +34,7 @@ Most app code imports the facade. This lower-level package supplies shared runti
 `RpcProcedureRegistry.dispatchUnary` invokes unary procedures; `dispatchStream` subscribes to server streams. `.dispatch` is the unary compatibility method. Duplicate methods are rejected. Procedure runtimes decode input, run guards, observe cancellation, invoke handlers, then encode outputs.
 
 Metadata records namespace/name, input/output types, unary/stream kind, REST mapping, parameters, guards, security, and custom annotation values. Use generated metadata for inspection rather than separately parsing controllers at runtime.
+
+`Delay` gives intentional waits (backoff, rate limits, polling) one injectable owner: `SystemDelay` is backed by a `Timer` and stops when the call is cancelled, and `RecordingDelay` lets tests run instantly. `RetryPolicy.run` retries with exponential backoff and jitter, and requires a `retryIf` predicate. See [Retries and Delays](/dart-orpc/guides/retries-and-delays).
 
 See [Errors and Context](/dart-orpc/guides/errors-and-context), [Protocol](/dart-orpc/architecture), and [API Reference](/dart-orpc/reference) for detailed usage.

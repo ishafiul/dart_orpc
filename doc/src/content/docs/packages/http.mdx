@@ -11,4 +11,8 @@ The [Application and HTTP Reference](/dart-orpc/reference/application) lists opt
 
 HTTP RPC uses the framework's `{method, input}` envelope, not JSON-RPC 2.0.
 
+`RpcObserver` is the adapter's telemetry seam. Pass one as `buildRpcApp(observer: ...)` and it receives each HTTP exchange and, through the WebSocket handler, each WebSocket call: its start, resolved RPC method, errors, and completion with route, status, sizes, and timing, plus server start and stop with the served endpoints. Each call runs in a zone, so `currentRpcCallObservation()` reaches it from code inside the call. Observer failures are counted as hook errors and never change the response. [`dart_orpc_logger`](/dart-orpc/packages/logger) implements it.
+
+`EnvReader` moved to the [`dart_orpc` facade](/dart-orpc/packages/dart-orpc) in 0.1.0-dev.12; it is no longer exported by this package.
+
 The request path is built to allocate little: GET requests without a body skip the body reader, request IDs come from a per-app random prefix plus a counter, JSON is decoded from and encoded to bytes in one pass, and headers are copied once and shared with the RPC context. See [Benchmarks](/dart-orpc/benchmarks) for measured throughput.
