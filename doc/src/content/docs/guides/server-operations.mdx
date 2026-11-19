@@ -28,16 +28,13 @@ final app = const AppModule().buildRpcApp(
     bodyTimeout: const Duration(seconds: 20),
     handlerTimeout: const Duration(seconds: 10),
     rateLimit: const RpcHttpRateLimitOptions(maxRequests: 120),
-    onComplete: (event) => print(
-      '${event.request.requestId} ${event.route} ${event.statusCode}',
-    ),
-    onError: (event) => print(event.error),
   ),
+  observer: RpcLogger(),
 );
 final server = await app.listen(3000);
 ```
 
-Numbers above are examples; choose capacity from measured workload, stream counts, and downstream resources. Observer hooks are synchronous. Queue asynchronous logging/export work yourself. Hook failures are isolated and counted.
+Numbers above are examples; choose capacity from measured workload, stream counts, and downstream resources. `observer: RpcLogger()` logs and traces every call without slowing responses; see [Logging and Tracing](/dart-orpc/guides/logging-and-tracing). The lower-level `onComplete`/`onError` hooks remain for custom integrations: they are synchronous, so queue any asynchronous work yourself. Hook and observer failures are isolated and counted.
 
 ## Limits and deadlines
 
@@ -105,7 +102,7 @@ JSON responses are encoded straight to UTF-8 bytes by default (`encodeJsonToByte
 
 ## Environment configuration
 
-`EnvReader.load(path: '.env')` reads dotenv/platform values. `EnvReader.fromMap` helps tests. Methods: `requiredString`/`required`, `string(fallback:)`, `positiveInt(fallback:)`, `duration(fallback:)` (seconds), and `port(fallback:)` (1–65535). Validate settings at startup and inject typed app configuration. Keep secrets out of DTOs, logs, and version control.
+`EnvReader` is exported by `package:dart_orpc/dart_orpc.dart`. `EnvReader.load(path: '.env')` reads platform values plus the dotenv file when it exists (file values win; a missing file is logged at info level). `EnvReader.fromMap` helps tests. Methods: `requiredString`/`required`, `string(fallback:)`, `positiveInt(fallback:)`, `duration(fallback:)` (seconds), `port(fallback:)` (1–65535), and `optionalUri` (absolute http/https or null). Validate settings at startup and inject typed app configuration. Keep secrets out of DTOs, logs, and version control.
 
 ## Shutdown
 

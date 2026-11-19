@@ -1,0 +1,154 @@
+---
+title: Logging and Tracing
+description: Log and trace every RPC, REST, SSE, and WebSocket call with one option, export to the console or any OpenTelemetry backend, and never slow a response.
+---
+
+## Turn it on
+
+`dart_orpc_logger` ships with the facade. Pass an `RpcLogger` as the app's observer:
+
+```dart
+import 'package:dart_orpc/dart_orpc.dart';
+import 'package:todo_api/todo_api.dart';
+
+Future<void> main() async {
+  final app = const AppModule().buildRpcApp(
+    observer: RpcLogger(
+      resource: const RpcTelemetryResource(
+        serviceName: 'todo-api',
+        serviceVersion: '1.0.0',
+        environment: 'production',
+      ),
+    ),
+  );
+  await app.listen(3000);
+}
+```
+
+That is the whole setup. No controller, guard, or middleware changes.
+
+## What you get
+
+During development the pretty console format reads like this:
+
+```text
+19:18:12.574  INFO   dart_orpc.env  env.file_missing  env.file=.env
+
+  dart_orpc  todo-api is listening
+
+  ➜  rpc        http://127.0.0.1:3000/rpc
+  ➜  websocket  ws://127.0.0.1:3000/rpc/ws
+  ➜  docs       http://127.0.0.1:3000/docs
+  ➜  openapi    http://127.0.0.1:3000/openapi.json
+  ➜  health     http://127.0.0.1:3000/health
+
+19:18:28.286  WARN   POST    /rpc              todo.list         401     6.6 ms  UNAUTHORIZED  772feb7c
+19:18:28.902  INFO   POST    /auth/signup      auth.signUp       200   610.2 ms  4a63cc1b
+19:18:28.917  INFO   POST    /rpc              todo.create       200     6.7 ms  0d923fc0
+19:18:28.924  WARN   POST    /rpc              todo.getById      404     1.6 ms  NOT_FOUND  0f9e9b98
+```
+
+Every HTTP exchange (RPC, REST, SSE) and every WebSocket call produces:
+
+| Record | When | Severity |
+| --- | --- | --- |
+| Access record (`dart_orpc.access`) | Every call | INFO; WARN for 4xx; ERROR for server failures |
+| Error record (`dart_orpc.error`) | Unexpected failures only, with exception and stack trace | ERROR |
+| Server span | Every sampled call, named after the RPC method | Status ERROR for server failures |
+| Server lifecycle (`dart_orpc.server`) | Start, with every served URL, and stop | INFO |
+
+Expected client errors such as `RpcException.notFound` raise no error record; they show as a WARN access line with `error.type`. Durations above 100 ms are yellow and above 1 s red. The short id at the end of a line is the first 8 characters of the trace id.
+
+Attributes follow OpenTelemetry semantic conventions: `rpc.method`, `http.route`, `http.request.method`, `url.path`, `http.response.status_code`, `http.server.request.duration`, `http.request.id`, `network.transport`, `error.type`.
+
+## Log from your code
+
+```dart
+const _log = Logger('todo');
+const _todoCreated = 'todo.created';
+const _todoIdAttribute = 'todo.id';
+
+final class TodoService {
+  Future<TodoResponseDto> create(String title) async {
+    final todo = await _insert(title);
+    _log.info(_todoCreated, attributes: {_todoIdAttribute: todo.id});
+    return todo;
+  }
+}
+```
+
+A `Logger` used inside a call writes to the app's `RpcLogger` and carries that call's trace and span ids, with nothing passed around: the adapter runs each call in a zone holding its observation. Methods: `trace`, `debug`, `info`, `warn`, `error`, `fatal`; `warn`, `error` and `fatal` take `error:` and `stackTrace:`.
+
+Outside a call, such as startup code in `main`, wrap the code in `logger.run(() => ...)` or use `logger.logger('startup')`. With no logger configured at all, records go to `RpcLogger.fallback`, the pretty console.
+
+Prefer event names (`todo.created`) with attributes over sentences. They are stable to search, group, and alert on, and as named constants they satisfy [`no_hardcoded_strings`](/dart-orpc/guides/strict-linting).
+
+## Export to OpenTelemetry
+
+`RpcOtlpHttpExporter` sends logs and spans with OTLP/HTTP (JSON encoding) to any OpenTelemetry collector or backend: Grafana, Datadog, Honeycomb, New Relic, Sentry and others.
+
+```dart
+RpcLogger(
+  exporters: [
+    RpcConsoleExporter.json(),
+    RpcOtlpHttpExporter(
+      endpoint: Uri.parse('http://localhost:4318'),
+      headers: {'api-key': 'secret'},
+    ),
+  ],
+)
+```
+
+It posts to `{endpoint}/v1/logs` and `{endpoint}/v1/traces`. Incoming W3C `traceparent` headers are honoured, so a call joins the caller's trace, and an unsampled parent turns tracing off for that call while access records remain.
+
+Read the endpoint from configuration with `EnvReader.optionalUri('OTEL_EXPORTER_OTLP_ENDPOINT')` and add the exporter only when it is set.
+
+### Sentry
+
+Sentry accepts OTLP traces and logs. Find the endpoint and public key under **Project Settings → Client Keys (DSN) → OpenTelemetry (OTLP)**:
+
+```dart
+RpcOtlpHttpExporter(
+  endpoint: Uri.parse(
+    'https://o<ORG_ID>.ingest.us.sentry.io/api/<PROJECT_ID>/integration/otlp',
+  ),
+  headers: {'x-sentry-auth': 'sentry sentry_key=<PUBLIC_KEY>'},
+)
+```
+
+Sentry describes OTLP ingestion as beta and accepts traces and logs only. Sentry Issues (grouping, alerts) normally come from SDK error events; a custom `RpcTelemetryExporter` that calls the Sentry SDK for error records provides them.
+
+## It never delays a response
+
+- Recording appends to a bounded in-memory queue. When it is full the oldest records are dropped and counted in `droppedRecords`; nothing waits.
+- Exporters run in batches in a background isolate, so formatting and I/O take no CPU time from serving requests.
+- A slow exporter times out after `exportTimeout`; a failing one is counted in `exportFailures` and reported to `onExportError`. Batches are not retried.
+- A throwing observer is counted as a hook error and the request is served normally.
+
+Measured with a no-op handler under load: about 93k req/s without the logger and 71k with it, about 3 µs of CPU per call for two log records and a span. Exporting on the serving isolate instead gave about 51k req/s, which is why background export is the default. With real handler work the cost is negligible.
+
+An exporter that cannot move to another isolate, such as `RpcConsoleExporter(sink: someOpenIOSink)`, runs in the serving isolate automatically; `backgroundExport: false` forces that.
+
+Closing the app flushes the queue and shuts the exporters down. Records still queued when a process crashes are lost.
+
+## Options
+
+| Option | Default | Purpose |
+| --- | --- | --- |
+| `exporters` | pretty console | Where batches go |
+| `minSeverity` | `info` | Records below it are dropped before they are queued |
+| `resource` | `serviceName: 'dart_orpc'` | Service name, version, environment, extra attributes |
+| `accessLog` | `true` | One access record per call |
+| `traces` | `true` | One span per sampled call |
+| `traceSampleRatio` | `1.0` | Share of calls traced when the caller sent no sampling decision |
+| `maxQueuedRecords` | `2048` | Queue bound before the oldest records are dropped |
+| `maxBatchSize` | `512` | Records per export call |
+| `flushInterval` | `1s` | Longest time a record waits before export |
+| `exportTimeout` | `10s` | Longest time one export call may take |
+| `backgroundExport` | `true` | Export from a background isolate |
+
+Lower the per-call cost with `accessLog: false`, a `traceSampleRatio` below 1, or a higher `minSeverity`.
+
+## Write an exporter
+
+Implement `RpcTelemetryExporter` with `export(RpcTelemetryBatch)` and `shutdown()`. Keep its fields plain data, and create sinks or clients on first use, so the logger can move it to the export isolate. Records arriving there carry errors as text, with the original type in the `exception.type` attribute.

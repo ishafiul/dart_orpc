@@ -1,0 +1,18 @@
+---
+title: dart_orpc_logger
+description: Structured logs and traces for dart_orpc apps, shaped like OpenTelemetry, exported in the background to the console or OTLP.
+---
+
+The facade exports it, so apps import `package:dart_orpc/dart_orpc.dart`. Pass `RpcLogger` as `buildRpcApp(observer: ...)` and every HTTP and WebSocket call gets an access record and a server span, with W3C `traceparent` propagation.
+
+| Area | Public types |
+| --- | --- |
+| Logger | `RpcLogger` (implements `RpcObserver`), `Logger`, `RpcLogSeverity` |
+| Data model | `RpcLogRecord`, `RpcSpanRecord`, `RpcSpanEvent`, `RpcSpanStatus`, `RpcTelemetryResource`, `RpcTelemetryBatch`, `RpcAttributes` |
+| Export | `RpcTelemetryExporter`, `RpcConsoleExporter` (`pretty`, `json`), `RpcOtlpHttpExporter`, `RpcExportFailure` |
+| Formatting and ids | `RpcPrettyFormat`, `RpcTraceContext`, `RpcTraceIds` |
+| OTLP encoding | `encodeOtlpLogs`, `encodeOtlpSpans` |
+
+Records go to a bounded drop-oldest queue and are exported in batches from a background isolate, so formatting and I/O never delay a response.
+
+See [Logging and Tracing](/dart-orpc/guides/logging-and-tracing) for setup, output, OTLP and Sentry export, and the performance numbers.

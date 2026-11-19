@@ -2,7 +2,7 @@ include: package:dart_orpc_lints/app.yaml
 
 plugins:
   strict_dart_lints:
-    path: ../../packages/strict_dart_lints
+    version: ^0.1.0-dev.2
     diagnostics:
       no_doc_comments: true
   dart_orpc_lints:

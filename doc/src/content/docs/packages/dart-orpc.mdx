@@ -9,7 +9,7 @@ description: The main runtime entrypoint for opinionated contract-first Dart bac
 import 'package:dart_orpc/dart_orpc.dart';
 ```
 
-It exports `dart_orpc_annotations`, `dart_orpc_core`, `dart_orpc_client`, `dart_orpc_http`, `dart_orpc_websocket`, `dart_orpc_openapi`, and `dart_orpc_luthor`. Generation and CLI remain separate development dependencies.
+It exports `dart_orpc_annotations`, `dart_orpc_core`, `dart_orpc_client`, `dart_orpc_http`, `dart_orpc_logger`, `dart_orpc_websocket`, `dart_orpc_openapi`, and `dart_orpc_luthor`, and provides `EnvReader` for typed configuration from the environment and an optional `.env` file. Generation, CLI, and the lint packages remain separate development dependencies.
 
 `buildRpcApp` and `createClient` are generated module extension methods, not globals supplied by this import. Also import the generated `.orpc.dart` module library or your app barrel exporting it.
 

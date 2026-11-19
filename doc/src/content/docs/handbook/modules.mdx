@@ -163,14 +163,22 @@ final class ClockModule {
 
 Consumers inject Clock, and the module exports Clock because that is the token they consume. Avoid independently registering the same token in both providers and bindings.
 
-For application-controlled construction, replace the binding with useFactory and a top-level/static synchronous function:
+For application-controlled construction, replace the binding with useFactory and a synchronous factory: a top-level function, a static method, or a constructor tear-off:
 
 ```dart
 Clock createClock() => SystemClock();
 
 // Inside @Module(bindings: [...]):
 RpcProviderBinding.useFactory(provide: Clock, factory: createClock)
+
+// A named or unnamed constructor works too:
+RpcProviderBinding.useFactory(
+  provide: AppDatabase,
+  factory: AppDatabase.atDefaultPath,
+)
 ```
+
+A constructor tear-off keeps construction on the class itself, so no wrapper function is needed.
 
 Factory parameters can be injected. Async initialization needs an explicit startup lifecycle; the container does not await arbitrary Future-returning provider factories as service instances.
 

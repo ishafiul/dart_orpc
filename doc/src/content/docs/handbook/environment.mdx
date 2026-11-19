@@ -24,7 +24,7 @@ DOCS_PASSWORD=replace-with-your-local-docs-password
 
 Copy it to .env and choose your own values. Ignore .env in version control; keep the example as a documented setting list. Production supplies real secrets through its environment/secret mechanism. API_TOKEN is used by this handbook's shared-token guard; it is not a JWT system.
 
-EnvReader.load includes platform environment and the named dotenv file through the dotenv package. Relative paths use the process working directory, so run from the app root or pass an explicit path.
+`EnvReader` comes from `package:dart_orpc/dart_orpc.dart`. `EnvReader.load` reads the platform environment and, when it exists, the named dotenv file; values in the file override platform values. A missing file is normal, such as in production, and is logged at info level as `env.file_missing` through the framework logger instead of printed as an error. Relative paths use the process working directory, so run from the app root or pass an explicit path.
 
 ## Create typed configuration
 
@@ -78,9 +78,9 @@ Future<void> main() async {
   final config = AppConfig(EnvReader.load());
   final app = const AppModule().buildRpcApp(
     bindings: const RpcContextBindings.empty().withValue(appConfigKey, config),
+    observer: RpcLogger(),
   );
-  final server = await app.listen(config.port, hostname: config.hostname);
-  print('Todo API listening on port ${server.port}');
+  await app.listen(config.port, hostname: config.hostname);
 }
 ```
 
@@ -92,13 +92,14 @@ In a controller/guard's RpcContext, use `context.requireBinding(appConfigKey)` f
 
 | API | Behavior |
 | --- | --- |
-| `EnvReader.load(path: '.env')` | Include platform variables and dotenv file |
+| `EnvReader.load(path: '.env')` | Include platform variables and the dotenv file when it exists; file values win |
 | `EnvReader.fromMap(values)` | Read supplied values for tests |
 | `requiredString(name)` / `required(name)` | Trim and require a non-empty value |
 | `string(name, fallback: ...)` | Fallback for missing/blank text |
 | `positiveInt(name, fallback: ...)` | Parse positive integer, rejecting invalid/nonpositive values |
 | `duration(name, fallback: ...)` | Parse positive seconds |
 | `port(name, fallback: ...)` | Parse a positive integer up to 65535 |
+| `optionalUri(name)` | An absolute `http`/`https` URI, or null when unset; anything else fails at startup |
 
 Numeric fallback applies to missing/blank values, not malformed text. A duration value of 60 means 60 seconds. Use explicit setting names to avoid millisecond/second confusion. Port 0 is intentionally rejected by config; use listen(0) directly for random-port tests.
 

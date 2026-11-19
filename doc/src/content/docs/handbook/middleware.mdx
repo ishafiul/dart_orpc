@@ -5,7 +5,9 @@ description: Implement and register HTTP wrappers, understand next and ordering,
 
 ## What is middleware?
 
-Middleware wraps the next HTTP handler. It can inspect a request before routing and change the response afterward. Logging, common headers, maintenance mode, and HTTP-level transforms are typical uses.
+Middleware wraps the next HTTP handler. It can inspect a request before routing and change the response afterward. Common headers, maintenance mode, and HTTP-level transforms are typical uses.
+
+Do not write logging middleware. A middleware cannot see the RPC method, the matched route, or WebSocket calls, and its timer stops before a streamed body finishes. Pass `observer: RpcLogger()` to `buildRpcApp` instead; see [Logging and Tracing](/dart-orpc/guides/logging-and-tracing).
 
 Its type is RpcHttpHandler Function(RpcHttpHandler next). The returned handler receives RpcHttpRequest and returns `Future<RpcHttpResponse>`. `await next(request)` continues the chain; returning your own response stops it for that request.
 
@@ -18,22 +20,16 @@ Create `lib/http/app_middleware.dart`:
 ```dart
 import 'package:dart_orpc/dart_orpc.dart';
 
-RpcHttpHandler requestLogMiddleware(RpcHttpHandler next) {
+RpcHttpHandler serverTimingMiddleware(RpcHttpHandler next) {
   return (request) async {
     final watch = Stopwatch()..start();
-    try {
-      final response = await next(request);
-      print(
-        '${request.method} ${request.path} -> ${response.statusCode} '
-        '(${watch.elapsedMilliseconds}ms to response)',
-      );
-      return response;
-    } catch (error) {
-      print('${request.method} ${request.path} failed before response');
-      rethrow;
-    } finally {
-      watch.stop();
-    }
+    final response = await next(request);
+    return response.copyWith(
+      headers: {
+        ...response.headers,
+        'Server-Timing': 'app;dur=${watch.elapsedMicroseconds / 1000}',
+      },
+    );
   };
 }
 
@@ -47,9 +43,9 @@ RpcHttpHandler appHeadersMiddleware(RpcHttpHandler next) {
 }
 ```
 
-The returned closure is run for a request. Its next argument is already the rest of the chain. Rethrowing preserves centralized failure handling. Many procedure exceptions become HTTP error responses inside dispatch, so catching exceptions here does not observe every business error. Use onError/onComplete for adapter-level observation.
+The returned closure is run for a request. Its next argument is already the rest of the chain. Many procedure exceptions become HTTP error responses inside dispatch, so a middleware does not observe every business error; the observer does.
 
-This timer measures response creation, not the full lifetime of a download/SSE body. Completion hooks report the full exchange.
+This timer measures response creation, not the full lifetime of a download/SSE body. The observer's access records report the full exchange.
 
 ## Register and verify
 
@@ -62,7 +58,7 @@ import 'package:todo_api/http/app_middleware.dart';
 Add the argument to its existing buildRpcApp call:
 
 ```dart
-middleware: [requestLogMiddleware, appHeadersMiddleware],
+middleware: [serverTimingMiddleware, appHeadersMiddleware],
 ```
 
 Pass function references; the framework supplies next while constructing the chain. Restart and request:
@@ -71,21 +67,21 @@ Pass function references; the framework supplies next while constructing the cha
 curl -i http://127.0.0.1:3000/todos/999
 ```
 
-Expect a response with X-App-Name and a log entry. The status is 404 for the unguarded app's missing todo, or 401 if the protected version lacks credentials.
+Expect a response with X-App-Name and a Server-Timing header. The status is 404 for the unguarded app's missing todo, or 401 if the protected version lacks credentials.
 
 ## Understand ordering
 
 For the registration above:
 
 ```text
-requestLog before
+serverTiming before
   appHeaders before
     dispatcher/controller/service
   appHeaders after
-requestLog after
+serverTiming after
 ```
 
-Requests enter in list order; responses unwind in reverse. Middleware after an early return never runs. Put logging outside the policies you want it to observe.
+Requests enter in list order; responses unwind in reverse. Middleware after an early return never runs. Put a timing middleware outside the policies you want it to measure.
 
 Admission/body policies and server-level CORS sit outside this handler chain. For headers on early adapter failures, use the appropriate server policy; middleware cannot decorate a response produced before it runs.
 
