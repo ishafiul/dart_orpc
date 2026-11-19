@@ -10,6 +10,7 @@ import 'package:rust_http/rust_http.dart';
 
 import 'rpc_http_handler.dart';
 import 'rpc_http_options.dart';
+import 'rpc_observer.dart';
 import 'rpc_http_metrics.dart';
 import 'middleware/cors_policy.dart';
 
@@ -50,15 +51,18 @@ final class RpcHttpServer {
     required _RpcRequestTracker requests,
     required List<RpcHttpUpgradeHandler> upgradeHandlers,
     required Future<void> Function() closeProviders,
+    required void Function() onStopped,
   }) : _server = server,
        _requests = requests,
        _upgradeHandlers = upgradeHandlers,
-       _closeProviders = closeProviders;
+       _closeProviders = closeProviders,
+       _onStopped = onStopped;
 
   final HttpServer _server;
   final _RpcRequestTracker _requests;
   final List<RpcHttpUpgradeHandler> _upgradeHandlers;
   final Future<void> Function() _closeProviders;
+  final void Function() _onStopped;
   Future<void>? _closing;
 
   int get port => _server.port;
@@ -82,6 +86,7 @@ final class RpcHttpServer {
     } catch (error, stackTrace) {
       failure = (error, stackTrace);
     }
+    _onStopped();
     try {
       await _closeProviders();
     } catch (error, stackTrace) {
@@ -151,6 +156,7 @@ final class RpcHttpApp {
     this.maxConcurrentRequests,
     this.requestBodyIdleTimeout,
     this.serverOptions = const RpcHttpServerOptions(),
+    this.observer,
     this.onClose,
     Iterable<RpcHttpUpgradeHandler> upgradeHandlers = const [],
     Iterable<RpcHttpMiddleware> middleware = const [],
@@ -225,6 +231,9 @@ final class RpcHttpApp {
   final Duration? requestBodyIdleTimeout;
   final RpcHttpServerOptions serverOptions;
   final FutureOr<void> Function()? onClose;
+
+  /// Observes every HTTP exchange this app serves. See [RpcObserver].
+  final RpcObserver? observer;
   final List<RpcHttpUpgradeHandler> upgradeHandlers;
   final List<RpcHttpMiddleware> middleware;
   late final RpcHttpHandler handler;
@@ -285,7 +294,11 @@ final class RpcHttpApp {
 
   Future<void> _closeProviders() {
     return _providersClosing ??= Future<void>.sync(() async {
-      await onClose?.call();
+      try {
+        await onClose?.call();
+      } finally {
+        await observer?.close();
+      }
     });
   }
 
@@ -326,14 +339,19 @@ final class RpcHttpApp {
         await server.close(force: true);
         throw StateError('This app was closed while it was starting.');
       }
+      final observed = _observedServer(server.address, server.port);
       final rpcServer = RpcHttpServer._(
         server: server,
         requests: _requests,
         upgradeHandlers: upgradeHandlers,
         closeProviders: _closeProviders,
+        onStopped: () => _notifyObserver(
+          (observer) => observer.serverStopped(observed),
+        ),
       );
       _server = rpcServer;
       unawaited(_serve(server));
+      _notifyObserver((observer) => observer.serverStarted(observed));
       return rpcServer;
     } finally {
       _listenPending = false;
@@ -341,6 +359,49 @@ final class RpcHttpApp {
       listenAttempt.complete();
     }
   }
+
+  void _notifyObserver(void Function(RpcObserver observer) event) {
+    final observer = this.observer;
+    if (observer == null) return;
+    try {
+      event(observer);
+    } catch (_) {
+      _metrics?.hookErrors++;
+    }
+  }
+
+  RpcObservedServer _observedServer(InternetAddress address, int port) {
+    final host = address.isLoopback || !_isAnyAddress(address)
+        ? address.address
+        : InternetAddress.loopbackIPv4.address;
+    Uri url(String scheme, String path) =>
+        Uri(scheme: scheme, host: host, port: port, path: path);
+    return RpcObservedServer(
+      host: host,
+      port: port,
+      endpoints: [
+        RpcObservedEndpoint(name: 'rpc', url: url('http', '/rpc')),
+        for (final handler in upgradeHandlers)
+          if (handler case final RpcHttpEndpointDescriptor described)
+            RpcObservedEndpoint(
+              name: described.endpointName,
+              url: url(described.endpointScheme, described.endpointPath),
+            ),
+        if (docsHtml != null)
+          RpcObservedEndpoint(name: 'docs', url: url('http', docsPath)),
+        if (openApiDocument != null)
+          RpcObservedEndpoint(name: 'openapi', url: url('http', openApiPath)),
+        if (health case final health?)
+          RpcObservedEndpoint(name: 'health', url: url('http', health.path)),
+        if (metrics case final metrics?)
+          RpcObservedEndpoint(name: 'metrics', url: url('http', metrics.path)),
+      ],
+    );
+  }
+
+  static bool _isAnyAddress(InternetAddress address) =>
+      address.address == InternetAddress.anyIPv4.address ||
+      address.address == InternetAddress.anyIPv6.address;
 
   Future<void> _serve(HttpServer server) async {
     try {
@@ -352,10 +413,48 @@ final class RpcHttpApp {
     }
   }
 
-  Future<void> _handle(HttpRequest request) async {
+  Future<void> _handle(HttpRequest request) {
+    final observer = this.observer;
+    if (observer == null) return _handleExchange(request, null, null);
+    final String requestId;
+    try {
+      requestId = _requestId(request);
+    } on Object {
+      return _handleExchange(request, null, null);
+    }
+    final RpcCallObservation observation;
+    try {
+      observation = observer.startCall(
+        RpcObservedCallStart(
+          transport: RpcTransportKind.http,
+          method: request.method,
+          path: request.uri.path,
+          header: request.headers.value,
+          requestId: requestId,
+          remoteAddress: request.connectionInfo?.remoteAddress.address,
+        ),
+      );
+    } catch (_) {
+      _metrics?.hookErrors++;
+      return _handleExchange(request, requestId, null);
+    }
+    return runRpcCallObserved(
+      observation,
+      () => _handleExchange(request, requestId, observation),
+    );
+  }
+
+  Future<void> _handleExchange(
+    HttpRequest request,
+    String? requestId,
+    RpcCallObservation? observation,
+  ) async {
     final admitted = _requests.begin(maxConcurrentRequests);
     final cancellation = admitted ?? RpcCancellationSource();
-    final observed = _metrics != null || serverOptions.onComplete != null;
+    final observed =
+        _metrics != null ||
+        serverOptions.onComplete != null ||
+        observation != null;
     final exchange = _HttpExchange(cancellation, timed: observed);
     exchange.request = RpcHttpRequest(
       method: request.method,
@@ -384,6 +483,11 @@ final class RpcHttpApp {
       } catch (_) {
         _metrics?.hookErrors++;
       }
+      try {
+        observation?.recordError(error, stack);
+      } catch (_) {
+        _metrics?.hookErrors++;
+      }
     }
 
     unawaited(
@@ -407,7 +511,7 @@ final class RpcHttpApp {
       exchange.request = _toRpcRequest(
         request,
         cancellation: cancellation.signal,
-        requestId: _requestId(request),
+        requestId: requestId ?? _requestId(request),
         onError: report,
       );
       if (observed) {
@@ -564,6 +668,22 @@ final class RpcHttpApp {
         _metrics?.complete(completed);
         try {
           serverOptions.onComplete?.call(completed);
+        } catch (_) {
+          _metrics?.hookErrors++;
+        }
+        try {
+          observation?.end(
+            RpcObservedCallEnd(
+              elapsed: completed.elapsed,
+              route: completed.route,
+              statusCode: completed.statusCode,
+              receivedBytes: completed.receivedBytes,
+              sentBytes: completed.sentBytes,
+              streaming: completed.streaming,
+              disconnected: completed.disconnected,
+              failed: completed.failed,
+            ),
+          );
         } catch (_) {
           _metrics?.hookErrors++;
         }

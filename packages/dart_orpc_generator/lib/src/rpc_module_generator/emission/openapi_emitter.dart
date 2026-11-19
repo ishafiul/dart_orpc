@@ -65,7 +65,7 @@ void _writeOpenApiSections(StringBuffer buffer, _ModuleGenerationPlan context) {
           '    ${parameter.name}: ${parameter.name},\n',
     ])
     ..writeln(
-      '    upgradeHandlers: [if (webSocket != null) RpcWebSocketUpgradeHandler(procedures: procedures, options: webSocket)],',
+      '    upgradeHandlers: [if (webSocket != null) RpcWebSocketUpgradeHandler(procedures: procedures, options: webSocket, observer: observer)],',
     )
     ..writeln('  );')
     ..writeln('}')

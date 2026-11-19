@@ -44,19 +44,33 @@ final class RpcWebSocketServerOptions {
   final RpcWebSocketConnectionAuthorizer? authorize;
 }
 
-final class RpcWebSocketUpgradeHandler implements RpcHttpUpgradeHandler {
+final class RpcWebSocketUpgradeHandler
+    implements RpcHttpUpgradeHandler, RpcHttpEndpointDescriptor {
   RpcWebSocketUpgradeHandler({
     required this.procedures,
     this.options = const RpcWebSocketServerOptions(),
+    this.observer,
   }) : _codec = RpcWebSocketFrameCodec(maxFrameBytes: options.maxFrameBytes);
 
   final RpcProcedureRegistry procedures;
   final RpcWebSocketServerOptions options;
+
+  /// Observes every call on every connection. See [RpcObserver].
+  final RpcObserver? observer;
   final RpcWebSocketFrameCodec _codec;
   final Set<_RpcWebSocketConnection> _connections = {};
   bool _accepting = true;
 
   int get activeConnections => _connections.length;
+
+  @override
+  String get endpointName => 'websocket';
+
+  @override
+  String get endpointScheme => 'ws';
+
+  @override
+  String get endpointPath => options.path;
 
   /// Takes WebSocket upgrades on [RpcWebSocketServerOptions.path] that
   /// `rust_http` serves, which is every request of an `RpcHttpApp`. Other
@@ -132,6 +146,7 @@ final class RpcWebSocketUpgradeHandler implements RpcHttpUpgradeHandler {
       codec: _codec,
       options: options,
       reportError: reportError,
+      observer: observer,
     );
     _connections.add(connection);
     try {
@@ -203,6 +218,7 @@ final class _RpcWebSocketConnection {
     required this.codec,
     required this.options,
     required this.reportError,
+    this.observer,
   }) : _writer = _BoundedWebSocketWriter(
          socket: socket,
          codec: codec,
@@ -215,6 +231,7 @@ final class _RpcWebSocketConnection {
   final RpcWebSocketFrameCodec codec;
   final RpcWebSocketServerOptions options;
   final RpcUpgradeErrorReporter reportError;
+  final RpcObserver? observer;
   final _BoundedWebSocketWriter _writer;
   final Map<String, _ActiveServerCall> _calls = {};
   final Completer<void> _done = Completer<void>();
@@ -285,23 +302,62 @@ final class _RpcWebSocketConnection {
       return;
     }
 
-    final call = _ActiveServerCall();
+    final call = _ActiveServerCall(
+      observation: _observe(frame),
+      streaming: frame.kind == RpcWebSocketCallKind.stream,
+    );
     _calls[frame.id] = call;
     final context = baseContext.copyWith(
       cancellation: call.cancellation.signal,
     );
     final request = RpcRequest(method: frame.method, input: frame.input);
 
-    switch (frame.kind) {
-      case RpcWebSocketCallKind.unary:
-        unawaited(_runUnary(frame.id, context, request));
-      case RpcWebSocketCallKind.stream:
-        _runStream(frame.id, call, context, request);
+    void dispatch() {
+      switch (frame.kind) {
+        case RpcWebSocketCallKind.unary:
+          unawaited(_runUnary(frame.id, context, request));
+        case RpcWebSocketCallKind.stream:
+          _runStream(frame.id, call, context, request);
+      }
+    }
+
+    final observation = call.observation;
+    if (observation == null) {
+      dispatch();
+    } else {
+      runRpcCallObserved(observation, dispatch);
     }
   }
 
+  RpcCallObservation? _observe(RpcWebSocketCallFrame frame) {
+    final observer = this.observer;
+    if (observer == null) {
+      return null;
+    }
+    try {
+      return observer.startCall(
+        RpcObservedCallStart(
+          transport: RpcTransportKind.webSocket,
+          method: baseContext.httpMethod,
+          path: baseContext.path,
+          header: baseContext.headerValue,
+          rpcMethod: frame.method,
+          callId: frame.id,
+        ),
+      );
+    } on Object {
+      return null;
+    }
+  }
+
+  _ActiveServerCall? _removeCall(String id, {bool disconnected = false}) {
+    final call = _calls.remove(id);
+    call?.end(disconnected: disconnected);
+    return call;
+  }
+
   void _rejectDuplicate(String id) {
-    final existing = _calls.remove(id);
+    final existing = _removeCall(id, disconnected: true);
     existing?.cancellation.cancel();
     unawaited(_cancelSubscription(existing?.subscription));
     _sendError(
@@ -334,7 +390,7 @@ final class _RpcWebSocketConnection {
         _sendError(id, _asRpcException(error), rpcMethod: request.method);
       }
     } finally {
-      _calls.remove(id);
+      _removeCall(id);
     }
   }
 
@@ -396,6 +452,7 @@ final class _RpcWebSocketConnection {
   /// short fixed message, always keeping the real code. If even that does not
   /// fit, the connection is closed with a policy violation.
   void _sendError(String id, RpcException error, {String? rpcMethod}) {
+    _calls[id]?.failed = true;
     void report(Object failure, StackTrace stackTrace) =>
         reportError(failure, stackTrace, rpcMethod: rpcMethod, callId: id);
 
@@ -484,11 +541,11 @@ final class _RpcWebSocketConnection {
         'RPC stream output exceeded the configured buffer limit.',
       ),
     );
-    _calls.remove(id);
+    _removeCall(id);
   }
 
   Future<void> _cancel(String id) async {
-    final call = _calls.remove(id);
+    final call = _removeCall(id, disconnected: true);
     if (call == null) {
       return;
     }
@@ -497,7 +554,7 @@ final class _RpcWebSocketConnection {
   }
 
   Future<void> _finish(String id) async {
-    final call = _calls.remove(id);
+    final call = _removeCall(id);
     call?.cancellation.cancel();
     await _cancelSubscription(call?.subscription);
   }
@@ -514,6 +571,7 @@ final class _RpcWebSocketConnection {
     await _incoming?.cancel();
     for (final call in _calls.values.toList(growable: false)) {
       call.cancellation.cancel();
+      call.end(disconnected: true);
       await _cancelSubscription(call.subscription);
     }
     _calls.clear();
@@ -533,6 +591,7 @@ final class _RpcWebSocketConnection {
     _closed = true;
     for (final call in _calls.values.toList(growable: false)) {
       call.cancellation.cancel();
+      call.end(disconnected: true);
       await _cancelSubscription(call.subscription);
     }
     _calls.clear();
@@ -552,6 +611,7 @@ final class _RpcWebSocketConnection {
     String id,
     String method,
   ) {
+    _calls[id]?.recordError(error, stackTrace);
     if (error is RpcException && error.diagnostic == null) return;
     reportError(error, stackTrace, rpcMethod: method, callId: id);
   }
@@ -595,8 +655,45 @@ final class _Oversize extends _ErrorEnqueue {
 }
 
 final class _ActiveServerCall {
+  _ActiveServerCall({required this.observation, required this.streaming})
+    : _watch = observation == null ? null : (Stopwatch()..start());
+
   final RpcCancellationSource cancellation = RpcCancellationSource();
+  final RpcCallObservation? observation;
+  final bool streaming;
+  final Stopwatch? _watch;
   StreamSubscription<Object?>? subscription;
+  bool failed = false;
+  bool _ended = false;
+
+  void recordError(Object error, StackTrace stackTrace) {
+    try {
+      observation?.recordError(error, stackTrace);
+    } on Object {
+      return;
+    }
+  }
+
+  void end({required bool disconnected}) {
+    final observation = this.observation;
+    final watch = _watch;
+    if (_ended || observation == null || watch == null) {
+      return;
+    }
+    _ended = true;
+    try {
+      observation.end(
+        RpcObservedCallEnd(
+          elapsed: watch.elapsed,
+          streaming: streaming,
+          disconnected: disconnected,
+          failed: failed,
+        ),
+      );
+    } on Object {
+      return;
+    }
+  }
 }
 
 final class _BoundedWebSocketWriter {

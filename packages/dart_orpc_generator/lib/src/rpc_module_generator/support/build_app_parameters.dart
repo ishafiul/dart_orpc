@@ -61,6 +61,7 @@ const _buildAppParameters = <_BuildAppParameter>[
     'Iterable<RpcHttpMiddleware>',
     defaultValue: 'const []',
   ),
+  _BuildAppParameter('observer', 'RpcObserver?'),
 ];
 
 /// `{…}` for a `buildRpcApp` declaration: the module's external

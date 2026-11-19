@@ -7,3 +7,4 @@ export 'src/middleware/cors.dart';
 export 'src/rpc_http_options.dart';
 export 'src/rpc_http_metrics.dart';
 export 'src/rpc_http_isolate_server.dart';
+export 'src/rpc_observer.dart';
