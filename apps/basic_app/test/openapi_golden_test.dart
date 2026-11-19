@@ -4,14 +4,9 @@ import 'dart:io';
 import 'package:basic_app/basic_app.dart';
 import 'package:test/test.dart';
 
-/// Golden snapshot of the OpenAPI document served at `/openapi.json`.
-///
-/// After reviewing an intended change, regenerate it with:
-///
-/// ```sh
-/// UPDATE_GOLDENS=1 dart test test/openapi_golden_test.dart
-/// ```
 const _goldenPath = 'test/goldens/openapi.json';
+const _updateGoldensCommand =
+    'UPDATE_GOLDENS=1 dart test test/openapi_golden_test.dart';
 const _maxReportedDifferences = 50;
 
 void main() {
@@ -31,7 +26,7 @@ void main() {
       if (Platform.environment['UPDATE_GOLDENS'] == '1') {
         golden
           ..createSync(recursive: true)
-          ..writeAsStringSync(_canonicalJson(document));
+          ..writeAsStringSync(_sortedIndentedJson(document));
       }
 
       final differences = _jsonDifferences(
@@ -44,7 +39,7 @@ void main() {
         isEmpty,
         reason:
             'The OpenAPI document differs from $_goldenPath. If the change '
-            'is intended, review it and run with UPDATE_GOLDENS=1.\n'
+            'is intended, review it and run: $_updateGoldensCommand\n'
             '${differences.join('\n')}',
       );
     });
@@ -53,6 +48,13 @@ void main() {
   group('Given two JSON documents', () {
     test('When key order differs then they are equal', () {
       expect(_jsonDifferences({'a': 1, 'b': 2}, {'b': 2, 'a': 1}), isEmpty);
+    });
+
+    test('When list order differs then it is reported', () {
+      expect(_jsonDifferences([1, 2], [2, 1]), [
+        r'$[0]: expected 1, actual 2',
+        r'$[1]: expected 2, actual 1',
+      ]);
     });
 
     test('When a nested value differs then its path is reported', () {
@@ -108,9 +110,7 @@ void main() {
   });
 }
 
-/// JSON with recursively sorted keys and two-space indentation, so golden
-/// diffs in review stay stable.
-String _canonicalJson(Object? value) =>
+String _sortedIndentedJson(Object? value) =>
     '${const JsonEncoder.withIndent('  ').convert(_sorted(value))}\n';
 
 Object? _sorted(Object? value) => switch (value) {
@@ -122,9 +122,6 @@ Object? _sorted(Object? value) => switch (value) {
   _ => value,
 };
 
-/// Differences between [expected] and [actual] as `path: description` lines.
-///
-/// Object key order is ignored; list order is significant.
 List<String> _jsonDifferences(Object? expected, Object? actual) {
   final differences = <String>[];
 

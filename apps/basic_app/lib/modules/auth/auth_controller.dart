@@ -1,8 +1,7 @@
+import 'package:basic_app/environment/app_env.dart';
+import 'package:basic_app/modules/auth/auth_dtos.dart';
+import 'package:basic_app/modules/auth/auth_service.dart';
 import 'package:dart_orpc/dart_orpc.dart';
-
-import '../../environment/app_env.dart';
-import 'auth_dtos.dart';
-import 'auth_service.dart';
 
 @Controller('auth')
 final class AuthController {
@@ -34,16 +33,5 @@ final class AuthController {
     @RpcInput() LoginDto input,
   ) {
     return authService.login(input, env: context.env);
-  }
-
-  @RpcMethod(
-    name: 'test',
-    path: RestMapping.post('/auth/test'),
-    description: 'Authenticate with email and password.',
-    tags: ['auth'],
-  )
-  Future<int> test(RpcContext context,) async {
-    print('test');
-    return 42;
   }
 }

@@ -1,5 +1,5 @@
-import '../todo/todo_service.dart';
-import 'todo_analysis_dtos.dart';
+import 'package:basic_app/modules/todo/todo_service.dart';
+import 'package:basic_app/modules/todo_analysis/todo_analysis_dtos.dart';
 
 final class TodoAnalysisService {
   TodoAnalysisService(this.todoService);

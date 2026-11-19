@@ -4,7 +4,6 @@ import 'package:json_annotation/json_annotation.dart';
 part 'strip_module.g.dart';
 
 @luthor
-// Reject extra keys at deserialization so the test proves Luthor removed them.
 @JsonSerializable(disallowUnrecognizedKeys: true)
 final class StripDto {
   const StripDto({required this.value});

@@ -78,7 +78,7 @@ class _$AppModuleContainer {
 }
 
 _$AppModuleContainer _$createAppModuleContainer() {
-  final appDatabase = AppDatabase();
+  final appDatabase = AppDatabase.atDefaultPath();
   final authService = AuthService(appDatabase);
   final todoService = TodoService(appDatabase);
   final basicAppJwtAuthGuard = BasicAppJwtAuthGuard();
@@ -145,15 +145,6 @@ RpcProcedureRegistry _$createAppModuleProcedureRegistryFromContainer(
 
       handler: (context, input) =>
           container.authController.login(context, input),
-    ),
-    RpcUnaryProcedure<Null, int>(
-      method: 'auth.test',
-      decodeInput: (rawInput) =>
-          expectNoRpcInput(rawInput, context: 'RPC method "auth.test"'),
-      encodeOutput: (output) => output,
-      metadata: metadataRegistry['auth.test']!,
-
-      handler: (context, input) => container.authController.test(context),
     ),
     RpcUnaryProcedure<Null, TodoListResponseDto>(
       method: 'todo.list',
@@ -423,15 +414,6 @@ RestRouteRegistry _$createAppModuleRestRouteRegistryFromContainer(
         );
       },
       metadata: metadataRegistry['auth.login']!,
-    ),
-    RestUnaryRoute(
-      method: 'POST',
-      path: '/auth/test',
-      handler: (context, request, pathParameters) async {
-        final output = await container.authController.test(context);
-        return output;
-      },
-      metadata: metadataRegistry['auth.test']!,
     ),
     RestUnaryRoute(
       method: 'GET',
@@ -712,15 +694,6 @@ final ProcedureMetadataRegistry _$appModuleProcedureMetadata =
             typeCode: 'LoginDto',
           ),
         ],
-      ),
-      const ProcedureMetadata(
-        rpcMethod: 'auth.test',
-        controllerNamespace: 'auth',
-        methodName: 'test',
-        path: RestProcedureMetadata(method: 'POST', path: '/auth/test'),
-        outputTypeCode: 'int',
-        description: 'Authenticate with email and password.',
-        tags: ['auth'],
       ),
       const ProcedureMetadata(
         rpcMethod: 'todo.list',
@@ -1025,6 +998,7 @@ RpcHttpApp _$buildAppModuleRpcApp({
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
   Iterable<RpcHttpMiddleware> middleware = const [],
+  RpcObserver? observer,
 }) {
   final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();
   final effectiveDocs = docs ?? const RpcHttpDocsOptions();
@@ -1061,9 +1035,14 @@ RpcHttpApp _$buildAppModuleRpcApp({
     requestBodyIdleTimeout: requestBodyIdleTimeout,
     serverOptions: serverOptions,
     middleware: middleware,
+    observer: observer,
     upgradeHandlers: [
       if (webSocket != null)
-        RpcWebSocketUpgradeHandler(procedures: procedures, options: webSocket),
+        RpcWebSocketUpgradeHandler(
+          procedures: procedures,
+          options: webSocket,
+          observer: observer,
+        ),
     ],
   );
 }
@@ -1084,6 +1063,7 @@ RpcHttpApp dartOrpcBuildAppModuleRpcApp({
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
   Iterable<RpcHttpMiddleware> middleware = const [],
+  RpcObserver? observer,
 }) => _$buildAppModuleRpcApp(
   openApi: openApi,
   docs: docs,
@@ -1100,6 +1080,7 @@ RpcHttpApp dartOrpcBuildAppModuleRpcApp({
   requestBodyIdleTimeout: requestBodyIdleTimeout,
   serverOptions: serverOptions,
   middleware: middleware,
+  observer: observer,
 );
 
 DtoSchemaRegistry _$createAppModuleLocalDtoSchemaRegistry() {
@@ -1168,6 +1149,7 @@ extension DartOrpcAppModuleGenerated on AppModule {
     Duration? requestBodyIdleTimeout,
     RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
     Iterable<RpcHttpMiddleware> middleware = const [],
+    RpcObserver? observer,
   }) => dartOrpcBuildAppModuleRpcApp(
     openApi: openApi,
     docs: docs,
@@ -1184,6 +1166,7 @@ extension DartOrpcAppModuleGenerated on AppModule {
     requestBodyIdleTimeout: requestBodyIdleTimeout,
     serverOptions: serverOptions,
     middleware: middleware,
+    observer: observer,
   );
   AppClient createClient({required RpcClientTransports transports}) =>
       AppClient(transports: transports);

@@ -1,16 +1,20 @@
+import 'package:basic_app/database/database_open.dart';
+import 'package:basic_app/database/tables.dart';
 import 'package:dart_orpc/dart_orpc.dart';
 import 'package:drift/drift.dart';
-
-import 'database_open.dart';
-import 'tables.dart';
 
 part 'app_database.g.dart';
 
 @DriftDatabase(tables: [Todos, Users])
 class AppDatabase extends _$AppDatabase implements RpcDisposable {
-  AppDatabase() : super(openDatabaseConnection());
+  AppDatabase(super.e);
 
-  /// Closes the database when the app shuts down, so its file is released.
+  factory AppDatabase.atPath(String path) =>
+      AppDatabase(openDatabaseConnection(path));
+
+  factory AppDatabase.atDefaultPath() =>
+      AppDatabase.atPath(defaultDatabasePath());
+
   @override
   Future<void> dispose() => close();
 

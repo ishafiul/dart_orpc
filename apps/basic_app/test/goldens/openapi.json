@@ -221,6 +221,11 @@
             "$ref": "#/components/schemas/TodoResponseDto"
           },
           "type": {
+            "enum": [
+              "created",
+              "updated",
+              "deleted"
+            ],
             "type": "string"
           }
         },
@@ -525,177 +530,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuthResponseDto"
-                }
-              }
-            },
-            "description": "Successful response."
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RpcErrorResponse"
-                }
-              }
-            },
-            "description": "BAD_REQUEST"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RpcErrorResponse"
-                }
-              }
-            },
-            "description": "UNAUTHORIZED"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RpcErrorResponse"
-                }
-              }
-            },
-            "description": "FORBIDDEN"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RpcErrorResponse"
-                }
-              }
-            },
-            "description": "NOT_FOUND"
-          },
-          "408": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RpcErrorResponse"
-                }
-              }
-            },
-            "description": "REQUEST_TIMEOUT"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RpcErrorResponse"
-                }
-              }
-            },
-            "description": "CONFLICT"
-          },
-          "413": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RpcErrorResponse"
-                }
-              }
-            },
-            "description": "PAYLOAD_TOO_LARGE"
-          },
-          "415": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RpcErrorResponse"
-                }
-              }
-            },
-            "description": "UNSUPPORTED_MEDIA_TYPE"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RpcErrorResponse"
-                }
-              }
-            },
-            "description": "RESOURCE_EXHAUSTED"
-          },
-          "431": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RpcErrorResponse"
-                }
-              }
-            },
-            "description": "HEADERS_TOO_LARGE"
-          },
-          "499": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RpcErrorResponse"
-                }
-              }
-            },
-            "description": "CANCELLED"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RpcErrorResponse"
-                }
-              }
-            },
-            "description": "INTERNAL_ERROR"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RpcErrorResponse"
-                }
-              }
-            },
-            "description": "UNAVAILABLE"
-          },
-          "504": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RpcErrorResponse"
-                }
-              }
-            },
-            "description": "DEADLINE_EXCEEDED"
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RpcErrorResponse"
-                }
-              }
-            },
-            "description": "Error response."
-          }
-        },
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/auth/test": {
-      "post": {
-        "description": "Authenticate with email and password.",
-        "operationId": "auth.test",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "integer"
                 }
               }
             },

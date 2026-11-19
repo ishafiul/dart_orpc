@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:basic_app/database/app_database.dart';
-import 'package:basic_app/database/database_open.dart';
 import 'package:basic_app/environment/app_env.dart';
 import 'package:basic_app/modules/auth/auth_dtos.dart';
 import 'package:basic_app/modules/auth/auth_service.dart';
@@ -22,14 +21,12 @@ void main() {
 
   setUp(() {
     temporaryDirectory = Directory.systemTemp.createTempSync('auth-service');
-    databasePathOverride = '${temporaryDirectory.path}/auth.db';
-    database = AppDatabase();
+    database = AppDatabase.atPath('${temporaryDirectory.path}/auth.db');
     service = AuthService(database);
   });
 
   tearDown(() async {
     await database.close();
-    databasePathOverride = null;
     temporaryDirectory.deleteSync(recursive: true);
   });
 

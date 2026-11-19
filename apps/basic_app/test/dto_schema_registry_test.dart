@@ -14,8 +14,8 @@ void main() {
       'When listed then it covers every DTO component in the OpenAPI document',
       () {
         final components =
-            (const AppModule().openApiDocument()['components']
-                    as Map<String, Object?>)['schemas']
+            (const AppModule().openApiDocument()['components']!
+                    as Map<String, Object?>)['schemas']!
                 as Map<String, Object?>;
 
         expect(

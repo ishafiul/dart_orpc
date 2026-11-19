@@ -874,6 +874,7 @@ RpcHttpApp _$buildTodoAnalysisModuleRpcApp({
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
   Iterable<RpcHttpMiddleware> middleware = const [],
+  RpcObserver? observer,
 }) {
   final effectiveOpenApi = openApi ?? const OpenApiDocumentOptions();
   final effectiveDocs = docs ?? const RpcHttpDocsOptions();
@@ -916,9 +917,14 @@ RpcHttpApp _$buildTodoAnalysisModuleRpcApp({
     requestBodyIdleTimeout: requestBodyIdleTimeout,
     serverOptions: serverOptions,
     middleware: middleware,
+    observer: observer,
     upgradeHandlers: [
       if (webSocket != null)
-        RpcWebSocketUpgradeHandler(procedures: procedures, options: webSocket),
+        RpcWebSocketUpgradeHandler(
+          procedures: procedures,
+          options: webSocket,
+          observer: observer,
+        ),
     ],
   );
 }
@@ -940,6 +946,7 @@ RpcHttpApp dartOrpcBuildTodoAnalysisModuleRpcApp({
   Duration? requestBodyIdleTimeout,
   RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
   Iterable<RpcHttpMiddleware> middleware = const [],
+  RpcObserver? observer,
 }) => _$buildTodoAnalysisModuleRpcApp(
   appDatabase: appDatabase,
   openApi: openApi,
@@ -957,6 +964,7 @@ RpcHttpApp dartOrpcBuildTodoAnalysisModuleRpcApp({
   requestBodyIdleTimeout: requestBodyIdleTimeout,
   serverOptions: serverOptions,
   middleware: middleware,
+  observer: observer,
 );
 
 DtoSchemaRegistry _$createTodoAnalysisModuleLocalDtoSchemaRegistry() {
@@ -1053,6 +1061,7 @@ extension DartOrpcTodoAnalysisModuleGenerated on TodoAnalysisModule {
     Duration? requestBodyIdleTimeout,
     RpcHttpServerOptions serverOptions = const RpcHttpServerOptions(),
     Iterable<RpcHttpMiddleware> middleware = const [],
+    RpcObserver? observer,
   }) => dartOrpcBuildTodoAnalysisModuleRpcApp(
     appDatabase: appDatabase,
     openApi: openApi,
@@ -1070,6 +1079,7 @@ extension DartOrpcTodoAnalysisModuleGenerated on TodoAnalysisModule {
     requestBodyIdleTimeout: requestBodyIdleTimeout,
     serverOptions: serverOptions,
     middleware: middleware,
+    observer: observer,
   );
   TodoAnalysisClientRoot createClient({
     required RpcClientTransports transports,

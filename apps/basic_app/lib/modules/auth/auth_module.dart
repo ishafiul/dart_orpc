@@ -1,7 +1,6 @@
+import 'package:basic_app/modules/auth/auth_controller.dart';
+import 'package:basic_app/modules/auth/auth_service.dart';
 import 'package:dart_orpc/dart_orpc.dart';
-
-import 'auth_controller.dart';
-import 'auth_service.dart';
 
 @Module(controllers: [AuthController], providers: [AuthService])
 final class AuthModule {
