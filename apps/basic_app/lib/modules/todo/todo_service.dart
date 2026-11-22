@@ -13,6 +13,7 @@ String _todoNotFound(int id) => 'Todo $id was not found.';
 RpcException _todoNotFoundError(int id) =>
     RpcException.notFound(_todoNotFound(id), details: {_todoIdDetail: id});
 
+@Service()
 final class TodoService {
   TodoService(this.db);
 

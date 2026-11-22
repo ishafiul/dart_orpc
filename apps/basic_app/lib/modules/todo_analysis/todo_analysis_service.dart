@@ -1,6 +1,8 @@
 import 'package:basic_app/modules/todo/todo_service.dart';
 import 'package:basic_app/modules/todo_analysis/todo_analysis_dtos.dart';
+import 'package:dart_orpc/dart_orpc.dart';
 
+@Service()
 final class TodoAnalysisService {
   TodoAnalysisService(this.todoService);
 

@@ -10,6 +10,7 @@ const _nameClaim = 'name';
 const _emailTaken = 'An account with this email already exists.';
 const _invalidCredentials = 'Invalid email or password.';
 
+@Service()
 final class AuthService {
   AuthService(this.db);
 

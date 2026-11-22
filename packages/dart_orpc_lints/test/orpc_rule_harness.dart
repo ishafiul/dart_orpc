@@ -23,6 +23,14 @@ final class Controller {
 
   final String namespace;
 }
+
+final class Service {
+  const Service();
+}
+
+final class Repository {
+  const Repository();
+}
 ''';
 
 const _coreStub = '''
@@ -32,6 +40,10 @@ final class RpcException implements Exception {
   factory RpcException.notFound(String message) => RpcException(message);
 
   final String message;
+}
+
+abstract interface class RpcGuard {
+  void canActivate(Object context);
 }
 ''';
 
