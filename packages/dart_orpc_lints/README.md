@@ -49,7 +49,10 @@ All rules are errors and skip generated files.
 | `controller_no_logic` | loops, `try` statements and `dart:io` inside `@Controller` classes | exempt |
 | `no_cross_module_internal_import` | using another module's controllers or non-exported providers | exempt |
 | `no_undeclared_module_dependency` | using an exported provider of a module that is not in `@Module(imports:)` and is not global | exempt |
-| `no_manual_provider_construction` | constructing a provider or controller instead of injecting it | exempt |
+| `no_manual_provider_construction` | constructing a provider, controller or any class with a role instead of injecting it | exempt |
+| `provider_requires_role` | a class in `providers` without `@Service()`, `@Repository()` or an `RpcGuard` implementation | exempt |
+| `role_must_be_provided` | a `@Service` or `@Repository` missing from the `providers` of the module that owns its folder | exempt |
+| `layer_dependencies` | a controller using a repository, a repository using a service, and other breaks of controller → service → repository | exempt |
 
 ### How module ownership is resolved
 
@@ -63,7 +66,6 @@ rules compare type names against the `providers`, `bindings`, `controllers`,
 
 | Rule | Waits on |
 |---|---|
-| `layer_imports` | provider role markers (`@Service`, `@Repository`, ...) in `dart_orpc_annotations`, so a rule can tell layers apart |
 | `no_generated_code_edits` | nothing in the lint: hand edits to generated files are caught by regenerating in CI and failing on a diff |
 
 ## Developing the rules in this repository

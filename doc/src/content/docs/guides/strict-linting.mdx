@@ -60,9 +60,50 @@ Interpolated text cannot be `const`, so give it a name instead: `String todoNotF
 | `controller_no_logic` | loops, `try` statements and `dart:io` inside `@Controller` classes |
 | `no_cross_module_internal_import` | using another module's controllers or non-exported providers |
 | `no_undeclared_module_dependency` | using a provider of a module that is neither imported nor global |
-| `no_manual_provider_construction` | constructing a provider outside DI; a provider may construct itself, such as in a factory constructor used by `useFactory` |
+| `no_manual_provider_construction` | constructing a provider, or any class with a role, outside DI; a provider may construct itself, such as in a factory constructor used by `useFactory` |
+| `provider_requires_role` | a class in `providers` without `@Service()`, `@Repository()`, or an `RpcGuard` implementation |
+| `role_must_be_provided` | a `@Service` or `@Repository` missing from the `providers` of the module that owns its folder |
+| `layer_dependencies` | a dependency that breaks the layer order below |
 
 A file belongs to the module declared in it, otherwise to the single `@Module` class in the nearest enclosing folder.
+
+## Provider roles
+
+Every provider declares what it is, and the rules keep the declaration, the module lists, and the dependencies consistent:
+
+```dart
+@Service()
+final class TodoService {
+  TodoService(this.todos);
+
+  final TodoRepository todos;
+}
+
+@Repository()
+final class TodoRepository {
+  TodoRepository(this.db);
+
+  final AppDatabase db;
+}
+
+@Module(
+  controllers: [TodoController],
+  providers: [TodoService, TodoRepository],
+  exports: [TodoService],
+)
+final class TodoModule {
+  const TodoModule();
+}
+```
+
+| From | May depend on |
+| --- | --- |
+| Controller | services, guards |
+| Service | services, repositories, guards |
+| Repository | infrastructure from `bindings` only |
+| Guard | services |
+
+Infrastructure and third-party types (database clients, HTTP clients) have no role; provide them through `bindings` with `useFactory`. Roles are compile-time metadata only, so they add no runtime memory or work.
 
 ## Suppressing a rule
 

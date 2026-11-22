@@ -49,6 +49,25 @@ final class Controller {
   final String namespace;
 }
 
+/// Marks a provider that holds business logic.
+///
+/// List it in the `providers` of the module that owns its folder. Controllers
+/// may depend on services; services may depend on other services and on
+/// repositories. Never construct it by hand: the module provides one instance.
+final class Service {
+  const Service();
+}
+
+/// Marks a provider that reads and writes persistent data.
+///
+/// List it in the `providers` of the module that owns its folder. Services
+/// depend on repositories; controllers and other repositories do not. A
+/// repository reaches infrastructure, such as a database client, through
+/// `RpcProviderBinding` factories.
+final class Repository {
+  const Repository();
+}
+
 final class RestMapping {
   const RestMapping.get(String path, {this.statusCode, this.headers = const {}})
     : method = 'GET',

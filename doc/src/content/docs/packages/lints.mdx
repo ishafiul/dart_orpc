@@ -6,7 +6,7 @@ description: strict_dart_lints for any Dart code and dart_orpc_lints for dart_or
 | Package | Layer | Contents |
 | --- | --- | --- |
 | `strict_dart_lints` | Base, any Dart code | `strict.yaml` and `library.yaml` presets; rules for comments, ignore reasons, `!`, `as`, `Future.delayed`, `late`, hard-coded strings, mirrors, mutable globals, broad catches |
-| `dart_orpc_lints` | dart_orpc apps | `app.yaml` preset; rules for framework errors, manual routes, controller logic, module boundaries, manual provider construction |
+| `dart_orpc_lints` | dart_orpc apps | `app.yaml` preset; rules for framework errors, manual routes, controller logic, module boundaries, provider roles, layering, manual provider construction |
 
 Add `dart_orpc_lints` as a dev dependency; it depends on `strict_dart_lints`. Enable both plugins in `analysis_options.yaml`, so each rule keeps its `plugin/rule` name for ignore comments.
 

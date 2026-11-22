@@ -77,6 +77,9 @@ final class ModuleBoundary {
     if (element is! InterfaceElement) {
       return false;
     }
+    if (roleOf(element) != null) {
+      return true;
+    }
     final typeName = element.name;
     final declaringPath = declaringFilePath(element);
     if (typeName == null) {

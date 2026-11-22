@@ -68,6 +68,23 @@ class OrdersService {
     ]);
   }
 
+  Future<void> test_reports_unregistered_service() async {
+    const content = '''
+import 'package:dart_orpc_annotations/dart_orpc_annotations.dart';
+
+@Service()
+final class AuditService {}
+
+class OrdersService {
+  AuditService audit() => AuditService();
+}
+''';
+    final path = writeOrdersService(content);
+    await assertDiagnosticsInFile(path, [
+      lintOn(content, 'AuditService()', length: 12),
+    ]);
+  }
+
   Future<void> test_allows_non_provider_types() async {
     final path = writeOrdersService('''
 import '../billing/invoice_dto.dart';
