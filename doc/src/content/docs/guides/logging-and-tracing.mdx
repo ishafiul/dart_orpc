@@ -68,6 +68,7 @@ const _log = Logger('todo');
 const _todoCreated = 'todo.created';
 const _todoIdAttribute = 'todo.id';
 
+@Service()
 final class TodoService {
   Future<TodoResponseDto> create(String title) async {
     final todo = await _insert(title);

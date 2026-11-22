@@ -82,6 +82,7 @@ Create `lib/modules/todo/todo_service.dart`:
 import 'package:dart_orpc/dart_orpc.dart';
 import 'todo_dtos.dart';
 
+@Service()
 final class TodoService {
   final Map<int, TodoResponseDto> _items = {};
   int _nextId = 1;

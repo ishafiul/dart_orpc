@@ -14,13 +14,16 @@ A root module composes feature modules. Only modules reachable through that grap
 A provider is a dependency the generated container constructs for injection: a service, repository, clock, database wrapper, or guard. Classes receive providers through typed constructor parameters instead of creating them internally or looking them up from a dynamic global map.
 
 ```dart
+@Service()
 final class TodoService {
   TodoService(this.repository);
   final TodoRepository repository;
 }
 ```
 
-This illustrative constructor requires a TodoRepository registered in its feature. Generation builds dependencies in order and passes the service to controllers. No Injectable annotation is needed.
+This illustrative constructor requires a TodoRepository registered in its feature. Generation builds dependencies in order and passes the service to controllers.
+
+Every provider class declares its role: `@Service()` for business logic, `@Repository()` for persistence, and guards by implementing `RpcGuard`. Third-party and infrastructure types, such as a database client, come in through `bindings`. The marker costs nothing at runtime: the generator emits the same code, and [`dart_orpc_lints`](/dart-orpc/guides/strict-linting#provider-roles) uses it to enforce registration and layering.
 
 Providers are singleton instances within one generated app container. Requests share those instances, so do not store current request/user data in shared service fields. Separate app roots and workers have separate containers.
 
