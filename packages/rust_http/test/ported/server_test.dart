@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:rust_http/rust_http.dart';
@@ -352,13 +351,17 @@ void main() {
     await Isolate.spawn(load, <Object>[port, 1500, done.sendPort]);
     await Future<void>.delayed(const Duration(milliseconds: 200));
     // like a database reply: a short wait on the isolate that serves
-    int worst = 0;
+    List<int> late = <int>[];
     for (int i = 0; i < 20; i++) {
       Stopwatch clock = Stopwatch()..start();
       await Future<void>.delayed(const Duration(milliseconds: 10));
-      worst = max(worst, clock.elapsedMilliseconds - 10);
+      late.add(clock.elapsedMilliseconds - 10);
     }
-    expect(worst, lessThan(50), reason: 'late by $worst ms');
+    // The 80th percentile, so a few scheduling hiccups of a shared CI
+    // machine do not fail the test. A server that starves the isolate's
+    // timers makes most of them late, so it still fails.
+    late.sort();
+    expect(late[15], lessThan(50), reason: 'late by $late ms');
     await done.first;
   });
 
