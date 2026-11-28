@@ -117,12 +117,20 @@ final class RustHttpRequest extends Stream<Uint8List> implements HttpRequest {
   HttpSession get session =>
       throw UnsupportedError('rust_http has no HttpSession');
 
+  /// Like dart:io, a Unix domain socket peer is `InternetAddress('')` of
+  /// type unix, with port 0.
   @override
-  late final HttpConnectionInfo connectionInfo = _ConnectionInfo(
-    _remoteAddress(_remoteIp),
-    _remotePort,
-    _channel.localPort,
-  );
+  late final HttpConnectionInfo connectionInfo = _channel.isUnixSocket
+      ? _ConnectionInfo(
+          InternetAddress('', type: InternetAddressType.unix),
+          0,
+          0,
+        )
+      : _ConnectionInfo(
+          _remoteAddress(_remoteIp),
+          _remotePort,
+          _channel.localPort,
+        );
 
   /// Stops viewing [batch]: copies the bytes this request holds from it, so
   /// a request that outlives its batch does not keep the whole batch alive.

@@ -17,6 +17,7 @@ pub mod listener;
 pub mod native_memory;
 pub mod protocol;
 pub mod server;
+pub mod stream;
 pub mod websocket;
 
 /// Version of the C ABI and of the record layout shared with Dart.
@@ -24,4 +25,4 @@ pub mod websocket;
 /// Bump it whenever an exported function or a record layout changes. Dart
 /// refuses to load a library whose version differs from its own
 /// `abiVersion`.
-pub const ABI_VERSION: i32 = 3;
+pub const ABI_VERSION: i32 = 4;

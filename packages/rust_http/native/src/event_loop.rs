@@ -47,10 +47,12 @@ use crate::limits::{
     ACCEPT_RETRY, LINGER_MAX, Limits, MAX_ACCEPTS_PER_TURN, READ_ROOM, WS_HOLD, WS_OUT_MAX,
     WS_READ, WS_UNACKED,
 };
-use crate::listener::{self, ListenAddress, ListenerSource, peer_bytes};
+use crate::listener::{self, Endpoint, ListenerSource, peer_bytes};
 use crate::protocol::kinds::{InboundKind, OutboundKind};
 use crate::protocol::outbox::Outbox;
+use crate::protocol::request_record::Peer;
 use crate::protocol::response_record::{ResponseRecord, ResponseRecords};
+use crate::stream::Stream;
 use crate::websocket::{ABNORMAL_CLOSURE, SocketIo, WebSocketState, close_frame, close_parts};
 
 /// Poll token of the listening socket.
@@ -63,7 +65,7 @@ pub struct EventLoop {
     poll: Poll,
     events: Events,
     listener: Option<Acceptor>,
-    address: ListenAddress,
+    endpoint: Endpoint,
     released: bool,
     connections: Slab<Connection>,
     /// Connections that may have bytes to read or requests to parse.
@@ -113,7 +115,7 @@ impl EventLoop {
     /// When the poller or its waker cannot be created.
     pub fn new(
         source: ListenerSource,
-        address: ListenAddress,
+        endpoint: impl Into<Endpoint>,
         limits: Limits,
     ) -> std::io::Result<Self> {
         let poll = Poll::new()?;
@@ -124,7 +126,7 @@ impl EventLoop {
             poll,
             events: Events::with_capacity(1024),
             listener: Some(listener),
-            address,
+            endpoint: endpoint.into(),
             released: false,
             connections: Slab::with_capacity(1024),
             ready: VecDeque::new(),
@@ -161,7 +163,7 @@ impl EventLoop {
     /// The bound port.
     #[must_use]
     pub fn port(&self) -> u16 {
-        self.address.port
+        self.endpoint.port()
     }
 
     /// The poll file descriptor, watched by the idle helper.
@@ -337,14 +339,21 @@ impl EventLoop {
     // ---- connections ----------------------------------------------------
 
     fn close_listener(&mut self) {
-        if let Some(Acceptor::Watched(mut listener)) = self.listener.take() {
-            let _ = self.poll.registry().deregister(&mut listener);
+        match self.listener.take() {
+            Some(Acceptor::Watched(mut listener)) => {
+                let _ = self.poll.registry().deregister(&mut listener);
+            }
+            #[cfg(unix)]
+            Some(Acceptor::WatchedUnix(mut listener)) => {
+                let _ = self.poll.registry().deregister(&mut listener);
+            }
+            _ => {}
         }
         self.accept_pending = false;
         self.accept_retry_at = None;
         if !self.released {
             self.released = true;
-            listener::release(self.address);
+            listener::release_endpoint(&self.endpoint);
         }
     }
 
@@ -487,7 +496,7 @@ impl EventLoop {
                 return;
             }
             match listener.accept() {
-                Ok((mut socket, address)) => {
+                Ok((mut socket, peer)) => {
                     let _ = socket.set_nodelay(true);
                     let entry = self.connections.vacant_entry();
                     let index = entry.key();
@@ -503,7 +512,7 @@ impl EventLoop {
                     {
                         continue;
                     }
-                    let mut connection = Connection::new(socket, peer_bytes(address), self.now);
+                    let mut connection = Connection::new(socket, peer, self.now);
                     // The request is often there already.
                     connection.queued = true;
                     entry.insert(connection);
@@ -1273,6 +1282,9 @@ impl EventLoop {
 enum Acceptor {
     /// A socket watched by the loop's poller.
     Watched(TcpListener),
+    /// A Unix domain socket watched by the loop's poller.
+    #[cfg(unix)]
+    WatchedUnix(mio::net::UnixListener),
     /// A socket shared with other loops, accepted from directly.
     #[cfg(windows)]
     Polled(Arc<std::net::TcpListener>),
@@ -1287,6 +1299,13 @@ impl Acceptor {
                     .register(&mut listener, LISTENER, Interest::READABLE)?;
                 Ok(Self::Watched(listener))
             }
+            #[cfg(unix)]
+            ListenerSource::Unix(listener) => {
+                let mut listener = mio::net::UnixListener::from_std(listener);
+                poll.registry()
+                    .register(&mut listener, LISTENER, Interest::READABLE)?;
+                Ok(Self::WatchedUnix(listener))
+            }
             #[cfg(windows)]
             ListenerSource::Shared(listener) => Ok(Self::Polled(listener)),
         }
@@ -1296,19 +1315,34 @@ impl Acceptor {
     fn is_polled(&self) -> bool {
         match self {
             Self::Watched(_) => false,
+            #[cfg(unix)]
+            Self::WatchedUnix(_) => false,
             #[cfg(windows)]
             Self::Polled(_) => true,
         }
     }
 
-    fn accept(&self) -> std::io::Result<(mio::net::TcpStream, std::net::SocketAddr)> {
+    /// A new connection and its peer; a Unix domain socket peer has no
+    /// address, so it is all zeros, which Dart reports like dart:io.
+    fn accept(&self) -> std::io::Result<(Stream, Peer)> {
         match self {
-            Self::Watched(listener) => listener.accept(),
+            Self::Watched(listener) => {
+                let (stream, address) = listener.accept()?;
+                Ok((stream.into(), peer_bytes(address)))
+            }
+            #[cfg(unix)]
+            Self::WatchedUnix(listener) => {
+                let (stream, _) = listener.accept()?;
+                Ok((stream.into(), [0; 18]))
+            }
             #[cfg(windows)]
             Self::Polled(listener) => {
                 let (stream, address) = listener.accept()?;
                 stream.set_nonblocking(true)?;
-                Ok((mio::net::TcpStream::from_std(stream), address))
+                Ok((
+                    mio::net::TcpStream::from_std(stream).into(),
+                    peer_bytes(address),
+                ))
             }
         }
     }

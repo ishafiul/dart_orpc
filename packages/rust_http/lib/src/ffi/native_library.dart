@@ -34,7 +34,7 @@ final class NativeLibraryLoader {
 
   /// The ABI version this Dart code speaks. Must equal `ABI_VERSION` in
   /// `native/src/lib.rs`.
-  static const int expectedAbiVersion = 3;
+  static const int expectedAbiVersion = 4;
 
   final int Function() _readAbiVersion;
   final int Function(Pointer<Void>) _initialize;

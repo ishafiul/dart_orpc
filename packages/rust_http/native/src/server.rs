@@ -27,7 +27,7 @@ use crate::event_loop::EventLoop;
 #[cfg(not(unix))]
 use crate::limits::SHARED_ACCEPT_POLL;
 use crate::limits::{Limits, PROBE};
-use crate::listener::{self, ListenAddress};
+use crate::listener::{self, Endpoint, ListenAddress, ListenerSource};
 
 /// Message to Dart: the sockets have work.
 pub const WAKE: u8 = 1;
@@ -81,9 +81,35 @@ impl Server {
         dart_port: i64,
     ) -> Result<Arc<Self>, BindError> {
         let bound = listener::bind(address, shared).map_err(BindError::Os)?;
-        let real = bound.address;
-        let Ok(event_loop) = EventLoop::new(bound.listener, real, limits) else {
-            listener::release(real);
+        Self::start(bound.listener, &bound.address.into(), limits, dart_port)
+    }
+
+    /// Binds a Unix domain socket at `path` (see [`listener::bind_unix`])
+    /// and starts the idle helper, which posts to `dart_port`.
+    ///
+    /// # Errors
+    /// [`BindError`] when the socket, poller or thread cannot be made.
+    #[cfg(unix)]
+    pub fn bind_unix(
+        path: &std::path::Path,
+        shared: bool,
+        limits: Limits,
+        dart_port: i64,
+    ) -> Result<Arc<Self>, BindError> {
+        let listener = listener::bind_unix(path, shared).map_err(BindError::Os)?;
+        let endpoint = Endpoint::Unix(path.to_path_buf());
+        Self::start(listener, &endpoint, limits, dart_port)
+    }
+
+    /// Runs a loop over a bound listener. On failure the bind is released.
+    fn start(
+        source: ListenerSource,
+        endpoint: &Endpoint,
+        limits: Limits,
+        dart_port: i64,
+    ) -> Result<Arc<Self>, BindError> {
+        let Ok(event_loop) = EventLoop::new(source, endpoint.clone(), limits) else {
+            listener::release_endpoint(endpoint);
             return Err(BindError::Resources);
         };
         let server = Arc::new(Self {

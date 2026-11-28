@@ -21,6 +21,10 @@ use crate::{ABI_VERSION, dart_api};
 const BIND_NOT_INITIALIZED: i64 = -1;
 /// `rust_http_bind` result: no poller or helper thread.
 const BIND_NO_RESOURCES: i64 = -2;
+/// `rust_http_bind_unix` result: Unix domain sockets are not supported on
+/// this OS.
+#[cfg(not(unix))]
+const BIND_UNSUPPORTED: i64 = -3;
 /// `rust_http_bind` result base: `-(1000 + errno)` for an OS bind error.
 const BIND_OS_ERROR_BASE: i64 = 1000;
 
@@ -83,7 +87,78 @@ pub extern "C" fn rust_http_bind(
         idle_timeout_ms,
     );
     limits.stream_request_bodies = flags & 2 != 0;
-    match Server::bind(address, flags & 1 != 0, limits, send_port) {
+    bind_result(Server::bind(address, flags & 1 != 0, limits, send_port))
+}
+
+/// Binds a server on the Unix domain socket at the `path_len` bytes of
+/// `path`, like [`rust_http_bind`] otherwise. The socket file must not
+/// exist; the last unbind of the path removes it. Returns what
+/// [`rust_http_bind`] returns, or -3 where Unix domain sockets are not
+/// supported.
+///
+/// # Safety
+/// `path` must point to `path_len` readable bytes.
+#[unsafe(no_mangle)]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn rust_http_bind_unix(
+    path: *const u8,
+    path_len: i64,
+    send_port: i64,
+    max_body: i64,
+    max_multipart: i64,
+    body_timeout_ms: i64,
+    max_connections: i64,
+    idle_timeout_ms: i64,
+    flags: i32,
+) -> i64 {
+    if !dart_api::is_initialized() {
+        return BIND_NOT_INITIALIZED;
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStrExt;
+
+        let path: &[u8] = match usize::try_from(path_len) {
+            // SAFETY: the caller guarantees `path_len` readable bytes.
+            Ok(len) if len > 0 && !path.is_null() => unsafe {
+                std::slice::from_raw_parts(path, len)
+            },
+            _ => &[],
+        };
+        if path.is_empty() || path.contains(&0) {
+            return -(BIND_OS_ERROR_BASE + i64::from(libc::EINVAL));
+        }
+        let path = std::path::Path::new(std::ffi::OsStr::from_bytes(path));
+        let mut limits = Limits::from_dart(
+            max_body,
+            max_multipart,
+            body_timeout_ms,
+            max_connections,
+            idle_timeout_ms,
+        );
+        limits.stream_request_bodies = flags & 2 != 0;
+        bind_result(Server::bind_unix(path, flags & 1 != 0, limits, send_port))
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (
+            path,
+            path_len,
+            send_port,
+            max_body,
+            max_multipart,
+            body_timeout_ms,
+            max_connections,
+            idle_timeout_ms,
+            flags,
+        );
+        BIND_UNSUPPORTED
+    }
+}
+
+/// A bind's result as `rust_http_bind` returns it.
+fn bind_result(result: Result<Arc<Server>, BindError>) -> i64 {
+    match result {
         Ok(server) => Arc::into_raw(server) as i64,
         Err(BindError::Os(error)) => {
             -(BIND_OS_ERROR_BASE + i64::from(error.raw_os_error().unwrap_or(0)))

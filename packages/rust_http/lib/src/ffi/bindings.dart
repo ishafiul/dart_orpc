@@ -45,6 +45,32 @@ external int rustHttpBind(
   int flags,
 );
 
+/// `rust_http_bind_unix` in `native/src/ffi.rs`.
+@Native<
+  Int64 Function(
+    Pointer<Uint8>,
+    Int64,
+    Int64,
+    Int64,
+    Int64,
+    Int64,
+    Int64,
+    Int64,
+    Int32,
+  )
+>(symbol: 'rust_http_bind_unix')
+external int rustHttpBindUnix(
+  Pointer<Uint8> path,
+  int pathLength,
+  int sendPort,
+  int maxBody,
+  int maxMultipart,
+  int bodyTimeoutMs,
+  int maxConnections,
+  int idleTimeoutMs,
+  int flags,
+);
+
 /// `rust_http_bound_port` in `native/src/ffi.rs`.
 @Native<Int32 Function(Int64)>(symbol: 'rust_http_bound_port', isLeaf: true)
 external int rustHttpBoundPort(int handle);

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
@@ -26,6 +27,12 @@ final class FfiHttpEngine implements HttpEngine {
   @override
   EngineServer bind(BindConfig config, int sendPort) {
     nativeLibrary.ensureAvailable();
+    final flags =
+        (config.shared ? 1 : 0) | (config.streamRequestBodies ? 2 : 0);
+    if (config.address case final address?
+        when address.type == InternetAddressType.unix) {
+      return _bindUnix(address, config, sendPort, flags);
+    }
     final raw = config.address?.rawAddress ?? const <int>[];
     final family = config.address == null ? 0 : (raw.length == 4 ? 4 : 6);
     var high = 0;
@@ -48,19 +55,61 @@ final class FfiHttpEngine implements HttpEngine {
       low,
       config.maxConnections ?? 0,
       config.idleTimeout.inMilliseconds,
-      (config.shared ? 1 : 0) | (config.streamRequestBodies ? 2 : 0),
+      flags,
     );
-    if (handle <= 0) {
-      final osError = handle <= -1000 ? -(handle + 1000) : 0;
+    return _serverOrThrow(handle, config);
+  }
+
+  EngineServer _bindUnix(
+    InternetAddress address,
+    BindConfig config,
+    int sendPort,
+    int flags,
+  ) {
+    final path = utf8.encode(address.address);
+    // At least one byte: an empty path is refused by Rust, not by alloc.
+    final size = path.isEmpty ? 1 : path.length;
+    final native = rustHttpAlloc(size);
+    try {
+      native.asTypedList(path.length).setAll(0, path);
+      final handle = rustHttpBindUnix(
+        native,
+        path.length,
+        sendPort,
+        config.maxBodySize,
+        config.maxMultipartSize,
+        config.bodyTimeout.inMilliseconds,
+        config.maxConnections ?? 0,
+        config.idleTimeout.inMilliseconds,
+        flags,
+      );
+      return _serverOrThrow(handle, config);
+    } finally {
+      rustHttpFree(native, size);
+    }
+  }
+
+  /// The server of a bind [handle], or the [SocketException] it reports.
+  static EngineServer _serverOrThrow(int handle, BindConfig config) {
+    if (handle > 0) return _FfiEngineServer(handle);
+    if (handle == _bindUnsupported) {
       throw SocketException(
-        'rust_http: bind failed ($handle)',
-        osError: OSError('', osError),
+        'rust_http: Unix domain sockets are not supported on '
+        '${Platform.operatingSystem}',
         address: config.address,
-        port: config.port,
       );
     }
-    return _FfiEngineServer(handle);
+    final osError = handle <= -1000 ? -(handle + 1000) : 0;
+    throw SocketException(
+      'rust_http: bind failed ($handle)',
+      osError: OSError('', osError),
+      address: config.address,
+      port: config.port,
+    );
   }
+
+  /// `BIND_UNSUPPORTED` in `native/src/ffi.rs`.
+  static const int _bindUnsupported = -3;
 }
 
 final class _FfiEngineServer implements EngineServer {

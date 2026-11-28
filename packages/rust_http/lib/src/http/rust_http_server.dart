@@ -190,6 +190,9 @@ final class RustHttpServer extends Stream<HttpRequest>
   int get localPort => port;
 
   @override
+  bool get isUnixSocket => address.type == InternetAddressType.unix;
+
+  @override
   final InternetAddress address;
 
   @override

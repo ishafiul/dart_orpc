@@ -9,8 +9,12 @@ abstract interface class AnswerChannel {
   /// The headers every response starts with.
   ResponseHeaders get defaultResponseHeaders;
 
-  /// The port the server listens on.
+  /// The port the server listens on; 0 on a Unix domain socket.
   int get localPort;
+
+  /// Whether the server listens on a Unix domain socket, whose peers have
+  /// no address.
+  bool get isUnixSocket;
 
   /// Whether the server still talks to the engine.
   bool get isOpen;

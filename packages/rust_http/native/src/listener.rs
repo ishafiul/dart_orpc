@@ -12,9 +12,15 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, TcpListener};
 #[cfg(windows)]
 use std::sync::Arc;
-#[cfg(not(any(target_os = "linux", target_os = "android")))]
 use std::sync::Mutex;
+#[cfg(unix)]
+use std::{
+    os::unix::net::UnixListener,
+    path::{Path, PathBuf},
+};
 
+#[cfg(unix)]
+use socket2::SockAddr;
 use socket2::{Domain, Protocol, Socket, Type};
 
 use crate::limits::LISTEN_BACKLOG;
@@ -48,6 +54,43 @@ impl ListenAddress {
 
     fn with_port(self, port: u16) -> Self {
         Self { port, ..self }
+    }
+}
+
+/// What a server listens on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Endpoint {
+    /// A TCP address.
+    Inet(ListenAddress),
+    /// A Unix domain socket path.
+    #[cfg(unix)]
+    Unix(PathBuf),
+}
+
+impl Endpoint {
+    /// The TCP port; 0 for a Unix domain socket, like dart:io.
+    #[must_use]
+    pub fn port(&self) -> u16 {
+        match self {
+            Self::Inet(address) => address.port,
+            #[cfg(unix)]
+            Self::Unix(_) => 0,
+        }
+    }
+}
+
+impl From<ListenAddress> for Endpoint {
+    fn from(address: ListenAddress) -> Self {
+        Self::Inet(address)
+    }
+}
+
+/// Releases the share of `endpoint` taken by [`bind`] or [`bind_unix`].
+pub fn release_endpoint(endpoint: &Endpoint) {
+    match endpoint {
+        Endpoint::Inet(address) => release(*address),
+        #[cfg(unix)]
+        Endpoint::Unix(path) => release_unix(path),
     }
 }
 
@@ -98,6 +141,10 @@ pub enum ListenerSource {
     /// A socket of its own (or a duplicate), watched by the server's
     /// poller.
     Owned(TcpListener),
+    /// A Unix domain socket of its own (or a duplicate), watched by the
+    /// server's poller.
+    #[cfg(unix)]
+    Unix(UnixListener),
     /// One socket shared by several servers of this process; each accepts
     /// from it directly, with no poller watching it (Windows).
     #[cfg(windows)]
@@ -112,6 +159,8 @@ impl ListenerSource {
     pub fn local_addr(&self) -> std::io::Result<SocketAddr> {
         match self {
             Self::Owned(listener) => listener.local_addr(),
+            #[cfg(unix)]
+            Self::Unix(_) => Err(std::io::ErrorKind::Unsupported.into()),
             #[cfg(windows)]
             Self::Shared(listener) => listener.local_addr(),
         }
@@ -245,6 +294,100 @@ pub fn release(address: ListenAddress) {
     }
 }
 
+/// A Unix domain socket of this process; see [`bind_unix`].
+#[cfg(unix)]
+struct UnixRegistered {
+    path: PathBuf,
+    /// The socket of a shared bind; none for an unshared one.
+    socket: Option<UnixListener>,
+    users: usize,
+}
+
+/// Unix domain sockets of this process.
+#[cfg(unix)]
+static UNIX_REGISTERED: Mutex<Vec<UnixRegistered>> = Mutex::new(Vec::new());
+
+/// Binds a Unix domain socket at `path`, like dart:io: the file must not
+/// exist yet, and other binds of the same path in this process succeed
+/// only when every one of them is `shared`. They get a duplicate of one
+/// socket and accept from the same queue. The last [`release_unix`]
+/// removes the file.
+///
+/// # Errors
+/// The OS error of the bind; `AddrInUse` for a path this process already
+/// binds and cannot share; `ENAMETOOLONG` for a path too long for a
+/// socket address.
+#[cfg(unix)]
+pub fn bind_unix(path: &Path, shared: bool) -> std::io::Result<ListenerSource> {
+    let mut registered = UNIX_REGISTERED
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if let Some(entry) = registered.iter_mut().find(|entry| entry.path == path) {
+        let Some(socket) = entry.socket.as_ref().filter(|_| shared) else {
+            return Err(std::io::ErrorKind::AddrInUse.into());
+        };
+        let listener = socket.try_clone()?;
+        entry.users += 1;
+        return Ok(ListenerSource::Unix(listener));
+    }
+    let listener = bind_new_unix(path)?;
+    let socket = if shared {
+        match listener.try_clone() {
+            Ok(socket) => Some(socket),
+            Err(error) => {
+                let _ = std::fs::remove_file(path);
+                return Err(error);
+            }
+        }
+    } else {
+        None
+    };
+    registered.push(UnixRegistered {
+        path: path.to_path_buf(),
+        socket,
+        users: 1,
+    });
+    Ok(ListenerSource::Unix(listener))
+}
+
+#[cfg(unix)]
+fn bind_new_unix(path: &Path) -> std::io::Result<UnixListener> {
+    let address = SockAddr::unix(path).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::InvalidInput {
+            std::io::Error::from_raw_os_error(libc::ENAMETOOLONG)
+        } else {
+            error
+        }
+    })?;
+    let socket = Socket::new(Domain::UNIX, Type::STREAM, None)?;
+    socket.bind(&address)?;
+    // The bind made the file: remove it again if the socket is unusable.
+    if let Err(error) = socket
+        .listen(LISTEN_BACKLOG)
+        .and_then(|()| socket.set_nonblocking(true))
+    {
+        let _ = std::fs::remove_file(path);
+        return Err(error);
+    }
+    Ok(socket.into())
+}
+
+/// Releases the share of `path` taken by [`bind_unix`]. The last release
+/// closes the socket and removes its file, like dart:io.
+#[cfg(unix)]
+pub fn release_unix(path: &Path) {
+    let mut registered = UNIX_REGISTERED
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if let Some(index) = registered.iter().position(|entry| entry.path == path) {
+        registered[index].users -= 1;
+        if registered[index].users == 0 {
+            registered.swap_remove(index);
+            let _ = std::fs::remove_file(path);
+        }
+    }
+}
+
 /// The peer as 16 IP bytes (IPv4 mapped) and a little-endian port.
 #[must_use]
 pub fn peer_bytes(address: SocketAddr) -> Peer {
@@ -298,6 +441,72 @@ mod tests {
     fn decodes_ipv6_from_two_words() {
         let address = ListenAddress::from_dart(6, 0, 1, 80);
         assert_eq!(address.ip, Some(IpAddr::V6(Ipv6Addr::LOCALHOST)));
+    }
+
+    #[cfg(unix)]
+    fn socket_path(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!("rh_{}_{name}.sock", std::process::id()))
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_unix_bind_makes_the_file_and_its_release_removes_it() {
+        let path = socket_path("lifecycle");
+        let _ = std::fs::remove_file(&path);
+        let listener = bind_unix(&path, false).unwrap();
+        assert!(std::fs::symlink_metadata(&path).is_ok());
+        std::os::unix::net::UnixStream::connect(&path).unwrap();
+        drop(listener);
+        release_unix(&path);
+        assert!(std::fs::symlink_metadata(&path).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn only_shared_unix_binds_share_a_path() {
+        let path = socket_path("shared");
+        let _ = std::fs::remove_file(&path);
+        let first = bind_unix(&path, false).unwrap();
+        assert_eq!(
+            bind_unix(&path, true).err().map(|e| e.kind()),
+            Some(std::io::ErrorKind::AddrInUse)
+        );
+        drop(first);
+        release_unix(&path);
+
+        let first = bind_unix(&path, true).unwrap();
+        let second = bind_unix(&path, true).unwrap();
+        drop(first);
+        release_unix(&path);
+        // The second user still holds the path.
+        assert!(std::fs::symlink_metadata(&path).is_ok());
+        drop(second);
+        release_unix(&path);
+        assert!(std::fs::symlink_metadata(&path).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_unix_bind_refuses_an_existing_file() {
+        let path = socket_path("existing");
+        std::fs::write(&path, b"x").unwrap();
+        assert_eq!(
+            bind_unix(&path, false).err().map(|e| e.kind()),
+            Some(std::io::ErrorKind::AddrInUse)
+        );
+        // The file someone else made stays.
+        assert!(std::fs::symlink_metadata(&path).is_ok());
+        std::fs::remove_file(&path).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_unix_path_too_long_is_reported() {
+        let path = PathBuf::from(format!("/tmp/{}.sock", "x".repeat(200)));
+        assert_eq!(
+            bind_unix(&path, false).err().and_then(|e| e.raw_os_error()),
+            Some(libc::ENAMETOOLONG)
+        );
     }
 
     #[test]

@@ -15,6 +15,7 @@ use super::*;
 use crate::limits::{
     CLOSE_WAIT, KEEP_WRITE_BUFFER, MAX_INFLIGHT, MAX_PENDING, MAX_TIMEOUT, SEND_WAIT, WS_UNACKED,
 };
+use crate::listener::ListenAddress;
 use std::sync::mpsc;
 
 const WS_TEXT: u32 = InboundKind::WebSocketText as u32;
@@ -1174,4 +1175,97 @@ fn keep_alive_connections_share_one_read_buffer() {
     let targets: Vec<&str> = got.iter().map(|r| r.target.as_str()).collect();
     assert_eq!(targets, ["/b", "/c"]);
     assert_eq!(read_buf_capacity(&core), 0);
+}
+
+#[cfg(unix)]
+mod unix_socket {
+    use super::*;
+    use std::os::unix::net::UnixStream as StdUnixStream;
+    use std::path::PathBuf;
+
+    fn socket_path(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!("rh_loop_{}_{name}.sock", std::process::id()))
+    }
+
+    /// Runs the test app on a thread over a Unix domain socket at `path`.
+    fn serve_unix(path: &std::path::Path) {
+        let _ = std::fs::remove_file(path);
+        let listener = listener::bind_unix(path, false).unwrap();
+        let mut core =
+            EventLoop::new(listener, Endpoint::Unix(path.to_path_buf()), limits()).unwrap();
+        std::thread::spawn(move || {
+            let mut inb = vec![0u8; 1 << 18];
+            let mut out = Vec::new();
+            loop {
+                turn(&mut core, &mut inb, &mut out, 1000);
+            }
+        });
+    }
+
+    fn connect_unix(path: &std::path::Path) -> StdUnixStream {
+        let s = StdUnixStream::connect(path).unwrap();
+        s.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+        s
+    }
+
+    #[test]
+    fn answers_keep_alive_requests() {
+        let path = socket_path("answers");
+        serve_unix(&path);
+        let mut s = connect_unix(&path);
+        s.write_all(b"GET /one HTTP/1.1\r\nHost: a\r\n\r\n")
+            .unwrap();
+        s.write_all(
+            b"POST /two HTTP/1.1\r\nHost: a\r\ncontent-length: 2\r\nConnection: close\r\n\r\nhi",
+        )
+        .unwrap();
+        let mut out = Vec::new();
+        let _ = s.read_to_end(&mut out);
+        let out = String::from_utf8_lossy(&out);
+        assert_eq!(out.matches("HTTP/1.1 200 OK\r\n").count(), 2, "{out:?}");
+        assert!(out.contains("\r\n\r\n/one"), "{out:?}");
+        assert!(out.ends_with("\r\n\r\n/twohi"), "{out:?}");
+    }
+
+    #[test]
+    fn reports_the_peer_as_all_zeros() {
+        let path = socket_path("peer");
+        let _ = std::fs::remove_file(&path);
+        let listener = listener::bind_unix(&path, false).unwrap();
+        let mut core = EventLoop::new(listener, Endpoint::Unix(path.clone()), limits()).unwrap();
+        let mut inb = vec![0u8; 1 << 16];
+        let mut s = connect_unix(&path);
+        s.write_all(b"GET /p HTTP/1.1\r\nHost: a\r\n\r\n").unwrap();
+        let end = Instant::now() + Duration::from_secs(5);
+        let request = loop {
+            let n = core.run_us(&[], &mut inb, 1000).unwrap();
+            if let Some(r) = records(&inb[..n]).into_iter().find(|r| r.kind() == 0) {
+                break r;
+            }
+            assert!(Instant::now() < end, "no request");
+        };
+        assert_eq!(request.code, 0, "the peer port");
+        core.stop();
+    }
+
+    #[test]
+    fn upgrades_a_websocket() {
+        let path = socket_path("ws");
+        serve_unix(&path);
+        let (mut ws, _) = tungstenite::client("ws://localhost/ws", connect_unix(&path)).unwrap();
+        ws.send(tungstenite::Message::text("ping")).unwrap();
+        assert_eq!(ws.read().unwrap(), tungstenite::Message::text("ping"));
+    }
+
+    #[test]
+    fn stopping_removes_the_socket_file() {
+        let path = socket_path("stop");
+        let _ = std::fs::remove_file(&path);
+        let listener = listener::bind_unix(&path, false).unwrap();
+        let mut core = EventLoop::new(listener, Endpoint::Unix(path.clone()), limits()).unwrap();
+        assert_eq!(core.port(), 0);
+        assert!(std::fs::symlink_metadata(&path).is_ok());
+        core.stop();
+        assert!(std::fs::symlink_metadata(&path).is_err());
+    }
 }
