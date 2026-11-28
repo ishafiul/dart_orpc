@@ -8,13 +8,13 @@ import 'prebuilt_release.dart';
 /// The release whose libraries match this package's Rust sources, or null
 /// when none has been published yet.
 const PrebuiltRelease? prebuiltRelease = PrebuiltRelease(
-  tag: 'rust_http-native-89fb6c123572dc7b',
-  fingerprint: '89fb6c123572dc7baea04c86e5810d10a228996f13ade0e4f2180adcb9b914a9',
+  tag: 'rust_http-native-5bb39373f185b1b1',
+  fingerprint: '5bb39373f185b1b1776aad019bea3a15ddf9782b99765d37c5593b4fca469f44',
   sha256ByAsset: {
-      'linux-arm64-librust_http.so': '3f6d35e00648c1573fc8f682670e0e212cdeb266ccf265c0eaeefa295a2d8fff',
-      'linux-x64-librust_http.so': '8ea2475bd50264683dbd97f487d46615d84ecfdede0f7627713f5f26798315cf',
-      'macos-arm64-librust_http.dylib': '695386094f43b4fc3bb2b75f5a182773b47357bea135388b6661ae4a78dbd8a1',
-      'macos-x64-librust_http.dylib': '829e60f414a309210eadb9b978d0ced7fe843c4fd769c18e2fc12f78637c6503',
-      'windows-x64-rust_http.dll': '6c2a28239cb18d3b71b527ffb6d7d1de32e8b719cb7e0d7a39a9680709600dd6',
+      'linux-arm64-librust_http.so': 'b4f15cff41f38f0d9cdb2fafeda200bae68bf3e39c5a2378293bf940e257a263',
+      'linux-x64-librust_http.so': '8dd1e0b03c0484d7be9e8e64798437afe7be3454b94030f2844e09aaa47890ee',
+      'macos-arm64-librust_http.dylib': '98447e0167be9926dae8c42656971505cbd542e50d653e836fc84b3cc737cbfb',
+      'macos-x64-librust_http.dylib': '356881e07acbbca618a18e5cb328e0f6165202d7e3d611d8f44a522be2f4b5ce',
+      'windows-x64-rust_http.dll': '347b03b8243b3193dd89be7f1bf745be096024bd461d806e2cda5732a1707f28',
   },
 );
