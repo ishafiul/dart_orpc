@@ -43,13 +43,16 @@ List<String> fallbackLibraryCandidates({
   final candidates = <String>[
     if (explicit != null && explicit.isNotEmpty) explicit,
   ];
+  // Only macOS and Linux get here, so paths are POSIX whatever the host.
   final directories = <Uri>[
     if (script.isScheme('file')) script.resolve('.'),
-    Uri.file(executable).resolve('.'),
+    Uri.file(executable, windows: false).resolve('.'),
   ];
   for (final directory in directories) {
     for (final relative in ['lib/', '../lib/']) {
-      final path = directory.resolve('$relative$fileName').toFilePath();
+      final path = directory
+          .resolve('$relative$fileName')
+          .toFilePath(windows: false);
       if (!candidates.contains(path)) candidates.add(path);
     }
   }
