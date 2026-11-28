@@ -75,11 +75,38 @@ Apps don't need Rust on the supported platforms above. The build hook
    (<https://rustup.rs>), for other platforms, offline first builds and
    changed sources.
 
-Use `dart run`, `dart test` or `dart build cli`; `dart compile exe` does not
-run build hooks. `dart build cli` bundles the library next to the
-executable, so servers that run the bundle need neither Rust nor network
-access. When the library is missing, `RustHttpServer.bind` throws an
-`UnsupportedError` that says why.
+Use `dart run`, `dart test` or `dart build cli`. `dart build cli` bundles
+the library next to the executable, so servers that run the bundle need
+neither Rust nor network access. When the library is missing,
+`RustHttpServer.bind` throws an `UnsupportedError` that says why.
+
+### `dart compile aot-snapshot` and `dart compile exe`
+
+These commands run no build hooks, so the program does not know where the
+library is. On macOS and Linux, `rust_http` then loads it itself, from the
+first of these that exists:
+
+1. The path in the `RUST_HTTP_LIB` environment variable.
+2. `lib/` or `../lib/` beside the snapshot or executable.
+3. `lib/` or `../lib/` beside the running executable (`dartaotruntime`
+   for a snapshot).
+
+In `lib/`, the library may be named `librust_http.so` (`.dylib` on macOS)
+or carry a target prefix such as `linux-x64-librust_http.so`, as
+`dart build cli` bundles it. One way to get the file is from a
+`dart build cli` bundle for the same target:
+
+```sh
+dart build cli -o build                        # build/bundle/lib/…librust_http.so
+dart compile aot-snapshot bin/server.dart -o build/bundle/bin/server.aot
+dartaotruntime build/bundle/bin/server.aot     # finds ../lib by itself
+
+RUST_HTTP_LIB=/opt/rust_http/librust_http.so dartaotruntime server.aot
+```
+
+The library must match the OS, the CPU and the `rust_http` version: a
+library with another ABI version is refused with an error. Windows is not
+supported here; use `dart build cli` there.
 
 Linux libraries need glibc 2.17 or newer. Windows libraries link the C
 runtime statically.
@@ -139,7 +166,7 @@ cargo +nightly fuzz run parse_head -- -max_total_time=60
   parsing, body reading, rendering), `connection.rs`, `event_loop.rs`,
   `server.rs` (idle helper thread), `websocket.rs`, `compress.rs`,
   `listener.rs`, `ffi.rs` (the only C ABI).
-- `lib/src/` — `ffi/` (bindings and loading), `engine/` (the `HttpEngine`
+- `lib/src/` — `ffi/` (bindings, loading, and the fallback for programs built without hooks), `engine/` (the `HttpEngine`
   interface and its FFI implementation), `protocol/` (the Dart mirror of the
   records), `http/` (server, request, response, headers), `websocket/`,
   `native_build/` (how the build hook finds the library).
