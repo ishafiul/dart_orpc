@@ -1,3 +1,9 @@
+## 0.1.0-dev.6
+
+> Note: This release has breaking changes.
+
+ - **BREAKING** **FEAT**(dart_orpc_lints): Provider roles with @Service/@Repository and layering rules (#127).
+
 ## 0.1.0-dev.5
 
 > Note: This release has breaking changes.

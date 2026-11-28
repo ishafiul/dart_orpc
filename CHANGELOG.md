@@ -3,6 +3,57 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-11-28
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`dart_orpc_annotations` - `v0.1.0-dev.6`](#dart_orpc_annotations---v010-dev6)
+ - [`dart_orpc_http` - `v0.1.0-dev.13`](#dart_orpc_http---v010-dev13)
+ - [`dart_orpc_lints` - `v0.1.0-dev.3`](#dart_orpc_lints---v010-dev3)
+ - [`rust_http` - `v0.1.0-dev.5`](#rust_http---v010-dev5)
+
+Packages with other changes:
+
+ - [`dart_orpc` - `v0.1.0-dev.13`](#dart_orpc---v010-dev13)
+ - [`dart_orpc_generator` - `v0.1.0-dev.14`](#dart_orpc_generator---v010-dev14)
+ - [`dart_orpc_websocket` - `v0.1.0-dev.13`](#dart_orpc_websocket---v010-dev13)
+ - [`dart_orpc_logger` - `v0.1.0-dev.3`](#dart_orpc_logger---v010-dev3)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `dart_orpc` - `v0.1.0-dev.13`
+ - `dart_orpc_generator` - `v0.1.0-dev.14`
+ - `dart_orpc_websocket` - `v0.1.0-dev.13`
+ - `dart_orpc_logger` - `v0.1.0-dev.3`
+
+---
+
+#### `dart_orpc_annotations` - `v0.1.0-dev.6`
+
+ - **BREAKING** **FEAT**(dart_orpc_lints): Provider roles with @Service/@Repository and layering rules (#127).
+
+#### `dart_orpc_http` - `v0.1.0-dev.13`
+
+ - **BREAKING** **FEAT**: Serve on Unix domain sockets (rust_http, dart_orpc_http) (#129).
+
+#### `dart_orpc_lints` - `v0.1.0-dev.3`
+
+ - **FEAT**(dart_orpc_lints): Depend on strict_dart_lints at runtime, and document the new features (#126).
+ - **BREAKING** **FEAT**(dart_orpc_lints): Provider roles with @Service/@Repository and layering rules (#127).
+
+#### `rust_http` - `v0.1.0-dev.5`
+
+ - **FEAT**(rust_http): Use the prebuilt native libraries from rust_http-native-5bb39373f185b1b1 (#130).
+ - **FEAT**(rust_http): Load the native library for programs built without build hooks (#128).
+ - **BREAKING** **FEAT**: Serve on Unix domain sockets (rust_http, dart_orpc_http) (#129).
+
+
 ## 2026-11-19
 
 ### Changes

@@ -1,3 +1,11 @@
+## 0.1.0-dev.5
+
+> Note: This release has breaking changes.
+
+ - **FEAT**(rust_http): Use the prebuilt native libraries from rust_http-native-5bb39373f185b1b1 (#130).
+ - **FEAT**(rust_http): Load the native library for programs built without build hooks (#128).
+ - **BREAKING** **FEAT**: Serve on Unix domain sockets (rust_http, dart_orpc_http) (#129).
+
 ## 0.1.0-dev.4
 
  - **FEAT**(rust_http): Use the prebuilt native libraries from rust_http-native-89fb6c123572dc7b (#119).

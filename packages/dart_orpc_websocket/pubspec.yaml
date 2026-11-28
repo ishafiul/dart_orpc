@@ -1,6 +1,6 @@
 name: dart_orpc_websocket
 description: WebSocket server and VM client transport for dart_orpc.
-version: 0.1.0-dev.12
+version: 0.1.0-dev.13
 repository: https://github.com/ishafiul/dart_orpc/tree/main/packages/dart_orpc_websocket
 issue_tracker: https://github.com/ishafiul/dart_orpc/issues
 resolution: workspace
@@ -11,8 +11,8 @@ environment:
 dependencies:
   dart_orpc_client: ^0.1.0-dev.10
   dart_orpc_core: ^0.1.0-dev.10
-  dart_orpc_http: ^0.1.0-dev.12
-  rust_http: ^0.1.0-dev.4
+  dart_orpc_http: ^0.1.0-dev.13
+  rust_http: ^0.1.0-dev.5
 
 dev_dependencies:
   test: ^1.33.0
