@@ -5,12 +5,12 @@ use std::collections::VecDeque;
 use std::io::{ErrorKind, Read, Write};
 use std::time::{Duration, Instant};
 
-use mio::net::TcpStream;
 use tungstenite::protocol::frame::coding::CloseCode;
 use tungstenite::protocol::{CloseFrame, Role, WebSocketContext};
 use tungstenite::{Message, Utf8Bytes};
 
 use crate::limits::WS_MIN_QUEUE;
+use crate::stream::Stream;
 
 /// The WebSocket of an upgraded connection.
 pub struct WebSocketState {
@@ -72,7 +72,7 @@ impl WebSocketState {
 /// tungstenite never waits on a write: the event loop writes the buffer.
 pub struct SocketIo<'a> {
     /// The socket.
-    pub socket: &'a TcpStream,
+    pub socket: &'a Stream,
     /// The write buffer.
     pub out: &'a mut Vec<u8>,
     /// Bytes it may still read in this turn.

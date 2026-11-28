@@ -12,6 +12,30 @@ native library; until prebuilt libraries are published it builds it with
 Most applications should use the
 [`dart_orpc`](https://pub.dev/packages/dart_orpc) facade package.
 
+## Unix domain sockets
+
+On macOS and Linux, an app can serve a Unix domain socket instead of a
+TCP port, for a reverse proxy or process manager on the same host:
+
+```dart
+final server = await app.listenUnix('/run/my_app.sock');
+
+// or with isolate workers sharing the socket
+final server = await RpcHttpIsolateServer.start(
+  createApp: createApp,
+  port: 0,
+  workers: 4,
+  unixSocketPath: '/run/my_app.sock',
+);
+```
+
+The socket file must not exist yet: remove a stale one left by a crash
+before starting. Closing the server removes it. Observers receive the path
+as the server host and a first `socket` endpoint, `unix:/run/my_app.sock`;
+the other endpoint URLs are what a client requests through the socket,
+such as `http://localhost/rpc`. Try it with
+`curl --unix-socket /run/my_app.sock http://localhost/rpc`.
+
 ## HTTP performance options
 
 Generated `buildRpcApp()` helpers and `RpcHttpApp` accept:

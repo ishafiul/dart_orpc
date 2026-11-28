@@ -109,6 +109,9 @@ final class _RecordingChannel implements AnswerChannel {
   int get localPort => 80;
 
   @override
+  bool get isUnixSocket => false;
+
+  @override
   bool get isOpen => true;
 
   @override

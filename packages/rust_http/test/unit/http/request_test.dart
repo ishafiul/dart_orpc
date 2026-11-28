@@ -88,14 +88,47 @@ void main() {
 
     expect(request.connectionInfo.remoteAddress, InternetAddress.loopbackIPv4);
   });
+
+  test('Unix domain socket peers have no address, like dart:io', () {
+    final record = RequestRecord(
+      id: 1,
+      method: 'GET',
+      target: '/',
+      rawHeaders: Uint8List(0),
+      body: Uint8List(0),
+      remoteIp: Uint8List(16),
+      remotePort: 0,
+      http10: false,
+      isWebSocketUpgrade: false,
+    );
+
+    final request = RustHttpRequest(
+      _NoChannel(unixSocket: true),
+      _NoHost(),
+      record,
+    );
+
+    final info = request.connectionInfo;
+    expect(info.remoteAddress.type, InternetAddressType.unix);
+    expect(info.remoteAddress.address, '');
+    expect(info.remotePort, 0);
+    expect(info.localPort, 0);
+  });
 }
 
 final class _NoChannel implements AnswerChannel {
+  _NoChannel({this.unixSocket = false});
+
+  final bool unixSocket;
+
   @override
   final ResponseHeaders defaultResponseHeaders = ResponseHeaders.empty();
 
   @override
   int get localPort => 80;
+
+  @override
+  bool get isUnixSocket => unixSocket;
 
   @override
   bool get isOpen => false;

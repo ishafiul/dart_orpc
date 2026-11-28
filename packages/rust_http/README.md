@@ -41,6 +41,33 @@ work with `dart:io` requests. Set `socket.pingInterval` to detect peers
 that stop responding. During graceful shutdown, the app controls when
 to close its upgraded sockets.
 
+## Unix domain sockets
+
+On macOS and Linux, pass a Unix domain socket address instead of a port,
+as with `dart:io`:
+
+```dart
+final server = await RustHttpServer.bind(
+  0,
+  address: InternetAddress('/run/app.sock', type: InternetAddressType.unix),
+);
+```
+
+It behaves like `dart:io`, and the same contract tests run against both:
+
+- The socket file must not exist. A file left by a crashed process makes
+  the bind fail, so a process manager should remove it before starting
+  the app.
+- Closing the server removes the file.
+- `server.port` is 0 and `server.address` is the path.
+- Peers have no address: `request.connectionInfo.remoteAddress` is
+  `InternetAddress('', type: InternetAddressType.unix)`, with port 0.
+- With `shared: true` on every bind, servers of one process (e.g. in
+  several isolates) accept from the same socket.
+
+Test it with `curl --unix-socket /run/app.sock http://localhost/`. Windows
+is not supported; there `bind` throws a `SocketException`.
+
 ## Supported platforms
 
 | OS | CPU | Built | Tested in CI |

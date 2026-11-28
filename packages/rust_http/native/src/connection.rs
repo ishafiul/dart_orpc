@@ -9,8 +9,6 @@ use std::collections::VecDeque;
 use std::io::{ErrorKind, Read, Write};
 use std::time::Instant;
 
-use mio::net::TcpStream;
-
 use crate::http::body::{BodyProgress, BodyReader};
 use crate::http::head::{HeadParse, RequestInfo, parse_request};
 use crate::http::render::{AnswerFraming, render_answer};
@@ -20,6 +18,7 @@ use crate::limits::{
 };
 use crate::protocol::request_record::{Peer, RecordHead};
 use crate::protocol::{kinds::InboundKind, outbox::Outbox};
+use crate::stream::Stream;
 use crate::websocket::WebSocketState;
 
 /// How a streamed body is framed and ends.
@@ -87,7 +86,7 @@ pub enum Due {
 /// One client connection.
 pub struct Connection {
     /// The socket.
-    pub socket: TcpStream,
+    pub socket: Stream,
     /// The remote address.
     pub peer: Peer,
     /// Read bytes; `read_pos..read_len` is not parsed yet. Empty while no
@@ -179,7 +178,7 @@ pub fn request_id(index: usize, sequence: u32) -> u64 {
 impl Connection {
     /// A fresh connection accepted at `now`.
     #[must_use]
-    pub fn new(socket: TcpStream, peer: Peer, now: Instant) -> Self {
+    pub fn new(socket: Stream, peer: Peer, now: Instant) -> Self {
         Self {
             socket,
             peer,

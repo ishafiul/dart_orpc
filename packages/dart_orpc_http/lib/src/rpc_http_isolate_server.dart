@@ -23,11 +23,16 @@ final class RpcHttpIsolateServer {
   /// Completes on shutdown; reports unexpected worker exits and cleanup failures.
   Future<void> get done => _done.future;
 
+  /// Starts [workers] isolates that each create an app and serve
+  /// [hostname]:[port] together. With [unixSocketPath], they serve that
+  /// Unix domain socket instead (see [RpcHttpApp.listenUnix]); [port] and
+  /// [hostname] are then ignored.
   static Future<RpcHttpIsolateServer> start({
     required FutureOr<RpcHttpApp> Function() createApp,
     required int port,
     required int workers,
     String hostname = '0.0.0.0',
+    String? unixSocketPath,
     Duration startupTimeout = const Duration(seconds: 30),
     FutureOr<void> Function(RpcHttpApp app)? disposeApp,
   }) async {
@@ -50,6 +55,7 @@ final class RpcHttpIsolateServer {
             disposeApp,
             index == 0 ? hostname : server.address.address,
             index == 0 ? port : server.port,
+            unixSocketPath,
           ),
           index,
           server._workerFailed,
@@ -58,7 +64,9 @@ final class RpcHttpIsolateServer {
         final ready = await worker.ready.timeout(startupTimeout);
         if (index == 0) {
           server.port = ready.port;
-          server.address = InternetAddress(ready.address);
+          server.address = unixSocketPath == null
+              ? InternetAddress(ready.address)
+              : InternetAddress(unixSocketPath, type: InternetAddressType.unix);
         }
         final failure = server._failure;
         if (failure != null)
@@ -225,11 +233,18 @@ final class _HttpWorker {
 }
 
 final class _WorkerStart {
-  const _WorkerStart(this.createApp, this.disposeApp, this.hostname, this.port);
+  const _WorkerStart(
+    this.createApp,
+    this.disposeApp,
+    this.hostname,
+    this.port,
+    this.unixSocketPath,
+  );
   final FutureOr<RpcHttpApp> Function() createApp;
   final FutureOr<void> Function(RpcHttpApp)? disposeApp;
   final String hostname;
   final int port;
+  final String? unixSocketPath;
 }
 
 final class _WorkerReady {
@@ -287,11 +302,14 @@ Future<void> _runWorker(
         (failure) => throw RemoteError(failure.message, failure.stack),
       ),
     ]);
-    server = await app.listen(
-      configuration.port,
-      hostname: configuration.hostname,
-      shared: true,
-    );
+    server = await switch (configuration.unixSocketPath) {
+      final path? => app.listenUnix(path, shared: true),
+      null => app.listen(
+        configuration.port,
+        hostname: configuration.hostname,
+        shared: true,
+      ),
+    };
     events.send(
       _WorkerReady(commands.sendPort, server.port, server.address.address),
     );

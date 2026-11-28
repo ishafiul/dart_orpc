@@ -306,7 +306,20 @@ final class RpcHttpApp {
     int port, {
     String hostname = '0.0.0.0',
     bool shared = false,
-  }) async {
+  }) => _listen(port, hostname, shared);
+
+  /// Serves on the Unix domain socket at [path] instead of a TCP port, for
+  /// a reverse proxy or process manager on the same host (macOS and Linux).
+  ///
+  /// Like `dart:io`, the file must not exist yet (remove a stale one left
+  /// by a crash first), and closing the server removes it. With [shared],
+  /// other shared listeners of this process, such as the workers of an
+  /// [RpcHttpIsolateServer], serve the same path. The server's `port` is 0
+  /// and its `address` is the path.
+  Future<RpcHttpServer> listenUnix(String path, {bool shared = false}) =>
+      _listen(0, InternetAddress(path, type: InternetAddressType.unix), shared);
+
+  Future<RpcHttpServer> _listen(int port, Object address, bool shared) async {
     if (!_requests.isAccepting)
       throw StateError(
         'This app has been shut down. Create another app to listen again.',
@@ -320,7 +333,7 @@ final class RpcHttpApp {
     try {
       final server = await RustHttpServer.bind(
         port,
-        address: hostname,
+        address: address,
         shared: shared,
         streamRequestBodies: true,
         maxBodySize: maxRequestBodyBytes ?? _unlimitedNativeBodyBytes,
@@ -345,9 +358,8 @@ final class RpcHttpApp {
         requests: _requests,
         upgradeHandlers: upgradeHandlers,
         closeProviders: _closeProviders,
-        onStopped: () => _notifyObserver(
-          (observer) => observer.serverStopped(observed),
-        ),
+        onStopped: () =>
+            _notifyObserver((observer) => observer.serverStopped(observed)),
       );
       _server = rpcServer;
       unawaited(_serve(server));
@@ -370,16 +382,27 @@ final class RpcHttpApp {
     }
   }
 
+  /// On a Unix domain socket, [RpcObservedServer.host] is the socket path,
+  /// a first `socket` endpoint is its `unix:` URI, and the other URLs are
+  /// what a client asks for through it (`http://localhost/rpc`). A URL host
+  /// cannot hold the path: hosts are case-insensitive.
   RpcObservedServer _observedServer(InternetAddress address, int port) {
-    final host = address.isLoopback || !_isAnyAddress(address)
+    final unix = address.type == InternetAddressType.unix;
+    final host = unix || address.isLoopback || !_isAnyAddress(address)
         ? address.address
         : InternetAddress.loopbackIPv4.address;
-    Uri url(String scheme, String path) =>
-        Uri(scheme: scheme, host: host, port: port, path: path);
+    Uri url(String scheme, String path) => unix
+        ? Uri(scheme: scheme, host: 'localhost', path: path)
+        : Uri(scheme: scheme, host: host, port: port, path: path);
     return RpcObservedServer(
       host: host,
       port: port,
       endpoints: [
+        if (unix)
+          RpcObservedEndpoint(
+            name: 'socket',
+            url: Uri(scheme: 'unix', path: host),
+          ),
         RpcObservedEndpoint(name: 'rpc', url: url('http', '/rpc')),
         for (final handler in upgradeHandlers)
           if (handler case final RpcHttpEndpointDescriptor described)
